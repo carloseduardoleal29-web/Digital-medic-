@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 320" fill="none">
+  <defs>
+    <linearGradient id="ceBgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#091526" />
+      <stop offset="50%" stop-color="#0E223D" />
+      <stop offset="100%" stop-color="#050B14" />
+    </linearGradient>
+    <linearGradient id="ceMetalGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7DD3FC" />
+      <stop offset="40%" stop-color="#38BDF8" />
+      <stop offset="70%" stop-color="#0284C7" />
+      <stop offset="100%" stop-color="#0369A1" />
+    </linearGradient>
+    <linearGradient id="ceArrowGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0284C7" />
+      <stop offset="50%" stop-color="#38BDF8" />
+      <stop offset="100%" stop-color="#BAE6FD" />
+    </linearGradient>
+    <filter id="ceGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#38BDF8" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <!-- Background Card -->
+  <rect width="600" height="320" rx="24" fill="url(#ceBgGrad)"/>
+
+  <!-- Logo Mark CE with Upward Arrow -->
+  <g transform="translate(300, 75)" filter="url(#ceGlow)">
+    <!-- Stylized 'C' -->
+    <path d="M-65 -35 C-95 -35 -110 -15 -110 10 C-110 35 -95 55 -65 55 C-45 55 -32 45 -25 32 L-42 22 C-46 30 -54 36 -65 36 C-80 36 -90 24 -90 10 C-90 -4 -80 -16 -65 -16 C-54 -16 -46 -10 -42 -2 L-25 -12 C-32 -25 -45 -35 -65 -35 Z" fill="url(#ceMetalGrad)" />
+    
+    <!-- Stylized 'E' -->
+    <path d="M-15 -35 L45 -35 L45 -18 L5 -18 L5 -2 L38 -2 L38 14 L5 14 L5 38 L48 38 L48 55 L-15 55 Z" fill="url(#ceMetalGrad)" opacity="0.85" />
+    
+    <!-- Dynamic Upward Arrow Wave extending from CE -->
+    <path d="M-90 18 Q-30 28 10 -5 Q35 -25 65 -45 L50 -45 L78 -58 L72 -28 L60 -40 Q30 -20 5 -2 Q-35 28 -90 18 Z" fill="url(#ceArrowGrad)" />
+  </g>
+
+  <!-- Main Title: C.E. LEAL -->
+  <text x="300" y="195" text-anchor="middle" font-family="'Montserrat', 'Helvetica Neue', Arial, sans-serif" font-weight="900" font-size="38" fill="#FFFFFF" letter-spacing="4">C.E. LEAL</text>
+
+  <!-- Subtitle: studio -->
+  <text x="300" y="235" text-anchor="middle" font-family="'Montserrat', 'Helvetica Neue', Arial, sans-serif" font-weight="400" font-size="30" fill="#7DD3FC" letter-spacing="3">studio</text>
+
+  <!-- Divider Line -->
+  <line x1="210" y1="252" x2="390" y2="252" stroke="#38BDF8" stroke-width="1.5" opacity="0.6" />
+
+  <!-- Tagline: SOFTWARE & MEDICAL APPS -->
+  <text x="300" y="274" text-anchor="middle" font-family="'Montserrat', 'Helvetica Neue', Arial, sans-serif" font-weight="700" font-size="13" fill="#94A3B8" letter-spacing="3">SOFTWARE &amp; MEDICAL APPS</text>
+
+  <!-- Developer Attribution -->
+  <text x="300" y="298" text-anchor="middle" font-family="'Montserrat', 'Helvetica Neue', Arial, sans-serif" font-weight="800" font-size="12" fill="#F59E0B" letter-spacing="1">Carlos Leal · Desarrollador</text>
+</svg>

@@ -1,0 +1,76 @@
+{
+  "entities": {
+    "Doctor": {
+      "title": "Doctor",
+      "description": "Doctor profile, visual header configuration, credentials, and digital seal/signature",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "doctorName": { "type": "string", "maxLength": 256 },
+        "specialty": { "type": "string", "maxLength": 256 },
+        "email": { "type": "string", "maxLength": 256 },
+        "ci": { "type": "string", "maxLength": 64 },
+        "mpps": { "type": "string", "maxLength": 64 },
+        "collegeNumber": { "type": "string", "maxLength": 64 },
+        "phone": { "type": "string", "maxLength": 64 },
+        "isAdmin": { "type": "boolean" },
+        "isPaidClient": { "type": "boolean" },
+        "paymentStatus": { "type": "string", "maxLength": 32 },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["id", "doctorName"]
+    },
+    "DoctorEcosystem": {
+      "title": "DoctorEcosystem",
+      "description": "Complete user workspace containing doctor config, colleague profiles, patient bank, recipes and reports",
+      "type": "object",
+      "properties": {
+        "identifier": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 256 },
+        "ci": { "type": "string", "maxLength": 64 },
+        "doctorConfig": { "type": "object" },
+        "colleagueProfiles": { "type": "array" },
+        "patientBank": { "type": "array" },
+        "recipes": { "type": "array" },
+        "report": { "type": "object" },
+        "indications": { "type": "object" },
+        "rest": { "type": "object" },
+        "records": { "type": "array" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["identifier", "updatedAt"]
+    },
+    "Document": {
+      "title": "Document",
+      "description": "Saved medical prescription or report document",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "documentType": { "type": "string", "maxLength": 64 },
+        "documentTitle": { "type": "string", "maxLength": 256 },
+        "patientName": { "type": "string", "maxLength": 256 },
+        "patientCI": { "type": "string", "maxLength": 64 },
+        "date": { "type": "string", "maxLength": 32 },
+        "contentBody": { "type": "string", "maxLength": 100000 },
+        "doctorName": { "type": "string", "maxLength": 256 },
+        "timestamp": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["id", "documentType", "patientName"]
+    }
+  },
+  "firestore": {
+    "/doctors/{doctorId}": {
+      "schema": "Doctor",
+      "description": "Collection of registered doctors and colleague configurations"
+    },
+    "/ecosystems/{ecosystemId}": {
+      "schema": "DoctorEcosystem",
+      "description": "Doctor workspace ecosystem sync data"
+    },
+    "/documents/{documentId}": {
+      "schema": "Document",
+      "description": "Saved medical prescriptions, reports, and records"
+    }
+  }
+}

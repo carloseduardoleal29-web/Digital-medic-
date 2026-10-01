@@ -1,0 +1,23 @@
+{
+  "pagoMovil": {
+    "banco": "",
+    "telefono": "",
+    "cedula": "",
+    "titular": ""
+  },
+  "binance": {
+    "payId": "",
+    "email": "",
+    "nickname": "",
+    "usdtAddress": "",
+    "network": "USDT (TRC-20)"
+  },
+  "zinli": {
+    "email": "",
+    "titular": ""
+  },
+  "adminWhatsapp": "",
+  "tasaBinanceUsd": 0,
+  "tasaFuente": "Binance P2P Venezuela",
+  "tasaUltimaActualizacion": ""
+}

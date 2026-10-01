@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" fill="none">
+  <defs>
+    <linearGradient id="dmNavyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#082846" />
+      <stop offset="100%" stop-color="#0F3860" />
+    </linearGradient>
+    <linearGradient id="dmTealGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00A88F" />
+      <stop offset="100%" stop-color="#008080" />
+    </linearGradient>
+    <linearGradient id="dmGreenWave" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#10B981" />
+      <stop offset="50%" stop-color="#00A88F" />
+      <stop offset="100%" stop-color="#0284C7" />
+    </linearGradient>
+    <filter id="dmDropShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#082846" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+
+  <!-- TOP WORDMARK: DIGITAL MÉDIC -->
+  <g transform="translate(250, 95)" text-anchor="middle" filter="url(#dmDropShadow)">
+    <!-- DIGITAL -->
+    <text x="-95" y="0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-weight="900" font-size="48" fill="#082846" letter-spacing="-1">DIGITAL</text>
+
+    <!-- Green Wave under DIGITAL D -->
+    <path d="M-200 8 C-180 -12, -150 15, -125 0 C-145 12, -175 -5, -200 8 Z" fill="url(#dmGreenWave)" />
+
+    <!-- MÉDIC -->
+    <text x="100" y="0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-weight="900" font-size="48" fill="#082846" letter-spacing="-1">MÉDIC</text>
+
+    <!-- Green Medical Cross inside É -->
+    <g transform="translate(92, -26)">
+      <rect x="-7" y="-7" width="14" height="14" rx="2" fill="#00A88F" />
+      <rect x="-2" y="-12" width="4" height="24" fill="#00A88F" />
+      <rect x="-12" y="-2" width="24" height="4" fill="#00A88F" />
+      <rect x="-2" y="-6" width="4" height="12" fill="#FFFFFF" />
+      <rect x="-6" y="-2" width="12" height="4" fill="#FFFFFF" />
+    </g>
+  </g>
+
+  <!-- MIDDLE ICONS (TABLET & DOCTOR LAB COAT) -->
+  <g transform="translate(68, 150)" filter="url(#dmDropShadow)">
+    <!-- LEFT ICON: TABLET WITH CLOUD DOCUMENT -->
+    <g transform="translate(0, 0)">
+      <!-- Outer Tablet Frame -->
+      <rect x="0" y="0" width="180" height="180" rx="28" fill="#082846" />
+      <!-- Inner Screen -->
+      <rect x="18" y="18" width="144" height="144" rx="16" fill="#F0F4F8" />
+      <!-- Left & Right Camera / Home indicators -->
+      <circle cx="10" cy="90" r="3" fill="#FFFFFF" opacity="0.8" />
+      <circle cx="170" cy="90" r="4" fill="#FFFFFF" opacity="0.8" />
+
+      <!-- Document Page -->
+      <rect x="42" y="38" width="70" height="96" rx="8" fill="#FFFFFF" stroke="#00A88F" stroke-width="3" />
+      <!-- Document Content Lines -->
+      <line x1="54" y1="56" x2="84" y2="56" stroke="#00A88F" stroke-width="4" stroke-linecap="round" />
+      <line x1="54" y1="68" x2="98" y2="68" stroke="#00A88F" stroke-width="4" stroke-linecap="round" />
+      <line x1="54" y1="80" x2="98" y2="80" stroke="#00A88F" stroke-width="4" stroke-linecap="round" />
+      <line x1="54" y1="92" x2="90" y2="92" stroke="#00A88F" stroke-width="4" stroke-linecap="round" />
+      <line x1="54" y1="104" x2="78" y2="104" stroke="#00A88F" stroke-width="4" stroke-linecap="round" />
+
+      <!-- Cloud at Top Right -->
+      <path d="M110 52 C110 44, 118 38, 126 40 C130 34, 140 34, 144 40 C150 40, 154 46, 152 52 C156 56, 154 64, 148 64 L114 64 C108 64, 106 58, 110 52 Z" fill="#0284C7" />
+      <!-- Curved Download Arrow into Document -->
+      <path d="M132 58 L132 82 M132 82 L120 72 M132 82 L144 72" stroke="#082846" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+    </g>
+
+    <!-- RIGHT ICON: DOCTOR LAB COAT WITH STETHOSCOPE -->
+    <g transform="translate(195, 0)">
+      <!-- Lab Coat Container Frame -->
+      <rect x="0" y="0" width="170" height="180" rx="28" fill="#082846" />
+      <!-- Coat Body White -->
+      <path d="M20 20 L150 20 C155 20 160 25 160 30 L160 160 C160 170 150 176 140 176 L30 176 C20 176 10 170 10 160 L10 30 C10 25 15 20 20 20 Z" fill="#FFFFFF" />
+
+      <!-- Inner Shirt/Tie dark navy area -->
+      <path d="M60 20 L110 20 L100 85 L85 100 L70 85 Z" fill="#082846" />
+
+      <!-- Lapels / Collar Outlines -->
+      <path d="M20 20 L65 85 L65 176" stroke="#082846" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+      <path d="M150 20 L105 85 L105 176" stroke="#082846" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+
+      <!-- Pocket on coat right -->
+      <rect x="115" y="120" width="30" height="35" rx="4" fill="#F0F4F8" stroke="#082846" stroke-width="3" />
+
+      <!-- Stethoscope draped around neck -->
+      <!-- Stethoscope Tubing -->
+      <path d="M42 45 C35 75, 45 120, 75 130 C90 135, 100 120, 100 100" stroke="#00A88F" stroke-width="6" stroke-linecap="round" fill="none" />
+      <!-- Earpieces -->
+      <path d="M48 30 L42 45 M78 30 L74 42" stroke="#082846" stroke-width="4" stroke-linecap="round" />
+      <!-- Chestpiece / Bell -->
+      <circle cx="100" cy="98" r="10" fill="#00A88F" stroke="#082846" stroke-width="3" />
+      <circle cx="100" cy="98" r="4" fill="#FFFFFF" />
+    </g>
+  </g>
+
+  <!-- BOTTOM TEXT: "formatos médicos digitales" -->
+  <g transform="translate(250, 390)" text-anchor="middle" filter="url(#dmDropShadow)">
+    <text x="0" y="0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-weight="800" font-size="34" fill="#00838F" letter-spacing="0">formatos médicos</text>
+    <text x="0" y="42" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-weight="800" font-size="36" fill="#00838F" letter-spacing="0">digitales</text>
+  </g>
+</svg>
