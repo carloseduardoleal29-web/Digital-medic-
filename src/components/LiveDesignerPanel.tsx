@@ -1241,7 +1241,7 @@ export const LiveDesignerPanel: React.FC<LiveDesignerPanelProps> = ({
                 type="text"
                 value={config.specialty}
                 onChange={(e) => onUpdateConfig({ specialty: e.target.value })}
-                placeholder="Ej: Especialista en Anestesiología y Reanimación"
+                placeholder="Ej: Médico Cirujano / Pediatra / Traumatólogo"
                 className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:ring-2 focus:ring-blue-500 outline-none text-xs"
               />
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">

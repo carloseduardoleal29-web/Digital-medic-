@@ -7,6 +7,7 @@
  */
 
 export const SESSION_STORAGE_KEY = 'digital_medic_active_doctor_session';
+export const DEFAULT_MASTER_SESSION_ID = 'carloseduardoleal29@gmail.com';
 
 /**
  * Detecta si la aplicación se está ejecutando como APK de Android o PWA instalada
@@ -37,22 +38,28 @@ export function isApkOrStandaloneEnvironment(): boolean {
  * Obtiene el ID de la sesión médica activa:
  * Lee de localStorage (o sessionStorage como respaldo) para mantener la sesión
  * activa entre reaperturas de la app o recargas del navegador.
+ * Si es la primera apertura en una PC o teléfono, auto-conecta con la cuenta del Dr. Carlos E. Leal
+ * para que el cintillo, sello y récipes estén siempre 100% sincronizados.
  */
 export function getStoredDoctorSessionId(): string | null {
-  if (typeof window === 'undefined') return null;
+  if (typeof window === 'undefined') return DEFAULT_MASTER_SESSION_ID;
 
   try {
     const localStored = localStorage.getItem(SESSION_STORAGE_KEY);
-    if (localStored) return localStored;
+    if (localStored && localStored !== 'guest') return localStored;
 
     const sessionStored = sessionStorage.getItem(SESSION_STORAGE_KEY);
-    if (sessionStored) {
-      // Sincronizar hacia localStorage para que persista
+    if (sessionStored && sessionStored !== 'guest') {
       localStorage.setItem(SESSION_STORAGE_KEY, sessionStored);
       return sessionStored;
     }
   } catch (e) {}
-  return null;
+
+  // Auto-connect to master doctor session so all devices stay in sync
+  try {
+    localStorage.setItem(SESSION_STORAGE_KEY, DEFAULT_MASTER_SESSION_ID);
+  } catch (e) {}
+  return DEFAULT_MASTER_SESSION_ID;
 }
 
 /**

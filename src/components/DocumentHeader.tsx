@@ -234,22 +234,29 @@ export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
         </div>
 
         {/* Cajón 3: Especialidad Médica */}
-        <div
-          contentEditable={editableInline}
-          suppressContentEditableWarning
-          onBlur={(e) => onUpdateField?.('specialty', e.currentTarget.innerText)}
-          className={`font-semibold transition-colors leading-tight outline-none cursor-text ${
-            compact ? 'mt-0.5' : 'mt-1'
-          } ${editableInline ? 'hover:bg-blue-50/70 hover:ring-1 hover:ring-blue-300 rounded px-1' : ''}`}
-          style={{
-            color: config.specialtyColor || config.headerColor,
-            fontFamily: config.fuenteSpecialty || config.fuenteHeader,
-            fontSize: config.specialtySize ? (compact ? `calc(${config.specialtySize} * ${scaleCompact})` : config.specialtySize) : (compact ? '10px' : '12px'),
-          }}
-          title="Haga clic para editar Especialidad Médica"
-        >
-          {config.specialty || (editableInline ? 'Especialista en [Especialidad]' : '')}
-        </div>
+        {(() => {
+          const rawSpecialty = (config.specialty || '').trim();
+          const cleanSpecialty = rawSpecialty === 'Administración del Sistema' ? '' : rawSpecialty;
+          if (!cleanSpecialty && !editableInline) return null;
+          return (
+            <div
+              contentEditable={editableInline}
+              suppressContentEditableWarning
+              onBlur={(e) => onUpdateField?.('specialty', e.currentTarget.innerText)}
+              className={`font-semibold transition-colors leading-tight outline-none cursor-text ${
+                compact ? 'mt-0.5' : 'mt-1'
+              } ${editableInline ? 'hover:bg-blue-50/70 hover:ring-1 hover:ring-blue-300 rounded px-1' : ''}`}
+              style={{
+                color: config.specialtyColor || config.headerColor,
+                fontFamily: config.fuenteSpecialty || config.fuenteHeader,
+                fontSize: config.specialtySize ? (compact ? `calc(${config.specialtySize} * ${scaleCompact})` : config.specialtySize) : (compact ? '10px' : '12px'),
+              }}
+              title="Haga clic para editar Especialidad Médica"
+            >
+              {cleanSpecialty || (editableInline ? 'Especialista en [Especialidad]' : '')}
+            </div>
+          );
+        })()}
 
         {/* Cajón 4: Credenciales Legales (MPPS, C.I., Colegio) */}
         <div

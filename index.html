@@ -7,6 +7,13 @@
     <meta property="og:title" content="Digital Medic" />
     <meta property="og:description" content="Plataforma médica digitalizada para edición en tiempo real de récipes, informes médicos, historias clínicas e indicaciones." />
     <title>Digital Medic</title>
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(regs) {
+          for (var r of regs) { r.update(); }
+        });
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

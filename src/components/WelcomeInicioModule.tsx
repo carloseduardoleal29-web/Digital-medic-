@@ -927,6 +927,82 @@ export const WelcomeInicioModule: React.FC<WelcomeInicioModuleProps> = ({
             </div>
           )}
 
+          {/* 7. PAGOS, SUSCRIPCIÓN Y TASA BINANCE */}
+          <div 
+            onClick={() => onNavigate('suscripcion')}
+            className="bg-white rounded-3xl border border-slate-200/90 hover:border-emerald-500/70 hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-300 cursor-pointer group flex flex-col justify-between overflow-hidden transform hover:-translate-y-1 shadow-md"
+          >
+            {/* STYLIZED MODERN HERO IMAGE BANNER */}
+            <div className="relative h-40 w-full bg-gradient-to-br from-emerald-600 via-teal-700 to-slate-900 overflow-hidden flex items-center justify-center p-4">
+              <div className="absolute -top-10 -right-10 w-36 h-36 bg-emerald-400/25 rounded-full blur-2xl group-hover:scale-125 transition-transform" />
+              <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-teal-500/20 rounded-full blur-xl" />
+
+              {/* Stylized Vector Illustration: Binance & Payment Badge */}
+              <div className="relative z-10 flex items-center justify-center gap-3 transform group-hover:scale-105 transition-all duration-300">
+                <div className="w-24 h-32 bg-white/95 backdrop-blur-md rounded-xl shadow-2xl p-2.5 border border-white/60 flex flex-col justify-between transform -rotate-2 group-hover:rotate-0 transition-transform">
+                  <div className="bg-emerald-600 text-white rounded-lg py-1 px-2 text-center">
+                    <span className="text-[9px] font-black uppercase tracking-wider block">PAGO MÓVIL</span>
+                  </div>
+                  <div className="text-center my-1">
+                    <span className="text-[10px] font-bold text-slate-500">TASA EN VIVO</span>
+                    <span className="text-sm font-black text-emerald-800 leading-tight block">Binance P2P</span>
+                    <span className="text-[9px] font-black text-amber-600 bg-amber-50 px-1 py-0.5 rounded border border-amber-200 mt-1 inline-block">USDT / VES</span>
+                  </div>
+                  <div className="pt-1 border-t border-slate-100 flex items-center justify-between">
+                    <span className="text-[8px] text-slate-500 font-semibold">Bs · USDT · Zinli</span>
+                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <div className="px-3 py-1.5 bg-white/20 backdrop-blur-md border border-white/40 rounded-xl shadow-lg flex items-center gap-1.5 text-white">
+                    <CreditCard className="w-3.5 h-3.5 text-emerald-300" />
+                    <span className="text-[11px] font-bold">Cobros</span>
+                  </div>
+                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-400 to-yellow-500 flex items-center justify-center text-slate-950 font-black shadow-lg shadow-amber-500/30 transform rotate-6 group-hover:rotate-12 transition-transform text-xs">
+                    ₿
+                  </div>
+                </div>
+              </div>
+
+              <div className="absolute top-3 left-3 z-20">
+                <span className="px-2.5 py-1 bg-slate-950/80 backdrop-blur-md text-emerald-300 text-[10px] font-black uppercase tracking-wider rounded-lg shadow-xs border border-emerald-500/30 flex items-center gap-1">
+                  <span>●</span> <span>Pagos & Suscripción</span>
+                </span>
+              </div>
+            </div>
+
+            {/* CARD BODY */}
+            <div className="p-5 sm:p-6 space-y-3 flex-1 flex flex-col justify-between">
+              <div>
+                <h3 className="font-black text-slate-900 text-lg group-hover:text-emerald-600 transition-colors flex items-center justify-between">
+                  <span>Pagos y Tasa Binance</span>
+                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                    Bs · USDT · Zinli
+                  </span>
+                </h3>
+                <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
+                  Consulte la <strong>Tasa Binance P2P del día</strong>, planes de membresía, datos de Pago Móvil en Bolívares y Binance Pay.
+                </p>
+              </div>
+
+              <div className="pt-3.5 border-t border-slate-100 flex items-center justify-between gap-2">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onNavigate('suscripcion');
+                  }}
+                  className="w-full py-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-black rounded-xl text-xs flex items-center justify-center gap-2 transition-all shadow-sm hover:scale-[1.02] active:scale-95 cursor-pointer"
+                >
+                  <CreditCard className="w-4 h-4 text-emerald-200" />
+                  <span>Ver Planes, Cuentas y Tasa Binance</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
 

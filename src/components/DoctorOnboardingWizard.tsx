@@ -672,7 +672,7 @@ export const DoctorOnboardingWizard: React.FC<DoctorOnboardingWizardProps> = ({
         id: 'doc-admin-master',
         profileName: 'Administrador Master',
         doctorName: 'Administrador Master',
-        specialty: 'Administración del Sistema',
+        specialty: '',
         mpps: '00000',
         ci: 'V-00000000',
         collegeNumber: 'CMD-00000',

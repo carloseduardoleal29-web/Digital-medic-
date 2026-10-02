@@ -273,6 +273,16 @@ export const SaveAndShareSuccessModal: React.FC<SaveAndShareSuccessModalProps> =
     }
   }, [isOpen, record]);
 
+  // Close on Escape key
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   // Generate and Upload PDF in the background
   React.useEffect(() => {
     if (!isOpen || !record) return;
@@ -581,7 +591,12 @@ export const SaveAndShareSuccessModal: React.FC<SaveAndShareSuccessModalProps> =
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-sm overflow-y-auto animate-in fade-in duration-200">
+    <div 
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-sm overflow-y-auto animate-in fade-in duration-200"
+    >
       <div className="bg-white border border-slate-200 rounded-3xl max-w-xl w-full text-slate-800 shadow-2xl relative my-auto max-h-[94vh] flex flex-col overflow-hidden">
         
         {/* Top Header Banner */}

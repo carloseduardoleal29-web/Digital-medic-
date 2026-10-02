@@ -1,7 +1,6 @@
 // Digital Médic Official Service Worker
-const CACHE_NAME = 'digital-medic-pwa-v1';
+const CACHE_NAME = 'digital-medic-pwa-v3';
 const ASSETS_TO_CACHE = [
-  '/',
   '/manifest.json',
   '/pwa-192x192.png',
   '/pwa-512x512.png',
@@ -44,27 +43,16 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
   // Bypass API routes and WebSocket connections
-  if (url.pathname.startsWith('/api') || url.pathname.startsWith('/ws')) {
+  if (url.pathname.startsWith('/api') || url.pathname.startsWith('/ws') || url.pathname.startsWith('/pdf')) {
     return;
   }
 
+  // Network-First for ALL requests so changes are instantly reflected on PC and Phone
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        // Return cached and refresh in background
-        fetch(event.request).then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, networkResponse));
-          }
-        }).catch(() => {});
-        return cachedResponse;
-      }
-      return fetch(event.request).catch(() => {
-        // Fallback for navigation requests
-        if (event.request.mode === 'navigate') {
-          return caches.match('/');
-        }
-      });
-    })
+    fetch(event.request)
+      .then((networkResponse) => {
+        return networkResponse;
+      })
+      .catch(() => caches.match(event.request))
   );
 });

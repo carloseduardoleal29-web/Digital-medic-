@@ -99,7 +99,7 @@ export default function App() {
       id: 'doc-admin-master',
       profileName: 'Administrador Master',
       doctorName: '',
-      specialty: 'Administración del Sistema',
+      specialty: '',
       mpps: '',
       ci: '',
       collegeNumber: '',
@@ -1224,6 +1224,7 @@ export default function App() {
       const searchParams = new URLSearchParams(window.location.search);
       const docId = searchParams.get('doc');
       if (docId) {
+        window.history.replaceState(null, '', window.location.pathname);
         fetch(`/api/documents/${docId}`)
           .then(res => res.json())
           .then(data => {
@@ -2735,6 +2736,19 @@ export default function App() {
                     <span>🎨 Estudio de Diseño {config.isAdmin ? '(ADMIN)' : '(VIP)'}</span>
                   </button>
                 )}
+
+                <button
+                  onClick={() => handleNavigate('suscripcion')}
+                  className={`px-2.5 py-1 rounded-lg font-black text-[11px] transition-all cursor-pointer flex items-center gap-1 shrink-0 ${
+                    activeModule === 'suscripcion'
+                      ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-xs ring-1 ring-emerald-400'
+                      : 'bg-gradient-to-r from-emerald-50 to-teal-50 hover:from-emerald-100 hover:to-teal-100 text-emerald-950 border border-emerald-300/80 shadow-2xs'
+                  }`}
+                  title="Planes de Suscripción, Pagos Móvil, Zinli y Tasa Binance P2P"
+                >
+                  <CreditCard className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>💳 Pagos y Binance</span>
+                </button>
 
                 {/* Botón Rojo: Dejar en Blanco el Formato Activo */}
                 {activeModule !== 'diseno' && activeModule !== 'suscripcion' && (
