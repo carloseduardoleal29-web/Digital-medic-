@@ -115,7 +115,7 @@ export const EmailShareModal: React.FC<EmailShareModalProps> = ({
     }
 
     return `Estimado(a) ${patientName || 'Paciente'},\n\n` +
-      `Le adjuntamos el documento médico emitido por Dr(a). ${config.doctorName} (${config.specialty || 'Médico Cirujano'}).\n\n` +
+      `Le adjuntamos el documento médico oficial en formato PDF emitido por Dr(a). ${config.doctorName} (${config.specialty || 'Médico Cirujano'}).\n\n` +
       `DOCUMENTO: ${docTypeHeader}\n` +
       `MÉDICO TRATANTE: Dr(a). ${config.doctorName}\n` +
       `MPPS: ${config.mpps || '00.000'} · C.I.: ${config.ci || 'V-00.000.000'}\n` +
@@ -123,13 +123,8 @@ export const EmailShareModal: React.FC<EmailShareModalProps> = ({
       `FECHA DE EMISIÓN: ${new Intl.DateTimeFormat('es-ES').format(new Date())}\n` +
       (documentTitle ? `ASUNTO / DIAGNÓSTICO: ${documentTitle}\n` : '') +
       `\n` +
-      `------------------------------------------\n` +
-      `DETALLE DEL DOCUMENTO Y PRESCRIPCIÓN:\n` +
-      `------------------------------------------\n` +
-      `${(contentBody || '').trim()}\n` +
-      `------------------------------------------\n\n` +
       pdfLine +
-      `📄 DOCUMENTO PDF OFICIAL: Le enviamos adjunto su archivo PDF oficial emitido con membrete, firma y sello médico con plena validez para su presentación en farmacias y centros de salud.\n\n` +
+      `📄 DOCUMENTO PDF OFICIAL ADJUNTO: Le enviamos adjunto su archivo PDF oficial emitido con membrete, firma y sello médico con plena validez para su presentación en farmacias y centros de salud.\n\n` +
       `Siga rigurosamente las indicaciones pautadas por su médico.\n\n` +
       `Atentamente,\n` +
       `Dr(a). ${config.doctorName}\n` +

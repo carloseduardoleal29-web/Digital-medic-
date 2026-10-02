@@ -420,13 +420,23 @@ export default function App() {
   };
 
   const handleUpdateDoctor = async (updatedDoc: DoctorConfig) => {
+    let updatedList: DoctorConfig[] = [];
     setColleagueProfiles((prev) => {
       const next = prev.map((p) => (p.id === updatedDoc.id ? updatedDoc : p));
       localStorage.setItem('digital_medic_colleagues_v2', JSON.stringify(next));
+      updatedList = next;
       return next;
     });
 
     await saveSingleDoctorToCloud(updatedDoc);
+
+    const activeSession = getStoredDoctorSessionId();
+    if (activeSession) {
+      await saveEcosystemToCloud({
+        identifier: activeSession,
+        colleagueProfiles: updatedList,
+      });
+    }
     showToast(`✓ Datos, fotos y logos actualizados para ${updatedDoc.doctorName}`);
   };
 
@@ -819,7 +829,7 @@ export default function App() {
       }
     } catch (_) {}
 
-    const targetUser = config.email || getStoredDoctorSessionId() || 'admin@digitalmedic.com';
+    const activeSessionId = getStoredDoctorSessionId();
 
     // Fetch complete doctors catalog from cloud on every startup
     fetchDoctorsFromCloud().then((cloudDocs) => {
@@ -861,22 +871,28 @@ export default function App() {
       }
     });
 
-    fetchEcosystemFromCloud(targetUser).then((cloudEco) => {
-      if (cloudEco && (cloudEco.patientBank?.length || cloudEco.recipes?.length || cloudEco.doctorConfig?.firmaImg || cloudEco.doctorConfig?.selloImg)) {
-        syncWithCloudEcosystem(targetUser);
-      } else if (hasLocalCustomData) {
-        // This device (e.g. mobile phone) has local custom work from yesterday: Auto-upload to cloud!
-        const localData = exportAllLocalData(activeColleagueId);
-        saveEcosystemToCloud(localData).then(() => {
+    if (activeSessionId) {
+      const targetUser = activeSessionId;
+      fetchEcosystemFromCloud(targetUser).then((cloudEco) => {
+        if (cloudEco && (cloudEco.patientBank?.length || cloudEco.recipes?.length || cloudEco.doctorConfig?.firmaImg || cloudEco.doctorConfig?.selloImg)) {
+          syncWithCloudEcosystem(targetUser);
+        } else if (hasLocalCustomData) {
+          // This device (e.g. mobile phone) has local custom work from yesterday: Auto-upload to cloud!
+          const localData = exportAllLocalData(activeColleagueId);
+          saveEcosystemToCloud(localData).then(() => {
+            loadedEcosystemUserRef.current = targetUser;
+          });
+        } else if (cloudEco) {
+          syncWithCloudEcosystem(targetUser);
+        } else {
+          // No cloud ecosystem and no custom local data, mark as loaded/initialized as empty
           loadedEcosystemUserRef.current = targetUser;
-        });
-      } else if (cloudEco) {
-        syncWithCloudEcosystem(targetUser);
-      } else {
-        // No cloud ecosystem and no custom local data, mark as loaded/initialized as empty
-        loadedEcosystemUserRef.current = targetUser;
-      }
-    });
+        }
+      });
+    } else {
+      // No active session: Do NOT fetch default 'admin@digitalmedic.com' ecosystem to avoid overwriting state
+      loadedEcosystemUserRef.current = 'guest';
+    }
   }, []);
 
   // Continuous Background Auto-Sync to Cloud Database (2500ms debounce)
@@ -2346,10 +2362,18 @@ export default function App() {
             }
           }}
           onDeleteDoctor={async (docId) => {
-            const next = colleagueProfiles.filter((p) => p.id !== docId);
-            setColleagueProfiles(next);
-            localStorage.setItem('digital_medic_colleagues_v2', JSON.stringify(next));
+            let nextList: DoctorConfig[] = [];
+            setColleagueProfiles((prev) => {
+              nextList = prev.filter((p) => p.id !== docId);
+              localStorage.setItem('digital_medic_colleagues_v2', JSON.stringify(nextList));
+              return nextList;
+            });
             await deleteDoctorFromCloud(docId);
+            const activeSession = getStoredDoctorSessionId() || 'carloseduardoleal29@gmail.com';
+            await saveEcosystemToCloud({
+              identifier: activeSession,
+              colleagueProfiles: nextList,
+            });
             showToast('✓ Médico eliminado con éxito');
           }}
           onResetAllData={async () => {
@@ -2361,13 +2385,19 @@ export default function App() {
           }}
           onUpdateDoctor={handleUpdateDoctor}
           onAddNewDoctor={async (newDoctor) => {
+            let nextList: DoctorConfig[] = [];
             setColleagueProfiles((prev) => {
               const filtered = prev.filter(p => p.id !== newDoctor.id && p.ci !== newDoctor.ci);
-              const next = [newDoctor, ...filtered];
-              localStorage.setItem('digital_medic_colleagues_v2', JSON.stringify(next));
-              return next;
+              nextList = [newDoctor, ...filtered];
+              localStorage.setItem('digital_medic_colleagues_v2', JSON.stringify(nextList));
+              return nextList;
             });
             await saveSingleDoctorToCloud(newDoctor);
+            const activeSession = getStoredDoctorSessionId() || 'carloseduardoleal29@gmail.com';
+            await saveEcosystemToCloud({
+              identifier: activeSession,
+              colleagueProfiles: nextList,
+            });
             showToast(`✓ Dr(a). ${newDoctor.doctorName} dado de alta y guardado en la nube`);
           }}
         />
@@ -3440,9 +3470,18 @@ export default function App() {
           }
         }}
         onDeleteDoctor={async (docId) => {
-          setColleagueProfiles((prev) => prev.filter((p) => p.id !== docId));
-          localStorage.setItem('digital_medic_colleagues_v2', JSON.stringify(colleagueProfiles.filter((p) => p.id !== docId)));
+          let nextList: DoctorConfig[] = [];
+          setColleagueProfiles((prev) => {
+            nextList = prev.filter((p) => p.id !== docId);
+            localStorage.setItem('digital_medic_colleagues_v2', JSON.stringify(nextList));
+            return nextList;
+          });
           await deleteDoctorFromCloud(docId);
+          const activeSession = getStoredDoctorSessionId() || 'carloseduardoleal29@gmail.com';
+          await saveEcosystemToCloud({
+            identifier: activeSession,
+            colleagueProfiles: nextList,
+          });
           showToast('✓ Médico eliminado de la base de datos');
         }}
         onResetAllData={async () => {
@@ -3454,13 +3493,19 @@ export default function App() {
         }}
         onUpdateDoctor={handleUpdateDoctor}
         onAddNewDoctor={async (newDoctor) => {
+          let nextList: DoctorConfig[] = [];
           setColleagueProfiles((prev) => {
             const filtered = prev.filter(p => p.id !== newDoctor.id && p.ci !== newDoctor.ci);
-            const next = [newDoctor, ...filtered];
-            localStorage.setItem('digital_medic_colleagues_v2', JSON.stringify(next));
-            return next;
+            nextList = [newDoctor, ...filtered];
+            localStorage.setItem('digital_medic_colleagues_v2', JSON.stringify(nextList));
+            return nextList;
           });
           await saveSingleDoctorToCloud(newDoctor);
+          const activeSession = getStoredDoctorSessionId() || 'carloseduardoleal29@gmail.com';
+          await saveEcosystemToCloud({
+            identifier: activeSession,
+            colleagueProfiles: nextList,
+          });
           showToast(`✓ Dr(a). ${newDoctor.doctorName} dado de alta y guardado en la nube`);
         }}
       />

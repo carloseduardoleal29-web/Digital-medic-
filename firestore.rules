@@ -1,36 +1,8 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    // Default deny all unknown collections
     match /{document=**} {
-      allow read, write: if false;
-    }
-
-    // Doctors collection
-    match /doctors/{doctorId} {
-      allow read: if true;
-      allow write: if true;
-    }
-
-    // Ecosystems collection
-    match /ecosystems/{ecosystemId} {
-      allow read: if true;
-      allow write: if true;
-    }
-
-    // Documents collection
-    match /documents/{documentId} {
-      allow read: if true;
-      allow write: if true;
+      allow read, write: if true;
     }
   }
 }

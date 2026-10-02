@@ -229,7 +229,6 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
   // Auto PDF Upload state
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [useShortMessage, setUseShortMessage] = useState(true);
 
   // Synchronize from patientPhone on mount/open
   React.useEffect(() => {
@@ -343,56 +342,23 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
     }
   };
 
-  // Build professional WhatsApp markdown message with full medical prescription and details
+  // Build professional WhatsApp markdown message with direct link to the legal PDF document
   const buildWhatsAppMessage = () => {
     const docName = getDocumentTypeName();
     
-    if (useShortMessage) {
-      let msg = `Estimado(a) *${patientName || 'Paciente'}*,\n\n` +
-        `Le saluda el/la *Dr(a). ${config.doctorName}*.\n\n` +
-        `Aquí tiene su *${docName.toUpperCase()}* digital oficial con firma, sello y plena validez:\n`;
-
-      if (pdfUrl) {
-        msg += `🔗 *VER / DESCARGAR PDF:* ${pdfUrl}\n`;
-      } else if (isUploading) {
-        msg += `⏳ _Generando enlace del PDF..._\n`;
-      } else {
-        msg += `📄 *PDF adjunto en el chat.*\n`;
-      }
-
-      msg += `\n*Indicación:* Cumpla el tratamiento al pie de la letra. ¡Que tenga una pronta y satisfactoria recuperación! ✨`;
-      return msg;
-    }
-
-    const cleanContent = (contentBody || '').trim();
-
     let msg = `Estimado(a) *${patientName || 'Paciente'}*,\n\n` +
-      `Le saluda el/la *Dr(a). ${config.doctorName}* (${config.specialty || 'Médico Cirujano'}).\n\n` +
-      `📌 *${docName.toUpperCase()}*\n`;
-
-    if (documentTitle && documentTitle.trim()) {
-      msg += `*Diagnóstico / Asunto:* ${documentTitle.trim()}\n`;
-    }
-
-    if (cleanContent) {
-      msg += `\n*PRESCRIPCIÓN / INDICACIONES MÉDICAS:*\n` +
-        `----------------------------------------\n` +
-        `${cleanContent}\n` +
-        `----------------------------------------\n`;
-    }
+      `Le saluda el/la *Dr(a). ${config.doctorName}*.\n\n` +
+      `Aquí tiene su *${docName.toUpperCase()}* digital oficial en formato PDF, firmado, sellado y con plena validez legal:\n`;
 
     if (pdfUrl) {
-      msg += `\n🔗 *VER RECETA EN PDF OFICIAL:* ${pdfUrl}\n`;
+      msg += `🔗 *VER / DESCARGAR PDF:* ${pdfUrl}\n`;
+    } else if (isUploading) {
+      msg += `⏳ _Generando enlace seguro del PDF..._\n`;
     } else {
-      msg += `\n📄 *DOCUMENTO OFICIAL EN PDF:* Adjunto en este mensaje su archivo PDF con membrete, firma y sello oficial con plena validez en farmacias y centros asistenciales.\n`;
+      msg += `📄 *PDF adjunto en el chat.*\n`;
     }
 
-    msg += `\n*M.P.P.S:* ${config.mpps || '00.000'} · *C.I:* ${config.ci || 'V-00.000.000'}\n` +
-      (config.collegeNumber ? `*Colegio Médico:* ${config.collegeNumber}\n` : '') +
-      (config.phone ? `*Contacto / Consultas:* ${config.phone}\n` : '') +
-      (config.institution ? `*Institución:* ${config.institution}\n` : '') +
-      `\n*Indicación:* Cumpla el tratamiento rigurosamente. ¡Que tenga una pronta y satisfactoria recuperación! ✨`;
-
+    msg += `\n*Indicación:* Cumpla el tratamiento al pie de la letra. ¡Que tenga una pronta y satisfactoria recuperación! ✨`;
     return msg;
   };
 
@@ -781,36 +747,7 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
               </p>
             </div>
 
-            {/* Formato de Mensaje Toggle */}
-            <div className="space-y-1.5 bg-slate-50 border border-slate-200 rounded-xl p-2.5">
-              <span className="block font-bold text-slate-700 text-[10px] uppercase tracking-wider">
-                Estilo de Mensaje para WhatsApp:
-              </span>
-              <div className="grid grid-cols-2 gap-1.5 p-0.5 bg-slate-200/60 rounded-lg">
-                <button
-                  type="button"
-                  onClick={() => setUseShortMessage(true)}
-                  className={`py-1 text-center font-bold text-[10.5px] rounded-md transition-all cursor-pointer ${
-                    useShortMessage
-                      ? 'bg-emerald-600 text-white shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/40'
-                  }`}
-                >
-                  ✨ Corto con Enlace PDF (Automático)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setUseShortMessage(false)}
-                  className={`py-1 text-center font-bold text-[10.5px] rounded-md transition-all cursor-pointer ${
-                    !useShortMessage
-                      ? 'bg-emerald-600 text-white shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/40'
-                  }`}
-                >
-                  📝 Detallado con Prescripción
-                </button>
-              </div>
-            </div>
+
 
             {isUploading && (
               <div className="bg-blue-50 border border-blue-200 text-blue-900 px-3 py-1.5 rounded-xl flex items-center gap-2 animate-pulse">
