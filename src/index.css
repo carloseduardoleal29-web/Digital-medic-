@@ -5,3 +5,50 @@ body {
   font-family: sans-serif;
   -webkit-font-smoothing: antialiased;
 }
+
+@keyframes marquee {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.cintillo-animado {
+  width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  background: linear-gradient(90deg, #1e3a8a, #0284c7, #6366f1, #9333ea, #0d9488, #1e3a8a);
+  background-size: 300% 300%;
+  animation: gradientShift 10s ease infinite;
+  display: flex;
+  align-items: center;
+  height: 28px;
+  position: relative;
+  z-index: 30;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.cintillo-track {
+  display: inline-flex;
+  white-space: nowrap;
+  animation: marquee 22s linear infinite;
+  will-change: transform;
+}
+
+.cintillo-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+

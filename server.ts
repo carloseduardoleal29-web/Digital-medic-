@@ -106,7 +106,11 @@ function getEcosystemKey(identifier: string) {
 function readUserEcosystemLocal(identifier: string): any | null {
   try {
     if (!identifier) return null;
-    const rawKey = getEcosystemKey(identifier);
+    let resolvedIdent = identifier.toLowerCase().trim();
+    if (resolvedIdent === 'doc-admin-master' || resolvedIdent === 'admin' || resolvedIdent === 'admin@digitalmedic.com') {
+      resolvedIdent = 'carloseduardoleal29@gmail.com';
+    }
+    const rawKey = getEcosystemKey(resolvedIdent);
     const primaryFile = path.join(ECOSYSTEMS_DIR, `${rawKey}.json`);
     if (fs.existsSync(primaryFile)) {
       const data = fs.readFileSync(primaryFile, 'utf-8');
@@ -250,7 +254,11 @@ async function writeDocuments(docs: any[]): Promise<boolean> {
 
 async function readUserEcosystem(identifier: string): Promise<any | null> {
   if (!identifier) return null;
-  const rawKey = getEcosystemKey(identifier);
+  let resolvedIdent = identifier.toLowerCase().trim();
+  if (resolvedIdent === 'doc-admin-master' || resolvedIdent === 'admin' || resolvedIdent === 'admin@digitalmedic.com') {
+    resolvedIdent = 'carloseduardoleal29@gmail.com';
+  }
+  const rawKey = getEcosystemKey(resolvedIdent);
 
   if (firestoreDb && firestoreAvailable) {
     try {
@@ -261,7 +269,7 @@ async function readUserEcosystem(identifier: string): Promise<any | null> {
       }
 
       // Query by email, ci or identifier field
-      const cleanIdent = identifier.toLowerCase().trim();
+      const cleanIdent = resolvedIdent;
       const querySnap = await firestoreDb.collection('ecosystems')
         .where('email', '==', cleanIdent)
         .limit(1)
@@ -275,16 +283,20 @@ async function readUserEcosystem(identifier: string): Promise<any | null> {
     }
   }
 
-  return readUserEcosystemLocal(identifier);
+  return readUserEcosystemLocal(resolvedIdent);
 }
 
 async function writeUserEcosystem(payload: any): Promise<any | null> {
   try {
-    const ident = payload.email || payload.identifier || payload.doctorConfig?.email || payload.doctorConfig?.id || 'default_user';
+    let ident = payload.email || payload.identifier || payload.doctorConfig?.email || payload.doctorConfig?.id || 'default_user';
+    ident = ident.toLowerCase().trim();
+    if (ident === 'doc-admin-master' || ident === 'admin' || ident === 'admin@digitalmedic.com') {
+      ident = 'carloseduardoleal29@gmail.com';
+    }
     const rawKey = getEcosystemKey(ident);
 
-    // Read existing local ecosystem to preserve non-empty assets
-    const existingEco = readUserEcosystemLocal(ident);
+    // Read existing ecosystem from database/cloud to preserve non-empty assets
+    const existingEco = await readUserEcosystem(ident);
     const existingDoc = existingEco?.doctorConfig;
     const incomingDoc = payload.doctorConfig;
 
@@ -564,6 +576,18 @@ app.post('/api/ecosystem/save', async (req, res) => {
 
 // --- Métodos de Cobro y Tasa Binance del Día (Solo Pago Móvil en Bs, Binance USDT y Zinli) ---
 async function readPaymentConfig() {
+  if (firestoreDb && firestoreAvailable) {
+    try {
+      const docRef = firestoreDb.collection('settings').doc('payment_config');
+      const snap = await docRef.get();
+      if (snap.exists) {
+        return snap.data();
+      }
+    } catch (err) {
+      console.warn('[Firestore] Error reading payment config, falling back to disk:', err);
+    }
+  }
+
   try {
     if (fs.existsSync(PAYMENT_CONFIG_FILE)) {
       const data = fs.readFileSync(PAYMENT_CONFIG_FILE, 'utf-8');
@@ -600,11 +624,20 @@ async function readPaymentConfig() {
 async function writePaymentConfig(config: any) {
   try {
     fs.writeFileSync(PAYMENT_CONFIG_FILE, JSON.stringify(config, null, 2), 'utf-8');
-    return true;
   } catch (err) {
     console.error('Error writing payment_config.json:', err);
-    return false;
   }
+
+  if (firestoreDb && firestoreAvailable) {
+    try {
+      const docRef = firestoreDb.collection('settings').doc('payment_config');
+      await docRef.set(config, { merge: true });
+      return true;
+    } catch (err) {
+      console.error('[Firestore] Error writing payment config:', err);
+    }
+  }
+  return true;
 }
 
 app.get('/api/payment-config', async (_req, res) => {
@@ -664,7 +697,25 @@ app.get('/api/binance-rate', async (_req, res) => {
     console.warn('Binance P2P query failed, falling back:', err);
   }
 
-  // 2. Fallback to DolarApi Paralelo (which tracks Binance/Paralelo rates in Venezuela)
+  // 2. Fallback to DolarApi Binance (tracks real-time Binance VES/USDT P2P rate in Venezuela)
+  try {
+    const fallbackRes = await fetch('https://ve.dolarapi.com/v1/dolares/binance');
+    if (fallbackRes.ok) {
+      const fbData = await fallbackRes.json();
+      if (fbData?.promedio) {
+        return res.json({
+          success: true,
+          rate: Math.round(Number(fbData.promedio) * 100) / 100,
+          source: 'Binance Venezuela (DolarApi)',
+          updatedAt: fbData.fechaActualizacion || new Date().toISOString()
+        });
+      }
+    }
+  } catch (err2) {
+    console.warn('DolarApi Binance rate fetch failed, trying paralelo:', err2);
+  }
+
+  // 3. Fallback to DolarApi Paralelo (which tracks Binance/Paralelo rates in Venezuela)
   try {
     const fallbackRes = await fetch('https://ve.dolarapi.com/v1/dolares/paralelo');
     if (fallbackRes.ok) {
@@ -678,40 +729,17 @@ app.get('/api/binance-rate', async (_req, res) => {
         });
       }
     }
-  } catch (err2) {
-    console.warn('Fallback rate fetch failed:', err2);
+  } catch (err3) {
+    console.warn('DolarApi Paralelo rate fetch failed:', err3);
   }
 
-  // 3. Constant fallback
+  // 4. Constant fallback
   return res.json({
     success: true,
     rate: 956.00,
     source: 'Tasa Referencial Binance VES',
     updatedAt: new Date().toISOString()
   });
-});
-
-app.post('/api/pdf/upload', (req, res) => {
-  try {
-    const { pdfBase64, filename } = req.body;
-    if (!pdfBase64) {
-      return res.status(400).json({ success: false, message: 'Missing pdfBase64' });
-    }
-    const cleanBase64 = pdfBase64.replace(/^data:application\/pdf;base64,/, '');
-    const buffer = Buffer.from(cleanBase64, 'base64');
-    
-    // Generate unique name to prevent collisions
-    const uniqueFilename = `${Date.now()}_${filename || 'document.pdf'}`;
-    const targetPath = path.join(PDFS_DIR, uniqueFilename);
-    
-    fs.writeFileSync(targetPath, buffer);
-    const publicUrl = `${req.protocol}://${req.get('host')}/pdf/${uniqueFilename}`;
-    
-    res.json({ success: true, url: publicUrl });
-  } catch (err) {
-    console.error('Error uploading PDF:', err);
-    res.status(500).json({ success: false, message: 'Internal server error uploading PDF' });
-  }
 });
 
 app.post('/api/email/send', async (req, res) => {
@@ -948,6 +976,17 @@ app.delete('/api/doctors/:id', async (req, res) => {
   const { id } = req.params;
   const current = await readDoctors();
   const filtered = current.filter((d: any) => d.id !== id);
+
+  // Explicitly delete from Firestore to prevent deleted doctor from syncing back
+  if (firestoreDb && firestoreAvailable) {
+    try {
+      await firestoreDb.collection('doctors').doc(id).delete();
+      console.log(`[Firestore] Deleted doctor with ID ${id} from database`);
+    } catch (err) {
+      console.error('[Firestore] Error deleting doctor:', err);
+    }
+  }
+
   const ok = await writeDoctors(filtered);
   if (ok) {
     res.json({ success: true, count: filtered.length });

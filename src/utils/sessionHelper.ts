@@ -1,12 +1,9 @@
 /**
- * Gestor de Sesión Médica Segura
+ * Gestor de Sesión Médica Persistente
  * 
- * Regla de negocio estricta (Seguridad y Confidencialidad Médica):
- * - Cada vez que se entra o se abre la app en cualquier dispositivo (teléfono o PC),
- *   se debe solicitar obligatoriamente Correo y Clave para acceder.
- * - La sesión activa se mantiene únicamente en sessionStorage durante el uso continuo.
- * - Al cerrar la app, cerrar la pestaña o abrir la aplicación nuevamente, la sesión
- *   inicia bloqueada para garantizar que nadie pueda ver información médica sin autenticarse.
+ * Permite que el médico mantenga su sesión activa en su dispositivo (teléfono o PC)
+ * sin que se le cierren o borren sus datos cada vez que entra a la aplicación.
+ * Solo se cerrará la sesión cuando el usuario presione explícitamente "Cerrar Sesión".
  */
 
 export const SESSION_STORAGE_KEY = 'digital_medic_active_doctor_session';
@@ -38,33 +35,35 @@ export function isApkOrStandaloneEnvironment(): boolean {
 
 /**
  * Obtiene el ID de la sesión médica activa:
- * Lee EXCLUSIVAMENTE de sessionStorage para que cada vez que se ingrese a la app
- * se deba solicitar correo y clave por seguridad médica.
+ * Lee de localStorage (o sessionStorage como respaldo) para mantener la sesión
+ * activa entre reaperturas de la app o recargas del navegador.
  */
 export function getStoredDoctorSessionId(): string | null {
   if (typeof window === 'undefined') return null;
 
   try {
-    // Limpieza de cualquier sesión persistente anterior en localStorage para forzar login
-    if (localStorage.getItem(SESSION_STORAGE_KEY)) {
-      localStorage.removeItem(SESSION_STORAGE_KEY);
-    }
+    const localStored = localStorage.getItem(SESSION_STORAGE_KEY);
+    if (localStored) return localStored;
+
     const sessionStored = sessionStorage.getItem(SESSION_STORAGE_KEY);
-    if (sessionStored) return sessionStored;
+    if (sessionStored) {
+      // Sincronizar hacia localStorage para que persista
+      localStorage.setItem(SESSION_STORAGE_KEY, sessionStored);
+      return sessionStored;
+    }
   } catch (e) {}
   return null;
 }
 
 /**
- * Guarda la sesión del médico autenticado en sessionStorage durante la sesión activa actual.
+ * Guarda la sesión del médico autenticado de manera persistente en localStorage y sessionStorage.
  */
 export function storeDoctorSessionId(doctorId: string): void {
   if (typeof window === 'undefined' || !doctorId) return;
 
   try {
+    localStorage.setItem(SESSION_STORAGE_KEY, doctorId);
     sessionStorage.setItem(SESSION_STORAGE_KEY, doctorId);
-    // Eliminar de localStorage para que al cerrar el navegador o app en el teléfono, pida credenciales de nuevo
-    localStorage.removeItem(SESSION_STORAGE_KEY);
   } catch (e) {}
 }
 
@@ -80,5 +79,7 @@ export function clearDoctorSessionId(): void {
     sessionStorage.removeItem('digital_medic_vip');
     sessionStorage.removeItem('digital_medic_unlocked_2534');
     sessionStorage.removeItem('digital_medic_master_admin');
+    localStorage.removeItem('digital_medic_vip');
+    localStorage.removeItem('digital_medic_unlocked_2534');
   } catch (e) {}
 }

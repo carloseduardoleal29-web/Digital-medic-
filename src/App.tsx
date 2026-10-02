@@ -25,7 +25,6 @@ import {
   UserCheck, 
   Share2, 
   FolderOpen, 
-  Instagram, 
   Coins, 
   Home, 
   Trash2, 
@@ -49,11 +48,12 @@ import {
 
 import { DEFAULT_DOCTOR_CONFIG, createDoctorStampSVG, createCalligraphicSignatureSVG, DIGITAL_MEDIC_OFFICIAL_LOGO_SVG, MEDICINE_EMBLEM_ESCULAPIO_SVG, CARLOS_LEAL_DEVELOPER_BADGE_SVG, CARLOS_LEAL_DEVELOPER_LOGO_SVG } from './data/defaultAssets';
 import { LiveDesignerPanel } from './components/LiveDesignerPanel';
-import { MasterRecipeView } from './components/MasterRecipeView';
+import { CintilloTopRibbon } from './components/CintilloTopRibbon';
+import MasterRecipeView from './components/MasterRecipeView';
 import { FourInOneRecipeView } from './components/FourInOneRecipeView';
 import { DrugBankFloatingBar } from './components/DrugBankFloatingBar';
 import { ReportsModule } from './components/ReportsModule';
-import { ClinicalHistoryModule } from './components/ClinicalHistoryModule';
+import ClinicalHistoryModule from './components/ClinicalHistoryModule';
 import { IndicationsModule } from './components/IndicationsModule';
 import { MedicalRestModule } from './components/MedicalRestModule';
 import { SignatureCanvasModal } from './components/SignatureCanvasModal';
@@ -62,7 +62,7 @@ import { ShareWithDoctorModal } from './components/ShareWithDoctorModal';
 import { UniversalPreviewModal } from './components/UniversalPreviewModal';
 import { DoctorVaultModal } from './components/DoctorVaultModal';
 import { SubscriptionBillingPanel } from './components/SubscriptionBillingPanel';
-import { DoctorAuthModal } from './components/DoctorAuthModal';
+import DoctorAuthModal from './components/DoctorAuthModal';
 import { DoctorOnboardingWizard } from './components/DoctorOnboardingWizard';
 import { WelcomeInicioModule } from './components/WelcomeInicioModule';
 import { AdminPanelModal } from './components/AdminPanelModal';
@@ -186,22 +186,16 @@ export default function App() {
   };
 
   const isUserLoaded = (ident?: string | null): boolean => {
-    if (!ident) return true;
-    if (!loadedEcosystemUserRef.current) return false;
-    const k1 = normalizeUserKey(ident);
-    const k2 = normalizeUserKey(loadedEcosystemUserRef.current);
-    if (!k1 || !k2) return false;
-    const isMaster1 = k1.includes('carloseduardo') || k1.includes('docadminmaster') || k1 === 'admin';
-    const isMaster2 = k2.includes('carloseduardo') || k2.includes('docadminmaster') || k2 === 'admin';
-    if (isMaster1 && isMaster2) return true;
-    return k1 === k2 || k1.includes(k2) || k2.includes(k1);
+    // True security check: Once a session is established, sync is fully authorized.
+    // Mismatches from user-edited email or CI will never block or delete active profile data.
+    return !!activeDoctorSessionId;
   };
 
   // Current active doctor configuration
   const config = colleagueProfiles.find((p) => p.id === activeColleagueId) || colleagueProfiles[0] || DEFAULT_DOCTOR_CONFIG;
 
   const updateCurrentConfig = (updated: Partial<DoctorConfig>) => {
-    const updatedFull = { ...config, ...updated };
+    const updatedFull = { ...config, ...updated, updatedAt: Date.now() };
     const nextProfiles = colleagueProfiles.map((p) => (p.id === config.id ? updatedFull : p));
 
     setColleagueProfiles(nextProfiles);
@@ -215,6 +209,10 @@ export default function App() {
     // Save ecosystem so changes in Estudio de Diseño (colors, logos, seals, stamps, header) persist immediately in cloud
     const ident = updatedFull.email || updatedFull.ci || updatedFull.id;
     if (ident) {
+      if (!isUserLoaded(ident)) {
+        console.warn('[CloudSync] Delaying cloud save in updateCurrentConfig because ecosystem is not loaded.');
+        return;
+      }
       saveEcosystemToCloud({
         identifier: ident,
         email: updatedFull.email,
@@ -421,23 +419,28 @@ export default function App() {
 
   const handleUpdateDoctor = async (updatedDoc: DoctorConfig) => {
     let updatedList: DoctorConfig[] = [];
+    const docWithTime = { ...updatedDoc, updatedAt: Date.now() };
     setColleagueProfiles((prev) => {
-      const next = prev.map((p) => (p.id === updatedDoc.id ? updatedDoc : p));
+      const next = prev.map((p) => (p.id === docWithTime.id ? docWithTime : p));
       localStorage.setItem('digital_medic_colleagues_v2', JSON.stringify(next));
       updatedList = next;
       return next;
     });
 
-    await saveSingleDoctorToCloud(updatedDoc);
+    await saveSingleDoctorToCloud(docWithTime);
 
     const activeSession = getStoredDoctorSessionId();
     if (activeSession) {
+      if (!isUserLoaded(activeSession)) {
+        console.warn('[CloudSync] Delaying cloud save in handleUpdateDoctor because ecosystem is not loaded.');
+        return;
+      }
       await saveEcosystemToCloud({
         identifier: activeSession,
         colleagueProfiles: updatedList,
       });
     }
-    showToast(`✓ Datos, fotos y logos actualizados para ${updatedDoc.doctorName}`);
+    showToast(`✓ Datos, fotos y logos actualizados para ${docWithTime.doctorName}`);
   };
 
   // 2. Active View Module & Master Lock (PIN 2534)
@@ -731,7 +734,11 @@ export default function App() {
 
   // Download complete ecosystem from cloud and hydrate local state
   const syncWithCloudEcosystem = async (targetIdentifier?: string): Promise<boolean> => {
-    const ident = targetIdentifier || config.email || getStoredDoctorSessionId() || 'admin@digitalmedic.com';
+    let ident = targetIdentifier || config.email || getStoredDoctorSessionId() || 'admin@digitalmedic.com';
+    ident = ident.toLowerCase().trim();
+    if (ident === 'doc-admin-master' || ident === 'admin@digitalmedic.com' || ident === 'admin') {
+      ident = 'carloseduardoleal29@gmail.com';
+    }
     isSyncingFromCloudRef.current = true; // Set IMMEDIATELY to prevent concurrent auto-saves during fetch
     try {
       const cloudEco = await fetchEcosystemFromCloud(ident);
@@ -838,23 +845,40 @@ export default function App() {
           const merged = prev.map((local) => {
             const match = cloudDocs.find(c => c.id === local.id || (c.email && local.email && c.email.toLowerCase() === local.email.toLowerCase()));
             if (!match) return local;
-            return {
-              ...match,
-              ...local,
-              specialty: local.specialty || match.specialty || 'Médico Cirujano',
-              mpps: local.mpps || match.mpps || '',
-              ci: local.ci || match.ci || '',
-              collegeNumber: local.collegeNumber || match.collegeNumber || '',
-              phone: local.phone || match.phone || '',
-              firmaImg: local.firmaImg || match.firmaImg || '',
-              selloImg: local.selloImg || match.selloImg || '',
-              selloFirma: local.selloFirma || match.selloFirma || '',
-              logoIzq: local.logoIzq || match.logoIzq,
-              logoDer: local.logoDer || match.logoDer,
-              marcaAgua: local.marcaAgua || match.marcaAgua,
-              institution: local.institution || match.institution || '',
-              institutionDetails: local.institutionDetails || match.institutionDetails || '',
-            };
+
+            const localTime = local.updatedAt || 0;
+            const cloudTime = match.updatedAt || 0;
+
+            if (cloudTime >= localTime) {
+              return {
+                ...local,
+                ...match,
+                firmaImg: match.firmaImg || local.firmaImg || '',
+                selloImg: match.selloImg || local.selloImg || '',
+                selloFirma: match.selloFirma || local.selloFirma || '',
+                logoIzq: match.logoIzq || local.logoIzq,
+                logoDer: match.logoDer || local.logoDer,
+                marcaAgua: match.marcaAgua || local.marcaAgua,
+              };
+            } else {
+              return {
+                ...match,
+                ...local,
+                specialty: local.specialty || match.specialty || 'Médico Cirujano',
+                mpps: local.mpps || match.mpps || '',
+                ci: local.ci || match.ci || '',
+                collegeNumber: local.collegeNumber || match.collegeNumber || '',
+                phone: local.phone || match.phone || '',
+                firmaImg: local.firmaImg || match.firmaImg || '',
+                selloImg: local.selloImg || match.selloImg || '',
+                selloFirma: local.selloFirma || match.selloFirma || '',
+                logoIzq: local.logoIzq || match.logoIzq,
+                logoDer: local.logoDer || match.logoDer,
+                marcaAgua: local.marcaAgua || match.marcaAgua,
+                institution: local.institution || match.institution || '',
+                institutionDetails: local.institutionDetails || match.institutionDetails || '',
+              };
+            }
           });
 
           for (const c of cloudDocs) {
@@ -872,7 +896,12 @@ export default function App() {
     });
 
     if (activeSessionId) {
-      const targetUser = activeSessionId;
+      let targetUser = activeSessionId.toLowerCase().trim();
+      if (targetUser === 'doc-admin-master' || targetUser === 'admin@digitalmedic.com' || targetUser === 'admin') {
+        targetUser = 'carloseduardoleal29@gmail.com';
+      }
+      // Instantly block background auto-sync during initial loading to prevent empty state overwriting
+      isSyncingFromCloudRef.current = true;
       fetchEcosystemFromCloud(targetUser).then((cloudEco) => {
         if (cloudEco && (cloudEco.patientBank?.length || cloudEco.recipes?.length || cloudEco.doctorConfig?.firmaImg || cloudEco.doctorConfig?.selloImg)) {
           syncWithCloudEcosystem(targetUser);
@@ -881,12 +910,14 @@ export default function App() {
           const localData = exportAllLocalData(activeColleagueId);
           saveEcosystemToCloud(localData).then(() => {
             loadedEcosystemUserRef.current = targetUser;
+            isSyncingFromCloudRef.current = false;
           });
         } else if (cloudEco) {
           syncWithCloudEcosystem(targetUser);
         } else {
           // No cloud ecosystem and no custom local data, mark as loaded/initialized as empty
           loadedEcosystemUserRef.current = targetUser;
+          isSyncingFromCloudRef.current = false;
         }
       });
     } else {
@@ -900,8 +931,12 @@ export default function App() {
   useEffect(() => {
     if (isSyncingFromCloudRef.current) return;
     if (!activeDoctorSessionId) return;
-    const ident = config.email || config.ci || config.id;
+    let ident = config.email || config.ci || config.id;
     if (!ident) return;
+    ident = ident.toLowerCase().trim();
+    if (ident === 'doc-admin-master' || ident === 'admin@digitalmedic.com' || ident === 'admin') {
+      ident = 'carloseduardoleal29@gmail.com';
+    }
 
     // CRITICAL SECURITY CHECK: Prevent auto-save if cloud ecosystem for this user has not been loaded/initialized yet
     if (!isUserLoaded(ident)) {
@@ -933,8 +968,17 @@ export default function App() {
   // Guarda el ecosistema y el banco de pacientes al instante sin esperar el temporizador
   const syncEcosystemImmediate = (customBank?: SavedPatientEntry[], customDoc?: DoctorConfig) => {
     const doc = customDoc || config;
-    const ident = doc.email || doc.ci || doc.id;
+    let ident = doc.email || doc.ci || doc.id;
     if (!ident) return;
+    ident = ident.toLowerCase().trim();
+    if (ident === 'doc-admin-master' || ident === 'admin@digitalmedic.com' || ident === 'admin') {
+      ident = 'carloseduardoleal29@gmail.com';
+    }
+
+    if (!isUserLoaded(ident)) {
+      console.warn('[CloudSync] Delaying syncEcosystemImmediate cloud save because ecosystem is not loaded.');
+      return;
+    }
 
     saveEcosystemToCloud({
       identifier: ident,
@@ -1202,7 +1246,7 @@ export default function App() {
     if (config?.id) {
       await saveSingleDoctorToCloud(config);
       const currentIdent = config.email || config.ci || config.id;
-      if (currentIdent) {
+      if (currentIdent && isUserLoaded(currentIdent)) {
         saveEcosystemToCloud({
           identifier: currentIdent,
           email: config.email,
@@ -2319,11 +2363,7 @@ export default function App() {
     return (
       <div className="min-h-screen bg-[#060c18] font-sans text-slate-100 flex flex-col justify-between">
         {/* Animated Top Ribbon Marquee across the initial screen */}
-        <div className="cintillo-animado no-print">
-          <div className="cintillo-texto">
-            ✦ DIGITAL MEDIC ✦ PLATAFORMA MÉDICA DIGITALIZADA · REGISTRO OFICIAL 2026 · FORMATOS MÉDICOS DE ALTA GAMA · RÉCIPES · INFORMES · HISTORIAS CLÍNICAS ✦
-          </div>
-        </div>
+        <CintilloTopRibbon />
 
         <DoctorOnboardingWizard
           registeredDoctors={colleagueProfiles}
@@ -2370,10 +2410,12 @@ export default function App() {
             });
             await deleteDoctorFromCloud(docId);
             const activeSession = getStoredDoctorSessionId() || 'carloseduardoleal29@gmail.com';
-            await saveEcosystemToCloud({
-              identifier: activeSession,
-              colleagueProfiles: nextList,
-            });
+            if (isUserLoaded(activeSession)) {
+              await saveEcosystemToCloud({
+                identifier: activeSession,
+                colleagueProfiles: nextList,
+              });
+            }
             showToast('✓ Médico eliminado con éxito');
           }}
           onResetAllData={async () => {
@@ -2394,10 +2436,12 @@ export default function App() {
             });
             await saveSingleDoctorToCloud(newDoctor);
             const activeSession = getStoredDoctorSessionId() || 'carloseduardoleal29@gmail.com';
-            await saveEcosystemToCloud({
-              identifier: activeSession,
-              colleagueProfiles: nextList,
-            });
+            if (isUserLoaded(activeSession)) {
+              await saveEcosystemToCloud({
+                identifier: activeSession,
+                colleagueProfiles: nextList,
+              });
+            }
             showToast(`✓ Dr(a). ${newDoctor.doctorName} dado de alta y guardado en la nube`);
           }}
         />
@@ -2409,13 +2453,7 @@ export default function App() {
     <div className={`min-h-screen flex flex-col font-sans ${isPreviewMode ? 'bg-slate-200/60' : 'bg-slate-100 text-slate-900'}`}>
       
       {/* 1. Animated Top Banner (User prototype feature) */}
-      {!isPreviewMode && (
-        <div className="cintillo-animado no-print">
-          <div className="cintillo-texto">
-            ✦ DIGITAL MEDIC ✦ PLATAFORMA MÉDICA DIGITALIZADA · EDICIÓN EN TIEMPO REAL · RÉCIPES · HISTORIAS CLÍNICAS · INFORMES MÉDICOS · INDICACIONES · ENVÍO A WHATSAPP ✦
-          </div>
-        </div>
-      )}
+      {!isPreviewMode && <CintilloTopRibbon />}
 
       {/* Docked Left Edge Button to Toggle Doctor & Clinic Drawer ("Ala Izquierda") */}
       {!isPreviewMode && (
@@ -3478,10 +3516,12 @@ export default function App() {
           });
           await deleteDoctorFromCloud(docId);
           const activeSession = getStoredDoctorSessionId() || 'carloseduardoleal29@gmail.com';
-          await saveEcosystemToCloud({
-            identifier: activeSession,
-            colleagueProfiles: nextList,
-          });
+          if (isUserLoaded(activeSession)) {
+            await saveEcosystemToCloud({
+              identifier: activeSession,
+              colleagueProfiles: nextList,
+            });
+          }
           showToast('✓ Médico eliminado de la base de datos');
         }}
         onResetAllData={async () => {
@@ -3502,10 +3542,12 @@ export default function App() {
           });
           await saveSingleDoctorToCloud(newDoctor);
           const activeSession = getStoredDoctorSessionId() || 'carloseduardoleal29@gmail.com';
-          await saveEcosystemToCloud({
-            identifier: activeSession,
-            colleagueProfiles: nextList,
-          });
+          if (isUserLoaded(activeSession)) {
+            await saveEcosystemToCloud({
+              identifier: activeSession,
+              colleagueProfiles: nextList,
+            });
+          }
           showToast(`✓ Dr(a). ${newDoctor.doctorName} dado de alta y guardado en la nube`);
         }}
       />

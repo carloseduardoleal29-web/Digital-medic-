@@ -45,8 +45,8 @@ export const FourInOneRecipeView: React.FC<FourInOneRecipeViewProps> = ({
   const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
   const [zoomLevel, setZoomLevel] = useState<number>(100);
   
-  // Default to 1 recipe initially on the page as requested by user
   const [visibleCount, setVisibleCount] = useState<number>(1);
+  const [showCutGuides, setShowCutGuides] = useState<boolean>(true);
 
   const activeRecipe = recipes[activeRecipeIndex] || recipes[0];
 
@@ -55,6 +55,15 @@ export const FourInOneRecipeView: React.FC<FourInOneRecipeViewProps> = ({
       const nextCount = visibleCount + 1;
       setVisibleCount(nextCount);
       onSelectActiveRecipe(nextCount - 1);
+    }
+  };
+
+  const handleAddSpecificRecipe = (idx: number) => {
+    if (idx >= visibleCount) {
+      setVisibleCount(idx + 1);
+      onSelectActiveRecipe(idx);
+    } else {
+      onSelectActiveRecipe(idx);
     }
   };
 
@@ -94,7 +103,7 @@ export const FourInOneRecipeView: React.FC<FourInOneRecipeViewProps> = ({
           <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200">
             <span className="font-bold text-slate-700 px-2 flex items-center gap-1 text-[11px]">
               <Layers className="w-3.5 h-3.5 text-blue-600" />
-              <span>Récipes en esta hoja:</span>
+              <span>Récipes en la hoja carta:</span>
             </span>
 
             {[1, 2, 3, 4].map((num) => (
@@ -107,13 +116,20 @@ export const FourInOneRecipeView: React.FC<FourInOneRecipeViewProps> = ({
                     onSelectActiveRecipe(num - 1);
                   }
                 }}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   visibleCount === num
                     ? 'bg-blue-600 text-white shadow-xs scale-105'
-                    : 'text-slate-600 hover:bg-slate-200'
+                    : 'text-slate-600 hover:bg-slate-200 hover:text-slate-900'
                 }`}
+                title={
+                  num === 1 
+                    ? '1 Récipe (Ocupa 1 cuadrante de la hoja carta, ideal para recortar)'
+                    : num === 2
+                    ? '2 Récipes en la misma hoja (Media hoja carta)'
+                    : `${num} Récipes en la misma hoja carta`
+                }
               >
-                {num} {num === 1 ? 'Récipe' : 'Récipes'}
+                {num === 1 ? '1 Récipe' : `${num} Récipes`}
               </button>
             ))}
           </div>
@@ -123,24 +139,37 @@ export const FourInOneRecipeView: React.FC<FourInOneRecipeViewProps> = ({
               type="button"
               onClick={handleAddRecipeBlock}
               disabled={visibleCount >= 4}
-              className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-bold rounded-lg flex items-center gap-1 transition-colors disabled:opacity-40 disabled:pointer-events-none"
-              title="Añadir otro récipe a esta hoja (Hasta máximo 4)"
+              className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-bold rounded-lg flex items-center gap-1 transition-colors disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+              title="Añadir otro récipe a esta hoja carta (Hasta 4 por hoja)"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>Añadir Récipe</span>
+              <span>Añadir</span>
             </button>
 
             {visibleCount > 1 && (
               <button
                 type="button"
                 onClick={handleRemoveRecipeBlock}
-                className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold rounded-lg flex items-center gap-1 transition-colors"
+                className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
                 title="Quitar último récipe de esta hoja"
               >
                 <Minus className="w-3.5 h-3.5" />
                 <span>Quitar</span>
               </button>
             )}
+
+            <button
+              type="button"
+              onClick={() => setShowCutGuides(!showCutGuides)}
+              className={`px-2 py-1 rounded-lg text-[11px] font-bold border transition-colors cursor-pointer flex items-center gap-1 ${
+                showCutGuides 
+                  ? 'bg-blue-50 text-blue-700 border-blue-200' 
+                  : 'bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200'
+              }`}
+              title="Mostrar u ocultar líneas guía de corte con tijera"
+            >
+              <span>✂ Guías de corte</span>
+            </button>
           </div>
         </div>
 
@@ -227,11 +256,11 @@ export const FourInOneRecipeView: React.FC<FourInOneRecipeViewProps> = ({
             <button
               type="button"
               onClick={() => setIsWhatsAppModalOpen(true)}
-              className="px-3.5 py-1.5 bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-600 hover:to-emerald-700 text-white font-black rounded-xl text-xs shadow-sm hover:shadow flex items-center gap-1.5 transform active:scale-95 transition-all cursor-pointer border border-emerald-400/30"
-              title="Enviar por WhatsApp"
+              className="px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black rounded-xl text-xs shadow-sm hover:shadow flex items-center gap-1.5 transform active:scale-95 transition-all cursor-pointer border border-emerald-400/30"
+              title="Enviar automáticamente el récipe oficial en PDF al paciente por WhatsApp o correo"
             >
-              <MessageSquare className="w-3.5 h-3.5 text-teal-100" />
-              <span>WhatsApp 💬</span>
+              <MessageSquare className="w-3.5 h-3.5 text-emerald-100" />
+              <span>⚡ Enviar PDF (WhatsApp)</span>
             </button>
           </div>
 
@@ -281,195 +310,240 @@ export const FourInOneRecipeView: React.FC<FourInOneRecipeViewProps> = ({
       >
         <div
           ref={printableSheetRef}
-          className={`relative w-full shadow-xl p-4 transition-all print-container ${textureClass} ${
-            visibleCount === 1 ? 'max-w-[680px] min-h-[600px]' : 'max-w-[880px] min-h-[1050px]'
-          } ${config.enforcePureBlackText ? 'enforce-pure-black' : ''}`}
+          className={`relative w-full shadow-2xl p-4 transition-all print-container recipe-4en1-container ${textureClass} max-w-[850px] min-h-[1090px] ${
+            config.enforcePureBlackText ? 'enforce-pure-black' : ''
+          }`}
           style={{
             backgroundColor: config.tonePapel || '#ffffff',
             border: borderStyle,
             borderRadius: config.docCornerRadius || '16px',
+            aspectRatio: '8.5 / 11',
           }}
         >
-        {/* Watermark is rendered per recipe card to avoid any doubling */}
-        {/* Dynamic Grid Layout according to visibleCount */}
-        <div
-          className={`relative z-10 grid gap-3.5 h-full ${
-            visibleCount === 1
-              ? 'grid-cols-1'
-              : visibleCount === 2
-              ? 'grid-cols-1 md:grid-cols-2'
-              : 'grid-cols-1 md:grid-cols-2'
-          }`}
-        >
-          {recipes.slice(0, visibleCount).map((rec, idx) => {
-            const isActive = activeRecipeIndex === idx;
-
-            return (
-              <div
-                key={rec.id || idx}
-                onClick={() => onSelectActiveRecipe(idx)}
-                className={`relative rounded-xl p-3.5 flex flex-col justify-between transition-all overflow-hidden bg-white/50 backdrop-blur-[0.5px] cursor-pointer ${
-                  isActive ? 'ring-2 ring-blue-500 shadow-sm' : 'border border-slate-200/90'
-                }`}
-                style={{
-                  borderWidth: '1.5px',
-                  borderColor: isActive ? '#3b82f6' : config.primaryDocColor,
-                  minHeight: visibleCount === 1 ? '520px' : '490px',
-                }}
-              >
-                {/* Single, Tenue Watermark in each recipe (No double watermark) */}
-                {config.marcaAgua && (
-                  <div className="marca-agua pointer-events-none">
-                    <img
-                      src={config.marcaAgua}
-                      alt="Marca de agua"
-                      className="marca-agua-img"
-                      style={{
-                        opacity: Math.min(config.watermarkOpacity ?? 0.05, 0.08),
-                        width: `${Math.min(50, config.watermarkScale || 45)}%`,
-                        transform: `rotate(${config.watermarkRotation || 0}deg)`,
-                      }}
-                    />
-                  </div>
-                )}
-
-                {/* Quadrant Badge (hidden in print) */}
-                <div className="absolute top-1.5 right-2 text-[10px] font-bold text-slate-400 no-print flex items-center gap-1 z-20">
-                  {isActive && <CheckCircle2 className="w-3.5 h-3.5 text-blue-600" />}
-                </div>
-
-                {/* Content */}
-                <div className="relative z-10 flex flex-col justify-between h-full">
-                  {/* Mini Header */}
-                  <div>
-                    <DocumentHeader
-                      config={config}
-                      compact={true}
-                      editableInline={false}
-                    />
-
-                    {/* Patient Info with C.I. and Phone */}
-                    <div className="grid grid-cols-2 gap-x-2 gap-y-1 py-1 px-1.5 rounded-lg bg-transparent border-0 mb-1 text-[11px]">
-                      <div className="flex items-center gap-1">
-                        <span className="font-semibold text-slate-700">Pac:</span>
-                        <input
-                          type="text"
-                          value={rec.patientName}
-                          onChange={(e) => onChangeRecipeItem(idx, { patientName: e.target.value })}
-                          placeholder="Paciente"
-                          className="w-full bg-transparent border-b border-dashed border-slate-300 focus:border-blue-600 outline-none px-0.5 text-slate-900 font-medium"
-                        />
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <span className="font-semibold text-slate-700">C.I:</span>
-                        <input
-                          type="text"
-                          value={rec.patientCI || ''}
-                          onChange={(e) => onChangeRecipeItem(idx, { patientCI: e.target.value })}
-                          placeholder="Cédula"
-                          className="w-full bg-transparent border-b border-dashed border-slate-300 focus:border-blue-600 outline-none px-0.5 text-slate-900 font-medium"
-                        />
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <span className="font-semibold text-slate-700">Tel:</span>
-                        <input
-                          type="text"
-                          value={rec.patientPhone || ''}
-                          onChange={(e) => onChangeRecipeItem(idx, { patientPhone: e.target.value })}
-                          placeholder="Teléfono"
-                          className="w-full bg-transparent border-b border-dashed border-slate-300 focus:border-blue-600 outline-none px-0.5 text-slate-900"
-                        />
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <span className="font-semibold text-slate-700">Edad:</span>
-                        <input
-                          type="text"
-                          value={rec.patientAge}
-                          onChange={(e) => onChangeRecipeItem(idx, { patientAge: e.target.value })}
-                          placeholder="Edad"
-                          className="w-full bg-transparent border-b border-dashed border-slate-300 focus:border-blue-600 outline-none px-0.5 text-slate-900"
-                        />
-                      </div>
-                      <div className="flex items-center gap-1 col-span-2 border-t border-slate-100/80 pt-1 mt-0.5">
-                        <div className="flex items-center gap-1 flex-1 min-w-0">
-                          <span className="font-semibold text-slate-700 shrink-0">Dx:</span>
-                          <input
-                            type="text"
-                            value={rec.diagnosis || ''}
-                            onChange={(e) => onChangeRecipeItem(idx, { diagnosis: e.target.value })}
-                            placeholder="Diagnóstico (opcional)"
-                            className="w-full bg-transparent border-b border-dashed border-slate-300 focus:border-blue-600 outline-none px-0.5 text-slate-900 font-medium truncate"
-                          />
-                        </div>
-                        <div className="flex items-center gap-1 shrink-0 min-w-[95px]">
-                          <span className="font-semibold text-slate-700 shrink-0">Fecha:</span>
-                          <input
-                            type="text"
-                            value={rec.date}
-                            onChange={(e) => onChangeRecipeItem(idx, { date: e.target.value })}
-                            className="w-full bg-transparent border-b border-dashed border-slate-300 focus:border-blue-600 outline-none px-0.5 text-slate-900 text-right"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Prescription Rp. */}
-                    <div className="flex flex-col">
-                      <div className="flex items-center justify-between gap-1 mb-1">
-                        <span
-                          className="text-base font-black italic"
-                          style={{ color: config.primaryDocColor, fontFamily: "'Playfair Display', serif" }}
-                        >
-                          Rp.
-                        </span>
-                        {rec.rp && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onChangeRecipeItem(idx, { rp: '' });
-                            }}
-                            className="no-print px-1.5 py-0.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded text-[10px] font-bold flex items-center gap-0.5 transition-colors"
-                            title="Borrar prescripción de este récipe"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                            <span>Borrar Rp</span>
-                          </button>
-                        )}
-                      </div>
-
-                      <textarea
-                        value={rec.rp}
-                        onChange={(e) => onChangeRecipeItem(idx, { rp: e.target.value })}
-                        placeholder={`Indicaciones para el Récipe #${idx + 1}...\n(Haga clic para escribir o use el Banco de Fármacos arriba)`}
-                        className={`w-full p-2.5 text-xs text-slate-900 bg-transparent border border-slate-200/70 rounded-lg focus:border-blue-500 focus:outline-none resize-none leading-relaxed placeholder:text-slate-300 ${
-                          visibleCount === 1 ? 'h-[220px]' : 'h-[160px]'
-                        }`}
-                        style={{
-                          fontFamily: config.rxBodyFontFamily || "'Roboto', sans-serif",
-                          fontSize: config.bodyFontSize || '12px',
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Mini Footer */}
-                  <DocumentFooter
-                    config={config}
-                    compact={true}
-                    notesText={rec.indicationsNotes || config.footerNotesText}
-                    onUpdateNotes={(val) => onChangeRecipeItem(idx, { indicationsNotes: val })}
-                    onUpdateConfigField={(field, val) => onUpdateConfig?.({ [field]: val })}
-                    editableInline={true}
-                  />
-
-                </div>
+          {/* Central Cutting Guide Indicators (Guías de corte con tijera) */}
+          {showCutGuides && (
+            <div className="absolute inset-0 pointer-events-none z-0">
+              {/* Línea de corte horizontal a la mitad de la hoja carta (5.5 pulgadas) */}
+              <div className="absolute top-1/2 left-3 right-3 border-t border-dashed border-slate-300 -translate-y-1/2 flex items-center justify-center">
+                <span className="bg-white/90 px-2 py-0.5 rounded text-[9px] text-slate-400 font-mono tracking-widest flex items-center gap-1 shadow-2xs">
+                  ✂ - - - - - LÍNEA DE CORTE - - - - - ✂
+                </span>
               </div>
-            );
-          })}
+              {/* Línea de corte vertical a la mitad de la hoja carta (4.25 pulgadas) */}
+              <div className="absolute top-3 bottom-3 left-1/2 border-l border-dashed border-slate-300 -translate-x-1/2 flex items-center justify-center">
+                <span className="bg-white/90 px-1 py-1 rounded text-[8px] text-slate-400 font-mono [writing-mode:vertical-lr] tracking-widest shadow-2xs">
+                  ✂ CORTE
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* 2x2 Grid Layout for the 4 Quadrants of the Letter Sheet */}
+          <div className="relative z-10 grid grid-cols-2 grid-rows-2 gap-3.5 h-full min-h-[1040px]">
+            {[0, 1, 2, 3].map((idx) => {
+              if (idx < visibleCount) {
+                const rec = recipes[idx] || recipes[0];
+                const isActive = activeRecipeIndex === idx;
+
+                return (
+                  <div
+                    key={rec.id || idx}
+                    onClick={() => onSelectActiveRecipe(idx)}
+                    className={`relative rounded-xl p-3.5 flex flex-col justify-between transition-all overflow-hidden bg-white/50 backdrop-blur-[0.5px] cursor-pointer ${
+                      isActive ? 'ring-2 ring-blue-500 shadow-sm' : 'border border-slate-200/90'
+                    }`}
+                    style={{
+                      borderWidth: '1.5px',
+                      borderColor: isActive ? '#3b82f6' : config.primaryDocColor,
+                      minHeight: '490px',
+                    }}
+                  >
+                    {/* Single, Tenue Watermark in each recipe (No double watermark) */}
+                    {config.marcaAgua && (
+                      <div className="marca-agua pointer-events-none">
+                        <img
+                          src={config.marcaAgua}
+                          alt="Marca de agua"
+                          className="marca-agua-img"
+                          style={{
+                            opacity: Math.min(config.watermarkOpacity ?? 0.05, 0.08),
+                            width: `${Math.min(50, config.watermarkScale || 45)}%`,
+                            transform: `rotate(${config.watermarkRotation || 0}deg)`,
+                          }}
+                        />
+                      </div>
+                    )}
+
+                    {/* Quadrant Badge (hidden in print) */}
+                    <div className="absolute top-1.5 right-2 text-[10px] font-bold text-slate-400 no-print flex items-center gap-1 z-20">
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-100/90 text-slate-500">
+                        Cuadrante {idx + 1}
+                      </span>
+                      {isActive && <CheckCircle2 className="w-3.5 h-3.5 text-blue-600" />}
+                    </div>
+
+                    {/* Content */}
+                    <div className="relative z-10 flex flex-col justify-between h-full">
+                      {/* Mini Header */}
+                      <div>
+                        <DocumentHeader
+                          config={config}
+                          compact={true}
+                          editableInline={false}
+                        />
+
+                        {/* Patient Info with C.I. and Phone */}
+                        <div className="grid grid-cols-2 gap-x-2 gap-y-1 py-1 px-1.5 rounded-lg bg-transparent border-0 mb-1 text-[11px]">
+                          <div className="flex items-center gap-1">
+                            <span className="font-semibold text-slate-700">Pac:</span>
+                            <input
+                              type="text"
+                              value={rec.patientName}
+                              onChange={(e) => onChangeRecipeItem(idx, { patientName: e.target.value })}
+                              placeholder="Paciente"
+                              className="w-full bg-transparent border-b border-dashed border-slate-300 focus:border-blue-600 outline-none px-0.5 text-slate-900 font-medium"
+                            />
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="font-semibold text-slate-700">C.I:</span>
+                            <input
+                              type="text"
+                              value={rec.patientCI || ''}
+                              onChange={(e) => onChangeRecipeItem(idx, { patientCI: e.target.value })}
+                              placeholder="Cédula"
+                              className="w-full bg-transparent border-b border-dashed border-slate-300 focus:border-blue-600 outline-none px-0.5 text-slate-900 font-medium"
+                            />
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="font-semibold text-slate-700">Tel:</span>
+                            <input
+                              type="text"
+                              value={rec.patientPhone || ''}
+                              onChange={(e) => onChangeRecipeItem(idx, { patientPhone: e.target.value })}
+                              placeholder="Teléfono"
+                              className="w-full bg-transparent border-b border-dashed border-slate-300 focus:border-blue-600 outline-none px-0.5 text-slate-900"
+                            />
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="font-semibold text-slate-700">Edad:</span>
+                            <input
+                              type="text"
+                              value={rec.patientAge}
+                              onChange={(e) => onChangeRecipeItem(idx, { patientAge: e.target.value })}
+                              placeholder="Edad"
+                              className="w-full bg-transparent border-b border-dashed border-slate-300 focus:border-blue-600 outline-none px-0.5 text-slate-900"
+                            />
+                          </div>
+                          <div className="flex items-center gap-1 col-span-2 border-t border-slate-100/80 pt-1 mt-0.5">
+                            <div className="flex items-center gap-1 flex-1 min-w-0">
+                              <span className="font-semibold text-slate-700 shrink-0">Dx:</span>
+                              <input
+                                type="text"
+                                value={rec.diagnosis || ''}
+                                onChange={(e) => onChangeRecipeItem(idx, { diagnosis: e.target.value })}
+                                placeholder="Diagnóstico (opcional)"
+                                className="w-full bg-transparent border-b border-dashed border-slate-300 focus:border-blue-600 outline-none px-0.5 text-slate-900 font-medium truncate"
+                              />
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0 min-w-[95px]">
+                              <span className="font-semibold text-slate-700 shrink-0">Fecha:</span>
+                              <input
+                                type="text"
+                                value={rec.date}
+                                onChange={(e) => onChangeRecipeItem(idx, { date: e.target.value })}
+                                className="w-full bg-transparent border-b border-dashed border-slate-300 focus:border-blue-600 outline-none px-0.5 text-slate-900 text-right"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Prescription Rp. */}
+                        <div className="flex flex-col">
+                          <div className="flex items-center justify-between gap-1 mb-1">
+                            <span
+                              className="text-base font-black italic"
+                              style={{ color: config.primaryDocColor, fontFamily: "'Playfair Display', serif" }}
+                            >
+                              Rp.
+                            </span>
+                            {rec.rp && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onChangeRecipeItem(idx, { rp: '' });
+                                }}
+                                className="no-print px-1.5 py-0.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded text-[10px] font-bold flex items-center gap-0.5 transition-colors"
+                                title="Borrar prescripción de este récipe"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                                <span>Borrar Rp</span>
+                              </button>
+                            )}
+                          </div>
+
+                          <textarea
+                            value={rec.rp}
+                            onChange={(e) => onChangeRecipeItem(idx, { rp: e.target.value })}
+                            placeholder={`Indicaciones para el Récipe #${idx + 1}...\n(Haga clic para escribir o use el Banco de Fármacos arriba)`}
+                            className="w-full p-2.5 text-xs text-slate-900 bg-transparent border border-slate-200/70 rounded-lg focus:border-blue-500 focus:outline-none resize-none leading-relaxed placeholder:text-slate-300 h-[160px]"
+                            style={{
+                              fontFamily: config.rxBodyFontFamily || "'Roboto', sans-serif",
+                              fontSize: config.bodyFontSize || '12px',
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Mini Footer */}
+                      <DocumentFooter
+                        config={config}
+                        compact={true}
+                        notesText={rec.indicationsNotes || config.footerNotesText}
+                        onUpdateNotes={(val) => onChangeRecipeItem(idx, { indicationsNotes: val })}
+                        onUpdateConfigField={(field, val) => onUpdateConfig?.({ [field]: val })}
+                        editableInline={true}
+                      />
+
+                    </div>
+                  </div>
+                );
+              } else {
+                // Empty Quadrant on the Letter Sheet (Cuadrante libre para corte)
+                return (
+                  <div
+                    key={`empty-${idx}`}
+                    onClick={() => handleAddSpecificRecipe(idx)}
+                    className="relative rounded-xl p-4 flex flex-col items-center justify-center text-center border-2 border-dashed border-slate-300/80 hover:border-blue-500 bg-slate-50/40 hover:bg-blue-50/30 transition-all cursor-pointer group min-h-[490px]"
+                    title={`Cuadrante #${idx + 1} libre. Haga clic para añadir otro récipe a esta misma hoja carta.`}
+                  >
+                    {/* Screen interactive view (hidden in print) */}
+                    <div className="no-print flex flex-col items-center">
+                      <div className="w-11 h-11 rounded-2xl bg-blue-100 group-hover:bg-blue-600 text-blue-700 group-hover:text-white flex items-center justify-center mb-2.5 shadow-2xs group-hover:scale-105 transition-all">
+                        <Plus className="w-5 h-5" />
+                      </div>
+                      <span className="font-bold text-slate-700 text-xs mb-1">
+                        Cuadrante #{idx + 1} Libre
+                      </span>
+                      <p className="text-[11px] text-slate-500 max-w-[210px] mb-2.5 leading-snug">
+                        Espacio disponible en esta hoja carta. Toque aquí si desea redactar el Récipe #{idx + 1}.
+                      </p>
+                      <span className="text-[10px] font-bold text-blue-700 bg-white px-3 py-1.5 rounded-lg border border-blue-200 shadow-2xs group-hover:bg-blue-600 group-hover:text-white transition-all">
+                        + Añadir Récipe #{idx + 1}
+                      </span>
+                    </div>
+
+                    {/* Print / PDF Cut Guide View */}
+                    <div className="text-[9px] text-slate-400 font-mono tracking-wider flex items-center gap-1 opacity-70">
+                      <span>✂ Guía de corte · Espacio libre</span>
+                    </div>
+                  </div>
+                );
+              }
+            })}
+          </div>
         </div>
       </div>
-    </div>
 
       {/* WhatsApp Modal for the active recipe / full sheet */}
       <WhatsAppShareModal

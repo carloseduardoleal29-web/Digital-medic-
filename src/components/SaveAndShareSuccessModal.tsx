@@ -20,7 +20,8 @@ import {
   QrCode,
   Smartphone,
   Laptop,
-  Printer
+  Printer,
+  RefreshCw
 } from 'lucide-react';
 import { DoctorConfig } from '../types';
 import { generatePDFBlob } from '../utils/exportDocument';
@@ -247,7 +248,7 @@ export const SaveAndShareSuccessModal: React.FC<SaveAndShareSuccessModalProps> =
   const [selectedCountry, setSelectedCountry] = useState('+58');
   const [selectedOperator, setSelectedOperator] = useState('');
   const [localNumber, setLocalNumber] = useState('');
-  const [channelMode, setChannelMode] = useState<'qr-phone' | 'pc-whatsapp' | 'email'>('qr-phone');
+  const [channelMode, setChannelMode] = useState<'qr-phone' | 'pc-whatsapp' | 'email'>('pc-whatsapp');
   const [patientEmailInput, setPatientEmailInput] = useState(record?.patientEmail || '');
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
   const [phoneDownloadQrUrl, setPhoneDownloadQrUrl] = useState<string>('');
@@ -257,6 +258,7 @@ export const SaveAndShareSuccessModal: React.FC<SaveAndShareSuccessModalProps> =
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [useShortMessage, setUseShortMessage] = useState(true);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   // Sync phone and email if record changes
   React.useEffect(() => {
@@ -326,53 +328,25 @@ export const SaveAndShareSuccessModal: React.FC<SaveAndShareSuccessModalProps> =
     autoUploadPdf();
   }, [isOpen, record]);
 
-  const buildWhatsAppMessage = () => {
+  const buildWhatsAppMessage = (overrideUrl?: string | null) => {
     if (!record) return '';
     const docName = getDocumentTypeName();
-
-    if (useShortMessage) {
-      let msg = `Estimado(a) *${record.patientName}*,\n\n` +
-        `Le saluda el/la *Dr(a). ${record.doctorName || config.doctorName}*.\n\n` +
-        `Aquí tiene su *${docName.toUpperCase()}* digital oficial con firma, sello y plena validez:\n`;
-
-      if (pdfUrl) {
-        msg += `🔗 *VER / DESCARGAR PDF:* ${pdfUrl}\n`;
-      } else if (isUploading) {
-        msg += `⏳ _Generando enlace del PDF..._\n`;
-      } else {
-        msg += `📄 *PDF adjunto en el chat.*\n`;
-      }
-
-      msg += `\n*Indicación:* Cumpla el tratamiento al pie de la letra. ¡Que tenga una pronta y satisfactoria recuperación! ✨`;
-      return msg;
-    }
-
-    const cleanContent = (record.contentBody || (record as any).contentPreview || '').trim();
+    const cleanDate = record.date || new Intl.DateTimeFormat('es-ES').format(new Date());
+    const effectiveUrl = overrideUrl !== undefined ? overrideUrl : pdfUrl;
 
     let msg = `Estimado(a) *${record.patientName}*,\n\n` +
-      `Le saluda el/la *Dr(a). ${record.doctorName || config.doctorName}* (${record.doctorSpecialty || config.specialty || 'Médico Cirujano'}).\n\n` +
-      `📌 *${record.documentTitle || docName.toUpperCase()}*\n`;
+      `Le saluda el/la *Dr(a). ${record.doctorName || config.doctorName}* (${record.doctorSpecialty || config.specialty || 'Médico Especialista'}).\n\n` +
+      `📌 Se ha emitido su *${docName.toUpperCase()}* oficial con fecha de emisión *${cleanDate}* en formato PDF digital con firma y sello legal autorizados.\n\n`;
 
-    if (record.diagnosis && record.diagnosis.trim()) {
-      msg += `*Diagnóstico / Motivo:* ${record.diagnosis.trim()}\n`;
-    }
-
-    if (cleanContent) {
-      msg += `\n*PRESCRIPCIÓN / INDICACIONES MÉDICAS:*\n` +
-        `----------------------------------------\n` +
-        `${cleanContent}\n` +
-        `----------------------------------------\n`;
-    }
-
-    if (pdfUrl) {
-      msg += `\n🔗 *VER RECETA EN PDF OFICIAL:* ${pdfUrl}\n`;
+    if (effectiveUrl) {
+      msg += `📥 *VER / DESCARGAR PDF OFICIAL:* ${effectiveUrl}\n\n`;
     } else {
-      msg += `\n📄 *DOCUMENTO PDF OFICIAL:* Adjunto en este mensaje su archivo PDF con membrete, firma y sello médico con plena validez en farmacias y centros asistenciales.\n`;
+      msg += `📄 *PDF oficial adjunto a este mensaje.*\n\n`;
     }
 
-    msg += `\n*M.P.P.S:* ${record.doctorMPPS || config.mpps || '00.000'} · *C.I:* ${record.doctorCI || config.ci || 'V-00.000.000'}\n` +
+    msg += `*M.P.P.S:* ${record.doctorMPPS || config.mpps || '00.000'} · *C.I:* ${record.doctorCI || config.ci || 'V-00.000.000'}\n` +
       (config.phone ? `*Contacto / Consultas:* ${config.phone}\n` : '') +
-      `\n*Indicación:* Cumpla el tratamiento según lo pautado. ¡Que tenga una pronta y satisfactoria recuperación! ✨`;
+      `\n*Indicación:* Cumpla las indicaciones especificadas en su documento oficial en PDF. ¡Que tenga una pronta y satisfactoria recuperación! ✨`;
 
     return msg;
   };
@@ -484,13 +458,49 @@ export const SaveAndShareSuccessModal: React.FC<SaveAndShareSuccessModalProps> =
     setTimeout(() => setCopied(false), 2500);
   };
 
-  const handleOpenWhatsApp = (e: React.FormEvent) => {
+  const handleOpenWhatsApp = async (e: React.FormEvent) => {
     e.preventDefault();
+    let currentPdfUrl = pdfUrl;
+
+    if (!currentPdfUrl) {
+      setIsUploading(true);
+      try {
+        const targetElement = document.querySelector<HTMLElement>(
+          '.print-container, .recipe-4en1-container, .recipe-single-container, .report-sheet-container, .indications-container, .rest-container, .clinical-history-container'
+        );
+        const blob = await generatePDFBlob(targetElement);
+        if (blob) {
+          const cleanPatientName = (record.patientName || 'Paciente').replace(/[^a-zA-Z0-9]/g, '_');
+          const filename = `${record.documentType}_${cleanPatientName}.pdf`;
+          const base64 = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(blob);
+          });
+          const res = await fetch('/api/pdf/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pdfBase64: base64, filename })
+          });
+          const data = await res.json();
+          if (data.success && data.url) {
+            currentPdfUrl = data.url;
+            setPdfUrl(data.url);
+          }
+        }
+      } catch (err) {
+        console.error('[PDF Fast Upload Error]:', err);
+      } finally {
+        setIsUploading(false);
+      }
+    }
+
     const cleanNumber = getCleanWhatsAppNumber(selectedCountry, selectedOperator, localNumber);
     if (onUpdatePatientPhone) {
       onUpdatePatientPhone(phoneNumber);
     }
-    const encoded = encodeURIComponent(messageText);
+    const finalMsg = buildWhatsAppMessage(currentPdfUrl);
+    const encoded = encodeURIComponent(finalMsg);
     const targetUrl = cleanNumber.length > 6 
       ? `https://wa.me/${cleanNumber}?text=${encoded}`
       : `https://wa.me/?text=${encoded}`;
@@ -501,7 +511,9 @@ export const SaveAndShareSuccessModal: React.FC<SaveAndShareSuccessModalProps> =
     link.rel = 'noopener noreferrer';
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
+    setTimeout(() => {
+      if (document.body.contains(link)) document.body.removeChild(link);
+    }, 100);
   };
 
   const handleSendEmailDirectly = () => {
@@ -510,24 +522,20 @@ export const SaveAndShareSuccessModal: React.FC<SaveAndShareSuccessModalProps> =
     }
     const docName = getDocumentTypeName();
     const subject = `${record.documentTitle || docName} - ${record.patientName} - Dr(a). ${config.doctorName}`;
-    const cleanContent = (record.contentBody || (record as any).contentPreview || '').trim();
 
     let body = `Estimado(a) ${record.patientName},\n\n` +
       `Le saluda el/la Dr(a). ${record.doctorName || config.doctorName} (${record.doctorSpecialty || config.specialty || 'Médico Cirujano'}).\n\n` +
-      `Le enviamos su ${docName} oficial emitido en fecha ${record.date} junto con su archivo PDF oficial. 📄🩺\n\n` +
+      `Le enviamos adjunto su ${docName} oficial emitido en fecha ${record.date} en formato PDF de alta gama digital. 📄🩺\n\n` +
+      `Este es un documento médico legal firmado y sellado digitalmente por el especialista con plena validez legal para su presentación en farmacias, empresas o centros asistenciales.\n\n` +
       `DOCUMENTO: ${record.documentTitle || docName.toUpperCase()}\n` +
       (record.patientCI ? `C.I. / IDENTIFICACIÓN: ${record.patientCI}\n` : '') +
       (record.diagnosis ? `DIAGNÓSTICO CLÍNICO: ${record.diagnosis}\n` : '') +
-      `\n` +
-      `------------------------------------------\n` +
-      `PRESCRIPCIÓN / INDICACIONES MÉDICAS:\n` +
-      `------------------------------------------\n` +
-      `${cleanContent}\n` +
-      `------------------------------------------\n\n` +
-      `📄 DOCUMENTO PDF OFICIAL: Se adjunta su archivo PDF oficial con membrete, firma y sello médico con plena validez para su presentación en farmacias y centros asistenciales.\n\n` +
+      (pdfUrl ? `🔗 ENLACE DE DESCARGA DIRECTA:\n${pdfUrl}\n\n` : '') +
+      `📄 ARCHIVO ADJUNTO: Por favor verifique el archivo PDF adjunto a este correo.\n\n` +
+      `Siga rigurosamente las indicaciones médicas especificadas en el archivo PDF adjunto.\n\n` +
       `M.P.P.S: ${record.doctorMPPS || config.mpps || '00.000'} · C.I: ${record.doctorCI || config.ci || 'V-00.000.000'}\n` +
       (config.phone ? `Contacto / Consultas: ${config.phone}\n` : '') +
-      `\nSiga rigurosamente las indicaciones de su tratamiento. ¡Pronta recuperación!\n\n` +
+      `\nLe deseamos una pronta y satisfactoria recuperación. ✨\n\n` +
       `Atentamente,\n` +
       `Dr(a). ${record.doctorName || config.doctorName}\n` +
       `${record.doctorSpecialty || config.specialty || 'Médico Cirujano'}`;
@@ -660,22 +668,48 @@ export const SaveAndShareSuccessModal: React.FC<SaveAndShareSuccessModalProps> =
             )}
 
             {record.contentBody && (
-              <div className="pt-1.5 border-t border-slate-200/80">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-slate-500 font-bold block text-[10px] uppercase tracking-wider">
-                    Prescripción / Medicamentos que recibirá el paciente:
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleCopyMessage}
-                    className="text-emerald-700 hover:text-emerald-900 font-bold text-[10px] flex items-center gap-1 cursor-pointer"
-                  >
-                    {copied ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                    <span>{copied ? 'Copiado' : 'Copiar Texto'}</span>
-                  </button>
-                </div>
-                <div className="p-2.5 bg-white rounded-xl border border-slate-200 font-mono text-[11px] text-slate-800 whitespace-pre-wrap leading-relaxed max-h-32 overflow-y-auto select-text shadow-2xs">
-                  {record.contentBody}
+              <div className="pt-2 border-t border-slate-200/80 space-y-2">
+                <div className="p-3 bg-slate-900 border border-slate-700/80 rounded-2xl flex items-center justify-between gap-3 shadow-inner">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 border border-blue-500/20 flex items-center justify-center shrink-0">
+                      <ShieldCheck className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="font-black text-white text-[11px] uppercase tracking-wider">🔒 Enlace PDF de Seguridad Médica</div>
+                      <div className="text-[10px] text-slate-400 font-semibold truncate max-w-[240px]">
+                        {pdfUrl || 'Generando enlace cifrado seguro...'}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {pdfUrl && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(pdfUrl);
+                            setLinkCopied(true);
+                            setTimeout(() => setLinkCopied(false), 2500);
+                          }}
+                          className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-[10px] rounded-lg cursor-pointer transition-all flex items-center gap-1 shrink-0"
+                          title="Copiar enlace directo de descarga del PDF"
+                        >
+                          {linkCopied ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Copy className="w-3 h-3" />}
+                          <span>{linkCopied ? '¡Copiado!' : 'Copiar Enlace'}</span>
+                        </button>
+                        <a
+                          href={pdfUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-400 hover:text-white font-bold text-[10px] rounded-lg cursor-pointer transition-all flex items-center gap-1 shrink-0 border border-slate-700"
+                          title="Abrir PDF en pestaña nueva"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          <span>Ver PDF</span>
+                        </a>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -690,34 +724,16 @@ export const SaveAndShareSuccessModal: React.FC<SaveAndShareSuccessModalProps> =
             <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest">AHORA ELIJA CÓMO ENVIARLO:</h3>
           </div>
 
-          {/* Formato de Mensaje Toggle */}
-          <div className="space-y-1.5 bg-slate-50 border border-slate-200 rounded-2xl p-3">
-            <span className="block font-bold text-slate-700 text-[10px] uppercase tracking-wider">
-              Estilo de Mensaje para WhatsApp / Envíos:
-            </span>
-            <div className="grid grid-cols-2 gap-1.5 p-0.5 bg-slate-200/60 rounded-lg">
-              <button
-                type="button"
-                onClick={() => setUseShortMessage(true)}
-                className={`py-1 text-center font-bold text-[10.5px] rounded-md transition-all cursor-pointer ${
-                  useShortMessage
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/40'
-                }`}
-              >
-                ✨ Corto con Enlace PDF (Automático)
-              </button>
-              <button
-                type="button"
-                onClick={() => setUseShortMessage(false)}
-                className={`py-1 text-center font-bold text-[10.5px] rounded-md transition-all cursor-pointer ${
-                  !useShortMessage
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/40'
-                }`}
-              >
-                📝 Detallado con Prescripción
-              </button>
+          {/* Formato de Mensaje Informativo (Legal PDF Exclusivo) */}
+          <div className="p-3.5 bg-gradient-to-r from-teal-50 to-emerald-50 border border-emerald-200 rounded-2xl flex items-start gap-2.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 mt-1.5 animate-pulse shrink-0"></span>
+            <div className="space-y-0.5">
+              <span className="block font-black text-emerald-800 text-[10.5px] uppercase tracking-wider">
+                Formato Legal Exclusivo en PDF
+              </span>
+              <p className="text-[10px] text-slate-500 leading-relaxed">
+                Por motivos de confidencialidad médica y regulación de documentos oficiales, el envío se realiza de forma exclusiva en formato PDF para garantizar la validez legal del membrete, sello y firma del especialista.
+              </p>
             </div>
           </div>
 
@@ -796,8 +812,13 @@ export const SaveAndShareSuccessModal: React.FC<SaveAndShareSuccessModalProps> =
 
               {/* QR Container */}
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4 py-2">
-                <div className="bg-white p-3.5 rounded-3xl border-2 border-emerald-400 shadow-md inline-block">
-                  {qrCodeDataUrl ? (
+                <div className="bg-white p-3.5 rounded-3xl border-2 border-emerald-400 shadow-md inline-block relative overflow-hidden">
+                  {isUploading ? (
+                    <div className="w-44 h-44 flex flex-col items-center justify-center text-slate-500 text-xs font-bold space-y-2 p-2 bg-slate-50 rounded-2xl animate-pulse">
+                      <RefreshCw className="w-8 h-8 text-emerald-600 animate-spin" />
+                      <span className="text-center text-[10px]">Generando y subiendo PDF oficial en la nube...</span>
+                    </div>
+                  ) : qrCodeDataUrl ? (
                     <img 
                       src={qrType === 'whatsapp' ? qrCodeDataUrl : phoneDownloadQrUrl} 
                       alt="Código QR para celular" 
@@ -971,10 +992,19 @@ export const SaveAndShareSuccessModal: React.FC<SaveAndShareSuccessModalProps> =
 
                     <button
                       type="submit"
-                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow-md transition-all shrink-0 cursor-pointer"
+                      className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 active:scale-95 text-white font-black rounded-xl text-xs flex items-center gap-2 shadow-md transition-all shrink-0 cursor-pointer"
                     >
-                      <MessageSquare className="w-3.5 h-3.5" />
-                      <span>Abrir WhatsApp Web</span>
+                      {isUploading ? (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin text-white" />
+                          <span>Preparando y Abriendo...</span>
+                        </>
+                      ) : (
+                        <>
+                          <MessageSquare className="w-3.5 h-3.5 text-emerald-100" />
+                          <span>Abrir WhatsApp y Enviar PDF</span>
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>

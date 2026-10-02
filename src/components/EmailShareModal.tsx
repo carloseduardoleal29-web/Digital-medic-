@@ -111,21 +111,20 @@ export const EmailShareModal: React.FC<EmailShareModalProps> = ({
   const buildEmailBody = () => {
     let pdfLine = '';
     if (pdfUrl) {
-      pdfLine = `🔗 ENLACE DE DESCARGA DIRECTA DEL PDF:\n${pdfUrl}\n\n`;
+      pdfLine = `🔗 ENLACE DE DESCARGA DIRECTA DEL PDF OFICIAL:\n${pdfUrl}\n\n`;
     }
 
     return `Estimado(a) ${patientName || 'Paciente'},\n\n` +
-      `Le adjuntamos el documento médico oficial en formato PDF emitido por Dr(a). ${config.doctorName} (${config.specialty || 'Médico Cirujano'}).\n\n` +
+      `Le adjuntamos su documento médico oficial en formato PDF emitido por Dr(a). ${config.doctorName} (${config.specialty || 'Médico Cirujano'}).\n\n` +
+      `Este es un documento médico legal firmado y sellado digitalmente con plena validez para su presentación en farmacias, empresas y centros de salud.\n\n` +
       `DOCUMENTO: ${docTypeHeader}\n` +
       `MÉDICO TRATANTE: Dr(a). ${config.doctorName}\n` +
       `MPPS: ${config.mpps || '00.000'} · C.I.: ${config.ci || 'V-00.000.000'}\n` +
       (config.collegeNumber ? `COLEGIO MÉDICO: ${config.collegeNumber}\n` : '') +
-      `FECHA DE EMISIÓN: ${new Intl.DateTimeFormat('es-ES').format(new Date())}\n` +
-      (documentTitle ? `ASUNTO / DIAGNÓSTICO: ${documentTitle}\n` : '') +
-      `\n` +
+      `FECHA DE EMISIÓN: ${new Intl.DateTimeFormat('es-ES').format(new Date())}\n\n` +
       pdfLine +
-      `📄 DOCUMENTO PDF OFICIAL ADJUNTO: Le enviamos adjunto su archivo PDF oficial emitido con membrete, firma y sello médico con plena validez para su presentación en farmacias y centros de salud.\n\n` +
-      `Siga rigurosamente las indicaciones pautadas por su médico.\n\n` +
+      `📄 ARCHIVO ADJUNTO: Por favor encuentre adjunto el archivo PDF oficial con membrete de alta gama, firma caligráfica y sello húmedo digital.\n\n` +
+      `Siga rigurosamente las indicaciones médicas especificadas en el archivo adjunto.\n\n` +
       `Atentamente,\n` +
       `Dr(a). ${config.doctorName}\n` +
       `${config.specialty || 'Médico Cirujano'}\n` +

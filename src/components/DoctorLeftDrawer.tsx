@@ -6,7 +6,6 @@ import {
   Building2, 
   Phone, 
   Mail, 
-  Instagram, 
   Award, 
   ShieldCheck, 
   Edit3, 
@@ -33,6 +32,24 @@ import { DoctorConfig, ActiveModule } from '../types';
 import { DIGITAL_MEDIC_OFFICIAL_LOGO_SVG, getMedicalSymbolSVG, CARLOS_LEAL_DEVELOPER_BADGE_SVG } from '../data/defaultAssets';
 import { CeLealStudioLogo } from './CeLealStudioLogo';
 import { formatSpecialtyTitle } from './DoctorOnboardingWizard';
+
+const Instagram: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+  <svg
+    viewBox="0 0 24 24"
+    width="24"
+    height="24"
+    stroke="currentColor"
+    strokeWidth="2"
+    fill="none"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    {...props}
+  >
+    <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
+    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+    <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
+  </svg>
+);
 
 interface DoctorLeftDrawerProps {
   isOpen: boolean;

@@ -95,7 +95,7 @@ export const SubscriptionBillingPanel: React.FC<SubscriptionBillingPanelProps> =
   // Save changes to localStorage
   const handleSavePayConfig = (newConfig: PaymentConfig) => {
     setPayConfig(newConfig);
-    localStorage.setItem('digital_medic_payment_config', JSON.stringify(newConfig));
+    localStorage.setItem('digital_medic_payment_config_v4', JSON.stringify(newConfig));
   };
 
   const copyToClipboard = (text: string, keyName: string) => {

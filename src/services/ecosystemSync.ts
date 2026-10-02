@@ -111,10 +111,15 @@ export function exportAllLocalData(activeColleagueId?: string): Partial<UserEcos
 
   const email = activeDoc?.email || 'admin@digitalmedic.com';
   const ci = activeDoc?.ci || '';
+  
+  const cleanEmail = email.toLowerCase().trim();
+  const finalEmail = (cleanEmail === 'admin@digitalmedic.com' || cleanEmail === 'admin' || activeColleagueId === 'doc-admin-master') 
+    ? 'carloseduardoleal29@gmail.com' 
+    : email;
 
   return {
-    identifier: email,
-    email,
+    identifier: finalEmail,
+    email: finalEmail,
     ci,
     doctorConfig: activeDoc,
     colleagueProfiles,

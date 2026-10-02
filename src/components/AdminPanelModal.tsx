@@ -86,24 +86,6 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
 
   // Feature: Payment Accounts Settings Modal
   const [isPaymentAccountsModalOpen, setIsPaymentAccountsModalOpen] = useState(false);
-  const [paymentConfig, setPaymentConfig] = useState(() => {
-    try {
-      const saved = localStorage.getItem('digital_medic_payment_config_v4');
-      if (saved) return JSON.parse(saved);
-    } catch (e) {}
-    return DEFAULT_PAYMENT_CONFIG;
-  });
-
-  const handleSavePaymentConfig = (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      localStorage.setItem('digital_medic_payment_accounts_v1', JSON.stringify(paymentConfig));
-      alert('✓ ¡Cuentas de pago guardadas con éxito! Todos los médicos verán tus datos actualizados.');
-      setIsPaymentAccountsModalOpen(false);
-    } catch (err) {
-      alert('Error al guardar datos de pago.');
-    }
-  };
 
   if (!isOpen) return null;
 

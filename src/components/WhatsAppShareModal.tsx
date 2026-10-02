@@ -15,7 +15,8 @@ import {
   ShieldAlert,
   QrCode,
   Smartphone,
-  Laptop
+  Laptop,
+  RefreshCw
 } from 'lucide-react';
 import { DoctorConfig } from '../types';
 import { generatePDFBlob } from '../utils/exportDocument';
@@ -223,7 +224,7 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
   const [selectedCountry, setSelectedCountry] = useState('+58');
   const [selectedOperator, setSelectedOperator] = useState('');
   const [localNumber, setLocalNumber] = useState('');
-  const [channelMode, setChannelMode] = useState<'qr-phone' | 'pc-whatsapp'>('qr-phone');
+  const [channelMode, setChannelMode] = useState<'qr-phone' | 'pc-whatsapp'>('pc-whatsapp');
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
 
   // Auto PDF Upload state
@@ -343,22 +344,23 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
   };
 
   // Build professional WhatsApp markdown message with direct link to the legal PDF document
-  const buildWhatsAppMessage = () => {
+  const buildWhatsAppMessage = (overrideUrl?: string | null) => {
     const docName = getDocumentTypeName();
+    const effectiveUrl = overrideUrl !== undefined ? overrideUrl : pdfUrl;
     
     let msg = `Estimado(a) *${patientName || 'Paciente'}*,\n\n` +
-      `Le saluda el/la *Dr(a). ${config.doctorName}*.\n\n` +
-      `Aquí tiene su *${docName.toUpperCase()}* digital oficial en formato PDF, firmado, sellado y con plena validez legal:\n`;
+      `Le saluda el/la *Dr(a). ${config.doctorName}* (${config.specialty || 'Médico Especialista'}).\n\n` +
+      `Aquí tiene su *${docName.toUpperCase()}* digital oficial en formato PDF, firmado, sellado y con plena validez legal:\n\n`;
 
-    if (pdfUrl) {
-      msg += `🔗 *VER / DESCARGAR PDF:* ${pdfUrl}\n`;
-    } else if (isUploading) {
-      msg += `⏳ _Generando enlace seguro del PDF..._\n`;
+    if (effectiveUrl) {
+      msg += `📥 *VER / DESCARGAR PDF OFICIAL:* ${effectiveUrl}\n\n`;
     } else {
-      msg += `📄 *PDF adjunto en el chat.*\n`;
+      msg += `📄 *PDF oficial adjunto a este mensaje.*\n\n`;
     }
 
-    msg += `\n*Indicación:* Cumpla el tratamiento al pie de la letra. ¡Que tenga una pronta y satisfactoria recuperación! ✨`;
+    msg += `*M.P.P.S:* ${config.mpps || '00.000'} · *C.I:* ${config.ci || 'V-00.000.000'}\n` +
+      (config.phone ? `*Contacto / Consultas:* ${config.phone}\n` : '') +
+      `\n*Indicación:* Cumpla las indicaciones especificadas en su documento oficial en PDF. ¡Que tenga una pronta y satisfactoria recuperación! ✨`;
     return msg;
   };
 
@@ -382,7 +384,7 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
         light: '#ffffff'
       }
     }).then(setQrCodeDataUrl).catch(console.error);
-  }, [isOpen, selectedCountry, selectedOperator, localNumber, config, patientName, contentBody, documentTitle]);
+  }, [isOpen, selectedCountry, selectedOperator, localNumber, config, patientName, pdfUrl, contentBody, documentTitle]);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(messageText);
@@ -390,21 +392,57 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
     setTimeout(() => setCopied(false), 3000);
   };
 
-  const handleSendWhatsApp = (e: React.FormEvent) => {
+  const handleSendWhatsApp = async (e: React.FormEvent) => {
     e.preventDefault();
+    let currentPdfUrl = pdfUrl;
+
+    if (!currentPdfUrl) {
+      setIsUploading(true);
+      try {
+        const targetElement = document.querySelector<HTMLElement>(
+          '.print-container, .recipe-4en1-container, .recipe-single-container, .report-sheet-container, .indications-container, .rest-container, .clinical-history-container'
+        );
+        const blob = await generatePDFBlob(targetElement);
+        if (blob) {
+          const cleanPatientName = (patientName || 'Paciente').replace(/[^a-zA-Z0-9]/g, '_');
+          const filename = `${documentType}_${cleanPatientName}.pdf`;
+          const base64 = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(blob);
+          });
+          const res = await fetch('/api/pdf/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pdfBase64: base64, filename })
+          });
+          const data = await res.json();
+          if (data.success && data.url) {
+            currentPdfUrl = data.url;
+            setPdfUrl(data.url);
+          }
+        }
+      } catch (err) {
+        console.error('[Auto Upload] Failed PDF upload on send:', err);
+      } finally {
+        setIsUploading(false);
+      }
+    }
+
     const cleanNumber = getCleanWhatsAppNumber(selectedCountry, selectedOperator, localNumber);
     if (onUpdatePatientPhone) {
       onUpdatePatientPhone(phoneNumber);
     }
 
-    // Auto-download PDF to the doctor's PC/downloads so they have it ready to attach via paperclip
+    // Auto-download PDF to the doctor's PC/downloads
     if (onTriggerPrintPdf) {
       try {
         onTriggerPrintPdf();
       } catch (_) {}
     }
 
-    const encoded = encodeURIComponent(messageText);
+    const finalMsg = buildWhatsAppMessage(currentPdfUrl);
+    const encoded = encodeURIComponent(finalMsg);
     const targetUrl = cleanNumber.length > 6 
       ? `https://api.whatsapp.com/send?phone=${cleanNumber}&text=${encoded}`
       : `https://api.whatsapp.com/send?text=${encoded}`;
@@ -603,8 +641,13 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
 
               {/* QR Container */}
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4 py-2">
-                <div className="bg-white p-3.5 rounded-3xl border-2 border-emerald-400 shadow-md inline-block">
-                  {qrCodeDataUrl ? (
+                <div className="bg-white p-3.5 rounded-3xl border-2 border-emerald-400 shadow-md inline-block relative overflow-hidden">
+                  {isUploading ? (
+                    <div className="w-44 h-44 flex flex-col items-center justify-center text-slate-500 text-xs font-bold space-y-2 p-2 bg-slate-50 rounded-2xl animate-pulse">
+                      <RefreshCw className="w-8 h-8 text-emerald-600 animate-spin" />
+                      <span className="text-center text-[10px]">Generando y subiendo PDF oficial en la nube...</span>
+                    </div>
+                  ) : qrCodeDataUrl ? (
                     <img 
                       src={qrCodeDataUrl} 
                       alt="Código QR para celular" 
@@ -832,10 +875,19 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
 
               <button
                 type="submit"
-                className="px-4.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold flex items-center gap-1.5 shadow-md shadow-emerald-600/30 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer"
+                className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl font-black flex items-center gap-2 shadow-md shadow-emerald-600/30 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer text-xs"
               >
-                <Send className="w-4 h-4" />
-                <span>Abrir WhatsApp y Enviar</span>
+                {isUploading ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin text-white" />
+                    <span>Preparando Enlace y Abriendo...</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4 text-emerald-100" />
+                    <span>Abrir WhatsApp y Enviar PDF</span>
+                  </>
+                )}
               </button>
             </div>
           </form>

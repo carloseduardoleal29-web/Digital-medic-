@@ -1,8 +1,50 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // Global Safety Net default-deny catch-all
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isSystemAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'carloseduardoleal29@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // Doctor profile rules
+    match /doctors/{doctorId} {
+      allow read: if true; // Registered doctors catalog is readable
+      allow create: if isSignedIn() && (request.auth.uid == doctorId || isSystemAdmin());
+      allow update: if isSignedIn() && (request.auth.uid == doctorId || isSystemAdmin());
+      allow delete: if isSystemAdmin();
+    }
+
+    // Ecosystem document rules (containing personal clinical documents)
+    match /ecosystems/{ecosystemId} {
+      allow read, write: if isSignedIn() && (request.auth.uid == ecosystemId || isSystemAdmin());
+    }
+
+    // Saved medical prescriptions, reports, and records
+    match /documents/{documentId} {
+      allow read: if true; // Public access enabled for patients to view/download their medical PDFs
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn() && (resource.data.doctorId == request.auth.uid || isSystemAdmin());
     }
   }
 }

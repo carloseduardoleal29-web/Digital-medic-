@@ -213,11 +213,11 @@ export const ReportsModule: React.FC<ReportsModuleProps> = ({
               <button
                 type="button"
                 onClick={() => setIsWhatsAppModalOpen(true)}
-                className="px-3.5 py-1.5 bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-600 hover:to-emerald-700 text-white font-black rounded-xl text-xs shadow-sm hover:shadow flex items-center gap-1.5 transform active:scale-95 transition-all cursor-pointer border border-emerald-400/30"
-                title="Enviar por WhatsApp"
+                className="px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black rounded-xl text-xs shadow-sm hover:shadow flex items-center gap-1.5 transform active:scale-95 transition-all cursor-pointer border border-emerald-400/30"
+                title="Enviar automáticamente el informe médico oficial en PDF al paciente por WhatsApp o correo"
               >
-                <MessageSquare className="w-3.5 h-3.5 text-teal-100" />
-                <span>WhatsApp 💬</span>
+                <MessageSquare className="w-3.5 h-3.5 text-emerald-100" />
+                <span>⚡ Enviar PDF (WhatsApp)</span>
               </button>
             </div>
           )}

@@ -36,12 +36,28 @@ export const BinanceRateViewer: React.FC<BinanceRateViewerProps> = ({
   const [copiedBs, setCopiedBs] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
 
-  // Sync if prop changes and local is 0
+  // Auto-refresh real-time rate on mount and every 60 seconds
   React.useEffect(() => {
-    if (currentRate > 0 && rate === 0) {
-      setRate(currentRate);
-    }
-  }, [currentRate, rate]);
+    // 1. Initial fetch
+    handleRefresh();
+
+    // 2. Setup periodic background refresh for true real-time tracking
+    const interval = setInterval(() => {
+      fetchLiveBinanceRate().then((res) => {
+        if (res && res.rate > 0) {
+          setRate(res.rate);
+          setSourceNote(res.source);
+          const timeStr = new Date().toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
+          setLastUpdated(timeStr);
+          if (onRateUpdated) {
+            onRateUpdated(res.rate, res.source);
+          }
+        }
+      }).catch(err => console.warn('[BinanceRateViewer] Auto background refresh failed:', err));
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const handleRefresh = async () => {
     setIsUpdating(true);
