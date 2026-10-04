@@ -26,58 +26,107 @@ export const CARLOS_LEAL_DEVELOPER_LOGO_SVG = `data:image/svg+xml;utf8,<svg xmln
   <text x="300" y="298" text-anchor="middle" font-family="'Montserrat', 'Helvetica Neue', Arial, sans-serif" font-weight="800" font-size="12" fill="%23D97706" letter-spacing="1">Carlos Leal · Desarrollador</text>
 </svg>`;
 
-// Digital Médic Official Logo - "DIGITAL MÉDIC formatos médicos digitales" (Transparent Medical Vector)
-export const DIGITAL_MEDIC_OFFICIAL_LOGO_SVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" fill="none">
+// Digital Médic Official Logo - "DIGITAL MÉDIC formatos médicos digitales" (Official App Brand Vector)
+export const DIGITAL_MEDIC_OFFICIAL_LOGO_SVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 580" fill="none">
   <defs>
-    <linearGradient id="dmBlueGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="%231E3A8A" />
-      <stop offset="100%" stop-color="%232563EB" />
+    <linearGradient id="dmNavyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="%23002B49" />
+      <stop offset="100%" stop-color="%23001F3F" />
     </linearGradient>
-    <linearGradient id="dmTealGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="%23059669" />
-      <stop offset="50%" stop-color="%230D9488" />
-      <stop offset="100%" stop-color="%230284C7" />
+    <linearGradient id="dmGreenGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="%230D7C52" />
+      <stop offset="100%" stop-color="%23058257" />
+    </linearGradient>
+    <linearGradient id="dmTealGrad2" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="%2300A896" />
+      <stop offset="100%" stop-color="%23009688" />
     </linearGradient>
   </defs>
 
-  <!-- TOP WORDMARK: DIGITAL MÉDIC -->
-  <g transform="translate(250, 95)" text-anchor="middle">
-    <text x="-95" y="0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-weight="900" font-size="48" fill="%231E3A8A" letter-spacing="-1">DIGITAL</text>
-    <path d="M-200 8 C-180 -12, -150 15, -125 0 C-145 12, -175 -5, -200 8 Z" fill="url(%23dmTealGrad)" />
-    <text x="100" y="0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-weight="900" font-size="48" fill="%231E3A8A" letter-spacing="-1">MÉDIC</text>
+  <!-- TOP BRAND TITLE: "DIGITAL MÉDIC" -->
+  <g transform="translate(300, 110)">
+    <!-- DIGITAL wordmark -->
+    <text x="-270" y="0" font-family="'Impact', 'Arial Black', sans-serif" font-weight="900" font-size="72" fill="%23002B49" letter-spacing="1">DIGITAL</text>
+    
+    <!-- Green double wave swoosh under "DIG" -->
+    <path d="M-280 12 C-250 -10, -210 25, -170 -2 C-190 18, -240 -2, -280 12 Z" fill="url(%23dmGreenGrad)" />
+    <path d="M-270 20 C-245 4, -215 28, -180 8 C-195 22, -235 8, -270 20 Z" fill="%230D7C52" opacity="0.8" />
 
-    <!-- Green Medical Cross inside É -->
-    <g transform="translate(92, -26)">
-      <rect x="-7" y="-7" width="14" height="14" rx="2" fill="%230D9488" />
-      <rect x="-2" y="-12" width="4" height="24" fill="%230D9488" />
-      <rect x="-12" y="-2" width="24" height="4" fill="%230D9488" />
-      <rect x="-2" y="-6" width="4" height="12" fill="%23FFFFFF" />
-      <rect x="-6" y="-2" width="12" height="4" fill="%23FFFFFF" />
+    <!-- MÉDIC wordmark -->
+    <text x="30" y="0" font-family="'Impact', 'Arial Black', sans-serif" font-weight="900" font-size="72" fill="%23002B49" letter-spacing="1">MÉDIC</text>
+
+    <!-- Green Medical Cross over/inside the letter "É" -->
+    <g transform="translate(98, -26)">
+      <rect x="-14" y="-14" width="28" height="28" fill="%230D7C52" rx="3" />
+      <rect x="-4" y="-22" width="8" height="44" fill="%230D7C52" rx="2" />
+      <rect x="-22" y="-4" width="44" height="8" fill="%230D7C52" rx="2" />
+      <!-- Cross Inner Highlight -->
+      <rect x="-3" y="-12" width="6" height="24" fill="%23FFFFFF" opacity="0.9" />
+      <rect x="-12" y="-3" width="24" height="6" fill="%23FFFFFF" opacity="0.9" />
     </g>
   </g>
 
-  <!-- MIDDLE ICONS (Clean Transparent Healthcare Emblems) -->
-  <g transform="translate(100, 150)">
-    <!-- Shield & Cross Emblem -->
-    <circle cx="70" cy="90" r="64" fill="%23EFF6FF" stroke="%232563EB" stroke-width="4"/>
-    <path d="M70 48 L104 62 C104 100, 88 124, 70 134 C52 124, 36 100, 36 62 Z" fill="%232563EB" opacity="0.15" stroke="%232563EB" stroke-width="3"/>
-    <rect x="64" y="70" width="12" height="42" rx="2" fill="%232563EB"/>
-    <rect x="49" y="85" width="42" height="12" rx="2" fill="%232563EB"/>
+  <!-- CENTER GRAPHICS (TABLET ON LEFT, DOCTOR COAT ON RIGHT) -->
+  <g transform="translate(60, 180)">
     
-    <!-- Stethoscope & Cloud Prescription -->
-    <circle cx="230" cy="90" r="64" fill="%23F0FDF4" stroke="%23059669" stroke-width="4"/>
-    <path d="M205 65 L245 65 C248 65 250 68 250 71 L250 115 C250 118 248 121 245 121 L205 121 C202 121 200 118 200 115 L200 71 C200 68 202 65 205 65 Z" fill="%23FFFFFF" stroke="%23059669" stroke-width="3"/>
-    <line x1="210" y1="78" x2="235" y2="78" stroke="%23059669" stroke-width="3" stroke-linecap="round"/>
-    <line x1="210" y1="88" x2="240" y2="88" stroke="%23059669" stroke-width="3" stroke-linecap="round"/>
-    <line x1="210" y1="98" x2="230" y2="98" stroke="%23059669" stroke-width="3" stroke-linecap="round"/>
-    <path d="M200 80 C185 105, 195 130, 220 135 C235 138, 245 128, 245 115" stroke="%230D9488" stroke-width="4" stroke-linecap="round" fill="none"/>
-    <circle cx="245" cy="115" r="5" fill="%23059669"/>
+    <!-- LEFT ICON: DIGITAL TABLET WITH CLOUD & DOCUMENT -->
+    <g transform="translate(15, 0)">
+      <!-- Tablet Frame -->
+      <rect x="0" y="0" width="230" height="200" rx="28" fill="%23002B49" stroke="%23001F3F" stroke-width="4" />
+      <rect x="12" y="12" width="206" height="176" rx="16" fill="%23FFFFFF" />
+      <circle cx="10" cy="100" r="3" fill="%2394A3B8" />
+      <circle cx="220" cy="100" r="5" fill="%2394A3B8" />
+
+      <!-- Document Icon inside Tablet -->
+      <g transform="translate(62, 42)">
+        <path d="M0 0 L55 0 L75 20 L75 95 L0 95 Z" fill="%230D7C52" rx="4" />
+        <path d="M55 0 L55 20 L75 20 Z" fill="%23058257" />
+        <!-- Horizontal Document Lines -->
+        <line x1="12" y1="28" x2="48" y2="28" stroke="%23FFFFFF" stroke-width="4" stroke-linecap="round" />
+        <line x1="12" y1="42" x2="62" y2="42" stroke="%23FFFFFF" stroke-width="4" stroke-linecap="round" />
+        <line x1="12" y1="56" x2="62" y2="56" stroke="%23FFFFFF" stroke-width="4" stroke-linecap="round" />
+        <line x1="12" y1="70" x2="62" y2="70" stroke="%23FFFFFF" stroke-width="4" stroke-linecap="round" />
+        <line x1="12" y1="84" x2="48" y2="84" stroke="%23FFFFFF" stroke-width="4" stroke-linecap="round" />
+      </g>
+
+      <!-- Cloud Icon above Document with Sync Arrow -->
+      <g transform="translate(100, 25)">
+        <path d="M20 30 C10 30, 5 20, 12 10 C18 0, 35 -2, 42 8 C48 0, 68 2, 70 15 C78 18, 78 30, 68 30 Z" fill="%23005A9C" />
+        <path d="M38 28 C28 28, 28 42, 10 42 L22 42 M10 42 L18 34" stroke="%23002B49" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+      </g>
+    </g>
+
+    <!-- RIGHT ICON: DOCTOR'S COAT (BATA MÉDICA) & STETHOSCOPE -->
+    <g transform="translate(265, 0)">
+      <!-- Coat Base Frame -->
+      <rect x="0" y="0" width="160" height="200" rx="28" fill="%23002B49" stroke="%23001F3F" stroke-width="4" />
+      <rect x="6" y="6" width="148" height="188" rx="22" fill="%23FFFFFF" />
+      
+      <!-- Inner Dark Suit V-Neck & Collar -->
+      <path d="M45 6 L80 80 L115 6 Z" fill="%23001F3F" />
+      <path d="M70 6 L80 30 L90 6 Z" fill="%23002B49" />
+      
+      <!-- Coat Lapels (Solapas de la Bata) -->
+      <path d="M20 6 L55 90 L6 110 Z" fill="%23F8FAFC" stroke="%23002B49" stroke-width="4" />
+      <path d="M140 6 L105 90 L154 110 Z" fill="%23F8FAFC" stroke="%23002B49" stroke-width="4" />
+      <line x1="80" y1="80" x2="80" y2="194" stroke="%23002B49" stroke-width="4" />
+      
+      <!-- Pocket & Buttons -->
+      <rect x="100" y="130" width="40" height="40" fill="%23F1F5F9" stroke="%23002B49" stroke-width="3" rx="4" />
+      <circle cx="72" cy="115" r="3" fill="%2394A3B8" />
+
+      <!-- Stethoscope hanging over neck -->
+      <path d="M35 20 C20 60, 25 120, 50 120 C70 120, 68 90, 60 70" stroke="%23002B49" stroke-width="6" fill="none" stroke-linecap="round" />
+      <circle cx="50" cy="120" r="12" fill="%230D7C52" stroke="%23002B49" stroke-width="4" />
+      <circle cx="128" cy="70" r="9" fill="%23002B49" />
+    </g>
+
   </g>
 
-  <!-- BOTTOM TEXT: "formatos médicos digitales" -->
-  <g transform="translate(250, 390)" text-anchor="middle">
-    <text x="0" y="0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-weight="800" font-size="34" fill="%230D9488" letter-spacing="0">formatos médicos</text>
-    <text x="0" y="42" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-weight="800" font-size="36" fill="%230D9488" letter-spacing="0">digitales</text>
+  <!-- BOTTOM SUBTITLE: "formatos médicos digitales" -->
+  <g transform="translate(300, 450)" text-anchor="middle">
+    <text x="0" y="0" font-family="'Arial Rounded MT Bold', 'Helvetica Neue', Arial, sans-serif" font-weight="900" font-size="46" fill="%2300A896" letter-spacing="-0.5">formatos médicos</text>
+    <text x="0" y="52" font-family="'Arial Rounded MT Bold', 'Helvetica Neue', Arial, sans-serif" font-weight="900" font-size="48" fill="%2300A896" letter-spacing="-0.5">digitales</text>
   </g>
 </svg>`;
 
@@ -178,6 +227,212 @@ export const CARDIOLOGY_PULSE_SVG = `data:image/svg+xml;utf8,<svg xmlns="http://
   <circle cx="96" cy="138" r="4.5" fill="%23ef4444"/>
 </svg>`;
 
+// 1. Ginecología y Obstetricia - Mujer Embarazada (Silueta de Maternidad y Bebé)
+export const OBSTETRICS_PREGNANCY_SVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <circle cx="100" cy="100" r="90" fill="%23fdf2f8" stroke="%23db2777" stroke-width="4"/>
+  <circle cx="90" cy="50" r="16" fill="%23db2777"/>
+  <path d="M84 66 C68 84 66 114 70 144 C72 150 78 152 82 148 C88 140 92 125 90 110 C88 95 95 80 102 72 Z" fill="%23db2777"/>
+  <path d="M96 74 C90 92 88 108 96 126 C102 136 116 138 128 132 C134 128 135 120 128 118 C118 116 108 114 105 102 C102 92 105 82 108 72 Z" fill="%23ec4899"/>
+  <path d="M102 82 C120 86 138 98 140 118 C142 138 128 152 108 155 C96 157 88 150 90 144 C92 138 105 142 116 138 C126 134 130 124 126 114 C122 102 110 92 98 88 Z" fill="%23be185d"/>
+  <path d="M118 115 C115 110 110 112 110 115 C110 119 118 124 118 124 C118 124 126 119 126 115 C126 112 121 110 118 115 Z" fill="%23f43f5e"/>
+</svg>`;
+
+// 2. Anestesiología - Laringoscopio Quirúrgico y Monitor
+export const ANESTHESIOLOGY_LARYNGOSCOPE_SVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <circle cx="100" cy="100" r="90" fill="%23f0f9ff" stroke="%230284c7" stroke-width="4"/>
+  <rect x="52" y="70" width="26" height="88" rx="6" fill="%230369a1" stroke="%23075985" stroke-width="2"/>
+  <line x1="55" y1="84" x2="75" y2="84" stroke="%2338bdf8" stroke-width="2"/>
+  <line x1="55" y1="98" x2="75" y2="98" stroke="%2338bdf8" stroke-width="2"/>
+  <line x1="55" y1="112" x2="75" y2="112" stroke="%2338bdf8" stroke-width="2"/>
+  <line x1="55" y1="126" x2="75" y2="126" stroke="%2338bdf8" stroke-width="2"/>
+  <line x1="55" y1="140" x2="75" y2="140" stroke="%2338bdf8" stroke-width="2"/>
+  <path d="M60 70 L60 52 C60 48 68 45 74 48 L82 54 L80 70 Z" fill="%230284c7"/>
+  <path d="M76 50 C95 48 125 52 145 68 C158 79 164 92 165 98 C166 102 160 104 156 100 C148 92 138 82 118 76 C98 70 82 72 74 74 Z" fill="%230284c7" stroke="%230369a1" stroke-width="2"/>
+  <circle cx="163" cy="99" r="4.5" fill="%23facc15"/>
+  <path d="M165 99 L178 95 M165 102 L176 108 M165 98 L175 90" stroke="%23facc15" stroke-width="2" stroke-linecap="round"/>
+  <path d="M40 168 L70 168 L80 156 L90 176 L100 164 L108 168 L160 168" stroke="%230ea5e9" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`;
+
+// 3. Pediatría y Puericultura - Huella de Bebé y Afecto
+export const PEDIATRICS_BABY_FOOTPRINT_SVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <circle cx="100" cy="100" r="90" fill="%23f0fdf4" stroke="%2316a34a" stroke-width="4"/>
+  <path d="M92 90 C78 96 70 115 74 135 C78 152 92 162 104 162 C116 162 124 150 122 135 C120 120 108 108 108 98 C108 92 102 86 92 90 Z" fill="%2316a34a"/>
+  <circle cx="82" cy="74" r="10" fill="%2316a34a"/>
+  <circle cx="98" cy="70" r="6.5" fill="%2316a34a"/>
+  <circle cx="110" cy="74" r="5.5" fill="%2316a34a"/>
+  <circle cx="120" cy="80" r="4.5" fill="%2316a34a"/>
+  <circle cx="128" cy="88" r="3.5" fill="%2316a34a"/>
+  <path d="M142 48 C138 42 130 44 130 48 C130 54 142 62 142 62 C142 62 154 54 154 48 C154 44 146 42 142 48 Z" fill="%23f43f5e"/>
+</svg>`;
+
+// 4. Traumatología y Ortopedia - Estructura Ósea y Columna
+export const TRAUMATOLOGY_BONE_SPINE_SVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <circle cx="100" cy="100" r="90" fill="%23f8fafc" stroke="%233b82f6" stroke-width="4"/>
+  <circle cx="84" cy="52" r="14" fill="%232563eb"/>
+  <circle cx="116" cy="52" r="14" fill="%232563eb"/>
+  <path d="M88 56 C94 80 94 120 88 144 L112 144 C106 120 106 80 112 56 Z" fill="%231d4ed8"/>
+  <circle cx="84" cy="148" r="14" fill="%232563eb"/>
+  <circle cx="116" cy="148" r="14" fill="%232563eb"/>
+  <rect x="74" y="94" width="52" height="12" rx="4" fill="%2393c5fd" opacity="0.8"/>
+  <circle cx="100" cy="100" r="4" fill="%23ffffff"/>
+</svg>`;
+
+// 5. Neumonología y Respiratorio - Pulmones y Árbol Bronquial
+export const PULMONOLOGY_LUNGS_SVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <circle cx="100" cy="100" r="90" fill="%23ecfeff" stroke="%230891b2" stroke-width="4"/>
+  <path d="M100 42 L100 82 M94 48 L106 48 M94 58 L106 58 M94 68 L106 68 M94 78 L106 78" stroke="%230e7490" stroke-width="4" stroke-linecap="round"/>
+  <path d="M100 82 C94 92 84 98 72 104 M100 82 C106 92 116 98 128 104" stroke="%230e7490" stroke-width="4" stroke-linecap="round"/>
+  <path d="M68 85 C52 92 45 110 46 132 C47 148 55 160 74 158 C85 156 90 144 88 130 C86 112 84 96 72 88 Z" fill="%2306b6d4" opacity="0.9"/>
+  <path d="M132 85 C148 92 155 110 154 132 C153 148 145 160 126 158 C118 157 114 148 116 138 C118 128 112 118 112 108 C112 96 122 88 132 85 Z" fill="%2306b6d4" opacity="0.9"/>
+  <path d="M70 105 L60 120 M70 105 L74 125 M130 105 L140 120 M130 105 L126 125" stroke="%23ffffff" stroke-width="2.5" stroke-linecap="round"/>
+</svg>`;
+
+// 6. Neurología y Neurocirugía - Cerebro y Conexiones Sinápticas
+export const NEUROLOGY_BRAIN_SVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <circle cx="100" cy="100" r="90" fill="%23faf5ff" stroke="%237c3aed" stroke-width="4"/>
+  <path d="M96 50 C80 50 68 58 60 70 C50 82 50 98 56 108 C50 118 52 134 62 144 C72 154 86 154 96 152 Z" fill="%238b5cf6"/>
+  <path d="M104 50 C120 50 132 58 140 70 C150 82 150 98 144 108 C150 118 148 134 138 144 C128 154 114 154 104 152 Z" fill="%237c3aed"/>
+  <circle cx="76" cy="80" r="4" fill="%23ffffff"/>
+  <circle cx="68" cy="112" r="4" fill="%23ffffff"/>
+  <circle cx="84" cy="132" r="4" fill="%23ffffff"/>
+  <circle cx="124" cy="80" r="4" fill="%23ffffff"/>
+  <circle cx="132" cy="112" r="4" fill="%23ffffff"/>
+  <circle cx="116" cy="132" r="4" fill="%23ffffff"/>
+  <path d="M76 80 L68 112 L84 132 M124 80 L132 112 L116 132 M76 80 L100 95 L124 80 M68 112 L100 115 L132 112" stroke="%23ddd6fe" stroke-width="2" stroke-linecap="round"/>
+</svg>`;
+
+// 7. Oftalmología y Optometría - Ojo Clínico y Visión
+export const OPHTHALMOLOGY_EYE_SVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <circle cx="100" cy="100" r="90" fill="%23f0f9ff" stroke="%230284c7" stroke-width="4"/>
+  <path d="M36 100 C56 68 144 68 164 100 C144 132 56 132 36 100 Z" fill="%23ffffff" stroke="%230284c7" stroke-width="5" stroke-linejoin="round"/>
+  <circle cx="100" cy="100" r="28" fill="%230ea5e9" stroke="%230369a1" stroke-width="3"/>
+  <circle cx="100" cy="100" r="14" fill="%230f172a"/>
+  <circle cx="94" cy="94" r="5" fill="%23ffffff"/>
+  <circle cx="106" cy="104" r="2.5" fill="%23ffffff"/>
+</svg>`;
+
+// 8. Gastroenterología - Sistema Digestivo y Estómago
+export const GASTROENTEROLOGY_STOMACH_SVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <circle cx="100" cy="100" r="90" fill="%23fff7ed" stroke="%23ea580c" stroke-width="4"/>
+  <path d="M85 45 C86 60 92 68 98 75" stroke="%23c2410c" stroke-width="8" stroke-linecap="round"/>
+  <path d="M96 72 C115 65 145 74 148 105 C152 135 130 158 105 158 C80 158 64 142 66 122 C68 102 85 92 98 88 Z" fill="%23f97316"/>
+  <path d="M125 80 C140 90 142 120 132 140" stroke="%23fff7ed" stroke-width="4" stroke-linecap="round"/>
+  <path d="M68 128 C56 132 52 144 58 152" stroke="%23c2410c" stroke-width="6" stroke-linecap="round"/>
+</svg>`;
+
+// 9. Cirugía General - Bisturí Quirúrgico de Precisión
+export const SURGERY_SCALPEL_SVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <circle cx="100" cy="100" r="90" fill="%23f0fdf4" stroke="%23059669" stroke-width="4"/>
+  <g transform="rotate(-45 100 100)">
+    <rect x="94" y="30" width="12" height="90" rx="3" fill="%23047857" stroke="%23064e3b" stroke-width="1.5"/>
+    <line x1="97" y1="45" x2="103" y2="45" stroke="%236ee7b7" stroke-width="2"/>
+    <line x1="97" y1="60" x2="103" y2="60" stroke="%236ee7b7" stroke-width="2"/>
+    <line x1="97" y1="75" x2="103" y2="75" stroke="%236ee7b7" stroke-width="2"/>
+    <line x1="97" y1="90" x2="103" y2="90" stroke="%236ee7b7" stroke-width="2"/>
+    <path d="M96 120 L104 120 L105 130 L95 130 Z" fill="%236ee7b7"/>
+    <path d="M97 130 L103 130 L103 155 C103 168 96 172 94 172 C94 172 95 150 97 130 Z" fill="%23e2e8f0" stroke="%230f172a" stroke-width="1.5"/>
+  </g>
+  <circle cx="100" cy="100" r="68" stroke="%2310b981" stroke-width="2" stroke-dasharray="8 6"/>
+</svg>`;
+
+// 10. Nefrología y Urología - Riñón Anatómico
+export const NEPHROLOGY_KIDNEY_SVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <circle cx="100" cy="100" r="90" fill="%23fff1f2" stroke="%23e11d48" stroke-width="4"/>
+  <path d="M98 48 C128 48 148 70 148 100 C148 130 128 152 98 152 C72 152 56 138 56 120 C56 106 68 104 74 100 C68 96 56 94 56 80 C56 62 72 48 98 48 Z" fill="%23be123c"/>
+  <path d="M72 100 C85 96 95 100 95 104 C95 108 85 110 74 106" fill="%23fda4af"/>
+  <path d="M72 104 C64 112 62 135 58 160" stroke="%23e11d48" stroke-width="5" stroke-linecap="round"/>
+</svg>`;
+
+// 11. Dermatología - Lupa y Células Cutáneas
+export const DERMATOLOGY_SKIN_SVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <circle cx="100" cy="100" r="90" fill="%23fff1f2" stroke="%23f43f5e" stroke-width="4"/>
+  <circle cx="90" cy="90" r="42" fill="%23ffffff" stroke="%23e11d48" stroke-width="5"/>
+  <path d="M120 120 L155 155" stroke="%23be123c" stroke-width="12" stroke-linecap="round"/>
+  <path d="M90 62 C85 75 80 82 90 90 C100 82 95 75 90 62 Z" fill="%23fb7185"/>
+  <path d="M90 118 C85 105 80 98 90 90 C100 98 95 105 90 118 Z" fill="%23fb7185"/>
+  <path d="M62 90 C75 85 82 80 90 90 C82 100 75 95 62 90 Z" fill="%23fb7185"/>
+  <path d="M118 90 C105 85 98 80 90 90 C98 100 105 95 118 90 Z" fill="%23fb7185"/>
+  <circle cx="90" cy="90" r="5" fill="%23e11d48"/>
+</svg>`;
+
+// 12. Otorrinolaringología - Oído y Sonido
+export const OTORHINOLARYNGOLOGY_ENT_SVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <circle cx="100" cy="100" r="90" fill="%23f0fdfa" stroke="%230d9488" stroke-width="4"/>
+  <path d="M92 50 C118 50 135 68 135 90 C135 110 122 120 118 128 C114 136 116 148 106 150 C96 152 92 142 94 134 C98 122 115 114 115 94 C115 80 104 68 90 68 C80 68 76 74 74 80" stroke="%230f766e" stroke-width="7" stroke-linecap="round"/>
+  <path d="M96 90 C104 90 108 96 106 104 C104 110 98 112 94 108" stroke="%2314b8a6" stroke-width="5" stroke-linecap="round"/>
+  <path d="M142 80 C148 86 148 94 142 100 M152 72 C162 82 162 98 152 108" stroke="%230d9488" stroke-width="4" stroke-linecap="round"/>
+</svg>`;
+
+// 13. Emergenciología - Estrella de la Vida Oficial
+export const EMERGENCY_STAR_OF_LIFE_SVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <circle cx="100" cy="100" r="90" fill="%23eff6ff" stroke="%231d4ed8" stroke-width="4"/>
+  <g fill="%232563eb">
+    <rect x="88" y="35" width="24" height="130" rx="4"/>
+    <rect x="88" y="35" width="24" height="130" rx="4" transform="rotate(60 100 100)"/>
+    <rect x="88" y="35" width="24" height="130" rx="4" transform="rotate(-60 100 100)"/>
+  </g>
+  <line x1="100" y1="48" x2="100" y2="152" stroke="%23ffffff" stroke-width="5" stroke-linecap="round"/>
+  <path d="M94 65 C108 68 108 78 94 82 C82 86 86 100 102 102 C116 104 114 118 98 120 C86 122 90 134 102 136" stroke="%23ffffff" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+</svg>`;
+
+// 14. Psicología - Símbolo Griego Psi (Ψ)
+export const PSYCHOLOGY_PSI_SVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <circle cx="100" cy="100" r="90" fill="%23faf5ff" stroke="%239333ea" stroke-width="4"/>
+  <line x1="100" y1="42" x2="100" y2="158" stroke="%237e22ce" stroke-width="8" stroke-linecap="round"/>
+  <path d="M58 72 C58 116 78 132 100 132 C122 132 142 116 142 72" stroke="%237e22ce" stroke-width="8" fill="none" stroke-linecap="round"/>
+  <circle cx="58" cy="70" r="6" fill="%23a855f7"/>
+  <circle cx="142" cy="70" r="6" fill="%23a855f7"/>
+  <circle cx="100" cy="42" r="6" fill="%23a855f7"/>
+</svg>`;
+
+// 15. Bioanálisis y Laboratorio - Microscopio Clínico
+export const BIOANALYSIS_LAB_MICROSCOPE_SVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <circle cx="100" cy="100" r="90" fill="%23f8fafc" stroke="%231e3a8a" stroke-width="4"/>
+  <rect x="58" y="152" width="84" height="12" rx="4" fill="%231e3a8a"/>
+  <path d="M72 152 C72 110 88 85 106 82 L106 100 C96 102 88 120 88 152 Z" fill="%231e40af"/>
+  <g transform="rotate(-25 110 85)">
+    <rect x="100" y="40" width="20" height="52" rx="3" fill="%233b82f6"/>
+    <rect x="96" y="32" width="28" height="10" rx="2" fill="%231d4ed8"/>
+    <path d="M96 92 L124 92 L116 106 L104 106 Z" fill="%231e3a8a"/>
+    <rect x="106" y="106" width="8" height="12" fill="%2364748b"/>
+  </g>
+  <rect x="94" y="122" width="48" height="6" rx="2" fill="%230f172a"/>
+  <circle cx="118" cy="120" r="3" fill="%23ef4444"/>
+</svg>`;
+
+// 16. Nutrición y Dietética - Manzana Saludable
+export const NUTRITION_DIETETICS_SVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <circle cx="100" cy="100" r="90" fill="%23f0fdf4" stroke="%2316a34a" stroke-width="4"/>
+  <path d="M100 68 C88 56 65 58 55 75 C42 98 48 135 68 152 C80 162 92 158 100 154 C108 158 120 162 132 152 C152 135 158 98 145 75 C135 58 112 56 100 68 Z" fill="%2322c55e"/>
+  <path d="M100 68 C102 52 108 45 114 42" stroke="%2378350f" stroke-width="4" stroke-linecap="round"/>
+  <path d="M106 52 C120 48 130 54 132 60 C122 66 112 60 106 52 Z" fill="%2315803d"/>
+  <path d="M62 110 C82 130 118 130 138 110" stroke="%23ffffff" stroke-width="5" stroke-dasharray="4 3" stroke-linecap="round"/>
+</svg>`;
+
+// 17. Fisioterapia y Rehabilitación - Movilidad y Bienestar
+export const PHYSIOTHERAPY_MOVEMENT_SVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <circle cx="100" cy="100" r="90" fill="%23fffbeb" stroke="%23d97706" stroke-width="4"/>
+  <circle cx="100" cy="54" r="14" fill="%23d97706"/>
+  <path d="M100 70 C106 88 110 108 102 128" stroke="%23b45309" stroke-width="9" stroke-linecap="round"/>
+  <path d="M60 82 C80 72 120 72 140 82" stroke="%23f59e0b" stroke-width="7" stroke-linecap="round"/>
+  <path d="M102 128 L82 162 M102 128 L124 158" stroke="%23b45309" stroke-width="8" stroke-linecap="round"/>
+  <path d="M48 100 C68 140 132 140 152 100" stroke="%23fbbf24" stroke-width="4" stroke-dasharray="6 4" stroke-linecap="round"/>
+</svg>`;
+
+// 18. Endocrinología - Tiroides y Metabolismo
+export const ENDOCRINOLOGY_THYROID_SVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <circle cx="100" cy="100" r="90" fill="%23faf5ff" stroke="%239333ea" stroke-width="4"/>
+  <rect x="92" y="45" width="16" height="110" rx="3" fill="%23e9d5ff"/>
+  <line x1="92" y1="60" x2="108" y2="60" stroke="%23c084fc" stroke-width="2.5"/>
+  <line x1="92" y1="75" x2="108" y2="75" stroke="%23c084fc" stroke-width="2.5"/>
+  <line x1="92" y1="90" x2="108" y2="90" stroke="%23c084fc" stroke-width="2.5"/>
+  <line x1="92" y1="105" x2="108" y2="105" stroke="%23c084fc" stroke-width="2.5"/>
+  <line x1="92" y1="120" x2="108" y2="120" stroke="%23c084fc" stroke-width="2.5"/>
+  <path d="M96 90 C85 70 65 72 58 95 C52 118 64 142 85 138 C94 136 96 122 96 108 Z" fill="%23a855f7"/>
+  <path d="M104 90 C115 70 135 72 142 95 C148 118 136 142 115 138 C106 136 104 122 104 108 Z" fill="%239333ea"/>
+  <rect x="88" y="106" width="24" height="14" rx="4" fill="%237e22ce"/>
+</svg>`;
+
 // Basic Medical Logos Registry
 export interface BasicMedicalLogo {
   id: string;
@@ -187,6 +442,7 @@ export interface BasicMedicalLogo {
 }
 
 export const BASIC_MEDICAL_LOGOS: BasicMedicalLogo[] = [
+  // Apps & Emblemas Oficiales
   { id: 'digital-medic', name: 'Digital Médic (Oficial)', category: 'App Oficial', svgDataUri: DIGITAL_MEDIC_OFFICIAL_LOGO_SVG },
   { id: 'esculapio-medicina', name: 'Símbolo Medicina ⚕️', category: 'Oficial ⚕️', svgDataUri: MEDICINE_EMBLEM_ESCULAPIO_SVG },
   { id: 'caduceo', name: 'Caduceo y Esculapio', category: 'Médico General', svgDataUri: MODERN_MEDICAL_LOGO_SVG },
@@ -195,8 +451,28 @@ export const BASIC_MEDICAL_LOGOS: BasicMedicalLogo[] = [
   { id: 'hospital', name: 'Centro Clínico / Hospital', category: 'Institucional', svgDataUri: HOSPITAL_EMBLEM_SVG },
   { id: 'estetoscopio', name: 'Estetoscopio y Corazón', category: 'Cardio / Clínico', svgDataUri: STETHOSCOPE_HEART_SVG },
   { id: 'rx', name: 'Prescripción Médica Rp', category: 'Recetario / Farmacia', svgDataUri: RX_PRESCRIPTION_SVG },
-  { id: 'cardio', name: 'Cardiología y Pulso', category: 'Cardiología', svgDataUri: CARDIOLOGY_PULSE_SVG },
-  { id: 'dental', name: 'Odontología y Dental', category: 'Odontología', svgDataUri: DENTAL_EMBLEM_SVG }
+  
+  // Especialidades Solicitadas por el Doctor
+  { id: 'obstetricia-embarazo', name: 'Obstetricia y Ginecología (Mujer Embarazada)', category: 'Ginecología y Obstetricia', svgDataUri: OBSTETRICS_PREGNANCY_SVG },
+  { id: 'anestesiologia-laringo', name: 'Anestesiología (Laringoscopio y Vía Aérea)', category: 'Anestesiología', svgDataUri: ANESTHESIOLOGY_LARYNGOSCOPE_SVG },
+  { id: 'pediatria-pie', name: 'Pediatría (Huella Bebé y Cuidado)', category: 'Pediatría', svgDataUri: PEDIATRICS_BABY_FOOTPRINT_SVG },
+  { id: 'cardio-pulso', name: 'Cardiología (Electrocardiograma y Pulso)', category: 'Cardiología', svgDataUri: CARDIOLOGY_PULSE_SVG },
+  { id: 'traumatologia-hueso', name: 'Traumatología y Ortopedia (Hueso y Columna)', category: 'Traumatología', svgDataUri: TRAUMATOLOGY_BONE_SPINE_SVG },
+  { id: 'neumonologia-pulmones', name: 'Neumonología (Pulmones y Árbol Bronquial)', category: 'Neumonología', svgDataUri: PULMONOLOGY_LUNGS_SVG },
+  { id: 'cirugia-bisturi', name: 'Cirugía General (Bisturí Quirúrgico)', category: 'Cirugía General', svgDataUri: SURGERY_SCALPEL_SVG },
+  { id: 'neurologia-cerebro', name: 'Neurología y Salud Mental (Cerebro y Sinapsis)', category: 'Neurología', svgDataUri: NEUROLOGY_BRAIN_SVG },
+  { id: 'oftalmologia-ojo', name: 'Oftalmología (Ojo Clínico y Visión)', category: 'Oftalmología', svgDataUri: OPHTHALMOLOGY_EYE_SVG },
+  { id: 'gastro-estomago', name: 'Gastroenterología (Estómago y Digestivo)', category: 'Gastroenterología', svgDataUri: GASTROENTEROLOGY_STOMACH_SVG },
+  { id: 'nefrologia-rinon', name: 'Nefrología y Urología (Riñón)', category: 'Nefrología / Urología', svgDataUri: NEPHROLOGY_KIDNEY_SVG },
+  { id: 'dermatologia-piel', name: 'Dermatología (Dermatoscopio y Piel)', category: 'Dermatología', svgDataUri: DERMATOLOGY_SKIN_SVG },
+  { id: 'otorrino-oido', name: 'Otorrinolaringología (Oído y Audición)', category: 'Otorrinolaringología', svgDataUri: OTORHINOLARYNGOLOGY_ENT_SVG },
+  { id: 'emergencias-estrella', name: 'Emergenciología (Estrella de la Vida)', category: 'Emergenciología', svgDataUri: EMERGENCY_STAR_OF_LIFE_SVG },
+  { id: 'psicologia-psi', name: 'Psicología (Símbolo Griego Psi Ψ)', category: 'Psicología', svgDataUri: PSYCHOLOGY_PSI_SVG },
+  { id: 'dental-diente', name: 'Odontología y Dental (Muela Saludable)', category: 'Odontología', svgDataUri: DENTAL_EMBLEM_SVG },
+  { id: 'laboratorio-microscopio', name: 'Bioanálisis y Laboratorio (Microscopio)', category: 'Laboratorio Clínico', svgDataUri: BIOANALYSIS_LAB_MICROSCOPE_SVG },
+  { id: 'nutricion-manzana', name: 'Nutrición y Dietética (Manzana Saludable)', category: 'Nutrición', svgDataUri: NUTRITION_DIETETICS_SVG },
+  { id: 'fisioterapia-movimiento', name: 'Fisioterapia y Rehabilitación (Movimiento)', category: 'Fisioterapia', svgDataUri: PHYSIOTHERAPY_MOVEMENT_SVG },
+  { id: 'endocrino-tiroides', name: 'Endocrinología (Tiroides y Metabolismo)', category: 'Endocrinología', svgDataUri: ENDOCRINOLOGY_THYROID_SVG }
 ];
 
 // Helper to get medical symbols flanking the doctor's name
@@ -491,7 +767,7 @@ export const DEFAULT_DOCTOR_CONFIG: DoctorConfig = {
   watermarkScale: 55,
   watermarkRotation: 0,
   logoIzq: DIGITAL_MEDIC_OFFICIAL_LOGO_SVG,
-  logoDer: MEDICINE_EMBLEM_ESCULAPIO_SVG,
+  logoDer: "",
   marcaAgua: DIGITAL_MEDIC_OFFICIAL_LOGO_SVG,
   firmaImg: "",
   selloImg: "",

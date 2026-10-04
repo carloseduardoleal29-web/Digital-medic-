@@ -11,7 +11,8 @@ import {
   ClipboardList, 
   Grid2X2,
   FileCheck2,
-  Download
+  Download,
+  Scissors
 } from 'lucide-react';
 import { 
   DoctorConfig, 
@@ -61,7 +62,7 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
   const [selectedPreviewModule, setSelectedPreviewModule] = useState<ActiveModule>(activeModule);
   const [zoom, setZoom] = useState<number>(100);
 
-  // Sync with prop when opened and auto-scale zoom based on screen width to avoid massive text/borders
+  // Sync with prop when opened and auto-scale zoom based on screen width
   React.useEffect(() => {
     if (isOpen) {
       setSelectedPreviewModule(activeModule);
@@ -70,13 +71,9 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
       const isMobile = screenWidth < 768;
 
       if (activeModule === 'recipe-master' || activeModule === 'diseno') {
-        setZoom(isMobile ? 45 : 80);
-      } else if (activeModule === 'recipe-4en1') {
-        setZoom(isMobile ? 30 : 40);
-      } else if (activeModule === 'informes') {
-        setZoom(isMobile ? 28 : 38); // Scaled slightly down to prevent text overflowing
+        setZoom(isMobile ? 70 : 100);
       } else {
-        setZoom(isMobile ? 30 : 40); // Scaled slightly down to prevent text overflowing
+        setZoom(isMobile ? 60 : 85);
       }
     }
   }, [activeModule, isOpen]);
@@ -87,13 +84,9 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
     const isMobile = screenWidth < 768;
 
     if (selectedPreviewModule === 'recipe-master' || selectedPreviewModule === 'diseno') {
-      setZoom(isMobile ? 45 : 80);
-    } else if (selectedPreviewModule === 'recipe-4en1') {
-      setZoom(isMobile ? 30 : 40);
-    } else if (selectedPreviewModule === 'informes') {
-      setZoom(isMobile ? 28 : 38);
+      setZoom(isMobile ? 70 : 100);
     } else {
-      setZoom(isMobile ? 30 : 40);
+      setZoom(isMobile ? 60 : 85);
     }
   }, [selectedPreviewModule]);
 
@@ -113,19 +106,13 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
   const getFormatSpecs = () => {
     switch (selectedPreviewModule) {
       case 'recipe-master':
+      case 'recipe-4en1':
       case 'diseno':
         return {
-          name: 'Récipe Médico Individual',
-          sizeName: 'Media Carta (14 x 21.5 cm) - Formato Pequeño Estándar',
-          widthClass: 'w-[560px] min-h-[790px]',
-          sheetBadge: 'Récipe Pequeño Clínico',
-        };
-      case 'recipe-4en1':
-        return {
-          name: 'Récipes Múltiples',
-          sizeName: 'Hoja Carta (21.6 x 27.9 cm) con 4 Récipes de Bolsillo',
+          name: 'Hoja Carta de Récipes Médicos',
+          sizeName: 'Hoja Carta Real (21.6 x 27.9 cm) con Récipes en Cuadrantes',
           widthClass: 'w-[840px] min-h-[1050px]',
-          sheetBadge: 'Récipes en Cuadrantes',
+          sheetBadge: 'Hoja Carta Multi-Récipe',
         };
       case 'informes':
         return {
@@ -242,27 +229,27 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
           </div>
 
           <button
-            onClick={async () => {
+            onClick={() => {
               if (onConfirmDownloadPdf) {
-                await onConfirmDownloadPdf();
+                onConfirmDownloadPdf();
               } else {
-                onConfirmPrint();
+                handlePrint();
               }
             }}
-            className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl font-bold text-xs flex items-center gap-2 shadow-md transition-all hover:scale-[1.02] cursor-pointer"
-            title="Descargar archivo PDF directamente a su equipo"
+            className="px-4 py-2 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl font-bold text-xs flex items-center gap-2 shadow-md transition-all hover:scale-[1.02] cursor-pointer"
+            title="Descargar PDF nítido en su equipo de forma inmediata"
           >
-            <Download className="w-4 h-4 text-emerald-100" />
+            <Download className="w-4 h-4 text-emerald-200" />
             <span>Descargar PDF</span>
           </button>
 
           <button
             onClick={handlePrint}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold text-xs flex items-center gap-2 shadow-md transition-all hover:scale-[1.02] cursor-pointer"
-            title="Imprimir en impresora física conectada"
+            className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl font-bold text-xs flex items-center gap-2 shadow-md transition-all hover:scale-[1.02] cursor-pointer"
+            title="Imprimir en impresora física o guardar como PDF del sistema"
           >
             <Printer className="w-4 h-4" />
-            <span>Imprimir</span>
+            <span>🖨️ Imprimir Documento</span>
           </button>
 
           {/* Prominent Red Exit Button requested by the user */}
@@ -289,11 +276,11 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
         >
 
           {/* ========================================================= */}
-          {/* CASE 1: RÉCIPE MÉDICO INDIVIDUAL (MEDIA CARTA / PEQUEÑO) */}
+          {/* CASE 1 & 2: RÉCIPES MÉDICOS (HOJA CARTA 4 CUADRANTES CON POSICIONAMIENTO) */}
           {/* ========================================================= */}
-          {(selectedPreviewModule === 'recipe-master' || selectedPreviewModule === 'diseno') && (
+          {(selectedPreviewModule === 'recipe-master' || selectedPreviewModule === 'recipe-4en1' || selectedPreviewModule === 'diseno') && (
             <div
-              className={`relative ${specs.widthClass} bg-white shadow-2xl p-7 transition-all flex flex-col justify-between print-container recipe-single-container ${textureClass} ${
+              className={`relative w-[840px] min-h-[1050px] bg-white shadow-2xl p-4 transition-all print-container recipe-4en1-container ${textureClass} ${
                 config.enforcePureBlackText ? 'enforce-pure-black' : ''
               }`}
               style={{
@@ -302,182 +289,94 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
                 borderRadius: config.docCornerRadius || '16px',
               }}
             >
-              {config.marcaAgua && (
-                <div className="marca-agua">
-                  <img
-                    src={config.marcaAgua}
-                    alt="Marca de agua"
-                    className="marca-agua-img"
-                    style={{
-                      opacity: config.watermarkOpacity ?? 0.12,
-                      width: `${config.watermarkScale || 55}%`,
-                      transform: `rotate(${config.watermarkRotation || 0}deg)`,
-                    }}
-                  />
-                </div>
-              )}
+              <div className="grid grid-cols-2 grid-rows-2 gap-3 relative z-10 min-h-[1010px] recipe-4en1-grid">
+                {[0, 1, 2, 3].map((idx) => {
+                  const rec = recipes4en1[idx] || (idx === 0 ? recipe : null);
+                  const isSlotFilled = rec && Boolean(rec.rp?.trim() || rec.patientName?.trim() || rec.diagnosis?.trim());
 
-              <div className="relative z-10 flex flex-col h-full justify-between flex-1">
-                <div>
-                  <DocumentHeader config={config} compact={false} editableInline={false} />
-                  
-                  {/* Patient Bar - Clean 2-Line Layout */}
-                  <div 
-                    className="py-2 px-3 bg-slate-50/90 border border-slate-200/90 rounded-xl mb-2.5 space-y-1.5 shadow-2xs text-xs"
-                    style={{ fontSize: config.patientBarSize || '11.5px' }}
-                  >
-                    {/* Line 1: Paciente y Cédula */}
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1 flex items-center gap-1.5 min-w-0">
-                        <span className="font-bold text-slate-800 shrink-0">Paciente:</span>
-                        <span className="font-semibold text-slate-900 truncate">{recipe.patientName || '—'}</span>
+                  // Always show Slot 0 if recipe is present, or if rec has content
+                  const shouldRenderContent = idx === 0 ? true : isSlotFilled;
+
+                  if (!shouldRenderContent) {
+                    return (
+                      <div
+                        key={idx}
+                        className="relative border-2 border-dashed border-slate-200 rounded-xl p-4 bg-slate-50/30 flex flex-col items-center justify-center text-center text-slate-400 min-h-[490px] recipe-quadrant-empty"
+                      >
+                        <div className="space-y-1.5 opacity-60">
+                          <Scissors className="w-5 h-5 mx-auto text-slate-300" />
+                          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                            Cuadrante {idx + 1} Libre
+                          </span>
+                          <span className="text-[10px] text-slate-400 block max-w-[180px]">
+                            Espacio disponible para cortar la hoja carta o añadir otro récipe.
+                          </span>
+                        </div>
                       </div>
-                      <div className="min-w-[140px] flex items-center gap-1.5 shrink-0">
-                        <span className="font-bold text-slate-800 shrink-0">C.I. / Doc:</span>
-                        <span className="font-semibold text-slate-900">{recipe.patientCI || '—'}</span>
+                    );
+                  }
+
+                  return (
+                    <div
+                      key={idx}
+                      className="relative border border-slate-200/90 rounded-xl p-3.5 bg-white shadow-2xs flex flex-col justify-between min-h-[490px] overflow-hidden recipe-quadrant-card"
+                    >
+                      {/* Watermark inside each recipe quadrant */}
+                      {config.marcaAgua && !config.marcaAgua.includes('DIGITAL') && (
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
+                          <img
+                            src={config.marcaAgua}
+                            alt="Marca de agua"
+                            className="marca-agua-img"
+                            style={{
+                              opacity: config.watermarkOpacity ?? 0.12,
+                              width: `${Math.min(65, config.watermarkScale || 55)}%`,
+                              transform: `rotate(${config.watermarkRotation || 0}deg)`,
+                            }}
+                          />
+                        </div>
+                      )}
+
+                      <div className="relative z-10">
+                        <DocumentHeader config={config} compact={true} editableInline={false} />
+                        <div className="grid grid-cols-2 gap-1 py-1 px-2 bg-slate-50/80 border border-slate-200/90 rounded-lg text-[10px] my-1.5">
+                          <div className="truncate">
+                            <span className="font-bold text-slate-700">Pac: </span>
+                            <span className="font-semibold text-slate-900">{rec?.patientName || '—'}</span>
+                          </div>
+                          <div className="text-right truncate">
+                            <span className="font-bold text-slate-700">C.I: </span>
+                            <span className="font-semibold text-slate-900">{rec?.patientCI || '—'}</span>
+                          </div>
+                          <div className="truncate">
+                            <span className="font-bold text-slate-700">Dx: </span>
+                            <span className="text-slate-800">{rec?.diagnosis || '—'}</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="font-bold text-slate-700">Fecha: </span>
+                            <span>{rec?.date || '—'}</span>
+                          </div>
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Line 2: Edad, Teléfono y Fecha */}
-                    <div className="grid grid-cols-3 gap-3 pt-1 border-t border-slate-200/60 items-center">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <span className="font-bold text-slate-800 shrink-0">Edad:</span>
-                        <span className="font-semibold text-slate-900">{recipe.patientAge || '—'}</span>
+                      <div className="flex-1 my-1 relative z-10">
+                        <span className="font-bold text-xs block text-blue-700 font-serif">℞ Rp.</span>
+                        <p className="text-[11.5px] text-slate-900 whitespace-pre-wrap leading-relaxed mt-1 font-sans font-medium">
+                          {rec?.rp || <span className="italic text-slate-400">Sin medicamentos asignados.</span>}
+                        </p>
                       </div>
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <span className="font-bold text-slate-800 shrink-0">Teléfono:</span>
-                        <span className="font-semibold text-slate-900">{recipe.patientPhone || '—'}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <span className="font-bold text-slate-800 shrink-0">Fecha:</span>
-                        <span className="font-semibold text-slate-900">{recipe.date || '—'}</span>
-                      </div>
-                    </div>
-                  </div>
 
-                  {recipe.diagnosis && (
-                    <div className="mb-2 px-1 text-xs flex items-center gap-2">
-                      <span className="font-bold text-slate-700 shrink-0">Dx / Diagnóstico:</span>
-                      <span className="text-slate-800 font-medium">{recipe.diagnosis}</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Prescription Body (Rp.) */}
-                <div className="flex-1 my-2 flex flex-col">
-                  <div 
-                    className="font-bold text-base mb-1 flex items-center gap-2"
-                    style={{ 
-                      color: config.rxTitleColor || config.primaryDocColor,
-                      fontFamily: "'Playfair Display', serif"
-                    }}
-                  >
-                    <span className="text-2xl font-black italic">{config.rxTitle || 'Rp.'}</span>
-                  </div>
-
-                  <div
-                    className="w-full flex-1 whitespace-pre-wrap leading-relaxed text-slate-800 font-medium"
-                    style={{
-                      fontSize: config.bodyFontSize || '13px',
-                      minHeight: '260px',
-                    }}
-                  >
-                    {recipe.rp || (
-                      <span className="italic text-slate-400">
-                        Sin medicamentos o indicaciones asignadas todavía.
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Footer with Seal & Stamp */}
-                <div className="mt-2">
-                  <DocumentFooter
-                    config={config}
-                    compact={false}
-                    notesText={recipe.indicationsNotes || config.footerNotesText}
-                    editableInline={false}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ========================================================= */}
-          {/* CASE 2: 4 EN 1 (HOJA CARTA DIVIDIDA EN 4 RÉCIPES DE BOLSILLO) */}
-          {/* ========================================================= */}
-          {selectedPreviewModule === 'recipe-4en1' && (
-            <div
-              className={`relative ${specs.widthClass} bg-white shadow-2xl p-4 transition-all print-container recipe-4en1-container ${textureClass} ${
-                config.enforcePureBlackText ? 'enforce-pure-black' : ''
-              }`}
-              style={{
-                backgroundColor: config.tonePapel || '#ffffff',
-                border: borderStyle,
-                borderRadius: config.docCornerRadius || '16px',
-              }}
-            >
-              <div className="grid grid-cols-2 grid-rows-2 gap-3 relative z-10">
-                {(recipes4en1.length === 4 ? recipes4en1 : [recipe, recipe, recipe, recipe]).map((rec, idx) => (
-                  <div
-                    key={idx}
-                    className="relative border border-dashed border-slate-300 rounded-xl p-3 bg-white/40 backdrop-blur-[0.5px] flex flex-col justify-between min-h-[500px] overflow-hidden"
-                  >
-                    {/* Watermark inside each recipe quadrant */}
-                    {config.marcaAgua && (
-                      <div className="marca-agua pointer-events-none">
-                        <img
-                          src={config.marcaAgua}
-                          alt="Marca de agua"
-                          className="marca-agua-img"
-                          style={{
-                            opacity: config.watermarkOpacity ?? 0.12,
-                            width: `${Math.min(65, config.watermarkScale || 55)}%`,
-                            transform: `rotate(${config.watermarkRotation || 0}deg)`,
-                          }}
+                      <div className="mt-1 pt-1 border-t border-slate-200/80 relative z-10">
+                        <DocumentFooter
+                          config={config}
+                          compact={true}
+                          notesText={rec?.indicationsNotes || config.footerNotesText}
+                          editableInline={false}
                         />
                       </div>
-                    )}
-
-                    <div className="relative z-10">
-                      <DocumentHeader config={config} compact={true} editableInline={false} />
-                      <div className="grid grid-cols-2 gap-1 py-1 px-2 bg-slate-50/60 border border-slate-200/80 rounded-lg text-[10px] my-1.5">
-                        <div className="truncate">
-                          <span className="font-bold text-slate-700">Pac: </span>
-                          <span className="font-semibold text-slate-900">{rec.patientName || '—'}</span>
-                        </div>
-                        <div className="text-right truncate">
-                          <span className="font-bold text-slate-700">C.I: </span>
-                          <span className="font-semibold text-slate-900">{rec.patientCI || '—'}</span>
-                        </div>
-                        <div className="truncate">
-                          <span className="font-bold text-slate-700">Dx: </span>
-                          <span className="text-slate-800">{rec.diagnosis || '—'}</span>
-                        </div>
-                        <div className="text-right">
-                          <span className="font-bold text-slate-700">Fecha: </span>
-                          <span>{rec.date || '—'}</span>
-                        </div>
-                      </div>
                     </div>
-
-                    <div className="flex-1 my-1 relative z-10">
-                      <span className="font-bold text-xs block text-blue-700 font-serif">℞ Rp.</span>
-                      <p className="text-[11px] text-slate-800 whitespace-pre-wrap leading-tight mt-1 font-sans">
-                        {rec.rp || 'Sin prescripción'}
-                      </p>
-                    </div>
-
-                    <div className="mt-1 pt-1 border-t border-slate-200/80 relative z-10">
-                      <DocumentFooter
-                        config={config}
-                        compact={true}
-                        notesText={rec.indicationsNotes}
-                        editableInline={false}
-                      />
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -496,8 +395,8 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
                 borderRadius: config.docCornerRadius || '16px',
               }}
             >
-              {config.marcaAgua && (
-                <div className="marca-agua">
+              {config.marcaAgua && !config.marcaAgua.includes('DIGITAL') && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
                   <img
                     src={config.marcaAgua}
                     alt="Marca de agua"
@@ -650,8 +549,8 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
                 borderRadius: config.docCornerRadius || '16px',
               }}
             >
-              {config.marcaAgua && (
-                <div className="marca-agua">
+              {config.marcaAgua && !config.marcaAgua.includes('DIGITAL') && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
                   <img
                     src={config.marcaAgua}
                     alt="Marca de agua"
@@ -748,8 +647,8 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
                 borderRadius: config.docCornerRadius || '16px',
               }}
             >
-              {config.marcaAgua && (
-                <div className="marca-agua">
+              {config.marcaAgua && !config.marcaAgua.includes('DIGITAL') && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
                   <img
                     src={config.marcaAgua}
                     alt="Marca de agua"

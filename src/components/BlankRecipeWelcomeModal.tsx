@@ -67,9 +67,9 @@ export const BlankRecipeWelcomeModal: React.FC<BlankRecipeWelcomeModalProps> = (
             }}
           >
             {/* Watermark in background */}
-            {config.marcaAgua && (
+            {config.marcaAgua && !config.marcaAgua.includes('DIGITAL') && (
               <div 
-                className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-10 overflow-hidden"
+                className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-10 overflow-hidden z-0"
               >
                 <img 
                   src={config.marcaAgua} 

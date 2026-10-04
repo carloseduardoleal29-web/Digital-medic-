@@ -1019,14 +1019,14 @@ export const AdminDoctorRecipeEditorModal: React.FC<AdminDoctorRecipeEditorModal
                 {/* Header Section */}
                 <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: formData.primaryDocColor || '#1e3a8a' }}>
                   {/* Left Logo */}
-                  {formData.headerLayout !== 'solo-logo-der' && formData.headerLayout !== 'solo-texto' && (
+                  {formData.headerLayout !== 'logo-der' && formData.headerLayout !== 'sin-logos' && (
                     <div className="w-12 h-12 shrink-0 flex items-center justify-center">
                       <img src={formData.logoIzq || DIGITAL_MEDIC_OFFICIAL_LOGO_SVG} alt="Logo" className="w-full h-full object-contain" />
                     </div>
                   )}
 
                   {/* Doctor Info */}
-                  <div className={`flex-1 px-3 ${formData.headerLayout === 'centrado' ? 'text-center' : 'text-left'}`}>
+                  <div className={`flex-1 px-3 ${formData.headerLayout === 'sin-logos' ? 'text-center' : 'text-left'}`}>
                     <h4 
                       className="font-black leading-tight"
                       style={{ 
@@ -1059,7 +1059,7 @@ export const AdminDoctorRecipeEditorModal: React.FC<AdminDoctorRecipeEditorModal
                   </div>
 
                   {/* Right Logo */}
-                  {formData.headerLayout !== 'solo-logo-izq' && formData.headerLayout !== 'solo-texto' && (
+                  {formData.headerLayout !== 'logo-izq' && formData.headerLayout !== 'sin-logos' && (
                     <div className="w-12 h-12 shrink-0 flex items-center justify-center">
                       <img src={formData.logoDer || MEDICINE_EMBLEM_ESCULAPIO_SVG} alt="Logo Der" className="w-full h-full object-contain" />
                     </div>

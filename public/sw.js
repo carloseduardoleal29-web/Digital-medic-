@@ -1,23 +1,7 @@
 // Digital Médic Official Service Worker
-const CACHE_NAME = 'digital-medic-pwa-v3';
-const ASSETS_TO_CACHE = [
-  '/manifest.json',
-  '/pwa-192x192.png',
-  '/pwa-512x512.png',
-  '/pwa-maskable-512x512.png',
-  '/apple-touch-icon.png',
-  '/favicon-32x32.png',
-  '/assets/digital_medic_logo.svg'
-];
+const CACHE_NAME = 'digital-medic-pwa-v5';
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE).catch((err) => {
-        console.warn('PWA cache addAll non-fatal warning:', err);
-      });
-    })
-  );
   self.skipWaiting();
 });
 
@@ -25,11 +9,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
       return Promise.all(
-        keys.map((key) => {
-          if (key !== CACHE_NAME) {
-            return caches.delete(key);
-          }
-        })
+        keys.map((key) => caches.delete(key))
       );
     })
   );

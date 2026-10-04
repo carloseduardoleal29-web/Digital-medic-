@@ -4,7 +4,7 @@ import { DocumentHeader } from './DocumentHeader';
 import { DocumentFooter } from './DocumentFooter';
 import { WhatsAppShareModal } from './WhatsAppShareModal';
 import { getDocumentBorderStyle, getPaperTextureClass } from '../utils/documentStyles';
-import { CheckCircle2, MessageSquare, Printer, Download, Save, Trash2, Plus, ArrowLeft, Scissors } from 'lucide-react';
+import { CheckCircle2, MessageSquare, Printer, Download, Save, Trash2, Plus, ArrowLeft, Scissors, Eye, Mail } from 'lucide-react';
 
 interface MasterRecipeViewProps {
   config: DoctorConfig;
@@ -13,12 +13,17 @@ interface MasterRecipeViewProps {
   onUpdateConfig?: (updated: Partial<DoctorConfig>) => void;
   isLiveEditing?: boolean;
   onPrint?: () => void;
+  onDownloadPdf?: () => void;
+  onOpenEmailModal?: () => void;
   onSavePatientOnly?: () => void;
   onDownloadPdfAndShare?: () => void;
+  onInstantWhatsApp?: () => void;
   onSaveAndShare?: (shouldDownload?: boolean) => void;
   onOpenSignatureModal?: () => void;
   onClearRecipeToBlank?: () => void;
   onBackToHome?: () => void;
+  onSwitchTo4In1?: () => void;
+  onOpenPreview?: () => void;
 }
 
 export const MasterRecipeView: React.FC<MasterRecipeViewProps> = ({
@@ -38,11 +43,16 @@ export const MasterRecipeView: React.FC<MasterRecipeViewProps> = ({
   onUpdateConfig,
   isLiveEditing = false,
   onPrint,
+  onDownloadPdf,
+  onOpenEmailModal,
   onSavePatientOnly,
   onDownloadPdfAndShare,
+  onInstantWhatsApp,
   onSaveAndShare,
   onClearRecipeToBlank,
   onBackToHome,
+  onSwitchTo4In1,
+  onOpenPreview,
 }) => {
   const printableSheetRef = useRef<HTMLDivElement>(null);
   const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
@@ -88,40 +98,6 @@ export const MasterRecipeView: React.FC<MasterRecipeViewProps> = ({
           <button
             type="button"
             onClick={() => {
-              if (onSavePatientOnly) onSavePatientOnly();
-              else if (onSaveAndShare) onSaveAndShare(false);
-            }}
-            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer border border-slate-300"
-          >
-            <Save className="w-3.5 h-3.5 text-slate-500" />
-            <span>💾 Guardar</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              if (onDownloadPdfAndShare) onDownloadPdfAndShare();
-              else if (onSaveAndShare) onSaveAndShare(true);
-            }}
-            className="px-3.5 py-1.5 bg-gradient-to-r from-blue-700 to-indigo-700 hover:from-blue-800 hover:to-indigo-800 text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow-xs cursor-pointer border border-blue-400/30"
-          >
-            <Download className="w-3.5 h-3.5 text-blue-200" />
-            <span>Descargar PDF</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setIsWhatsAppModalOpen(true)}
-            className="px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black rounded-xl text-xs shadow-xs flex items-center gap-1.5 cursor-pointer border border-emerald-400/30"
-            title="Enviar automáticamente el récipe oficial en PDF al paciente por WhatsApp o correo"
-          >
-            <MessageSquare className="w-3.5 h-3.5 text-emerald-100" />
-            <span>⚡ Enviar PDF (WhatsApp)</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
               onChangeRecipe({
                 patientName: '',
                 patientAge: '',
@@ -133,214 +109,224 @@ export const MasterRecipeView: React.FC<MasterRecipeViewProps> = ({
               });
               if (onClearRecipeToBlank) onClearRecipeToBlank();
             }}
-            className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl flex items-center gap-1 shadow-xs transition-all cursor-pointer text-xs"
+            className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl flex items-center gap-1.5 shadow-xs transition-all cursor-pointer text-xs"
+            title="Borrar todos los campos y dejar el récipe en blanco"
           >
             <Trash2 className="w-3.5 h-3.5 text-white" />
-            <span>Limpiar</span>
+            <span>🧹 Dejar en Blanco / Borrar</span>
           </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              if (onSavePatientOnly) onSavePatientOnly();
+              else if (onSaveAndShare) onSaveAndShare(false);
+            }}
+            className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer border border-slate-300"
+            title="Guardar paciente en su banco de datos"
+          >
+            <Save className="w-3.5 h-3.5 text-slate-600" />
+            <span>💾 Guardar Paciente</span>
+          </button>
+
+          {onDownloadPdf && (
+            <button
+              type="button"
+              onClick={onDownloadPdf}
+              className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-sm hover:scale-105 active:scale-95 transition-all cursor-pointer"
+              title="Descargar archivo PDF con el nombre del paciente y fecha"
+            >
+              <Download className="w-3.5 h-3.5 text-white" />
+              <span>📥 Descargar PDF</span>
+            </button>
+          )}
+
+          {onOpenEmailModal && (
+            <button
+              type="button"
+              onClick={onOpenEmailModal}
+              className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-sm hover:scale-105 active:scale-95 transition-all cursor-pointer"
+              title="Enviar récipe por correo electrónico al paciente"
+            >
+              <Mail className="w-3.5 h-3.5 text-white" />
+              <span>✉️ Enviar por Correo</span>
+            </button>
+          )}
+
+          {onOpenPreview && (
+            <button
+              type="button"
+              onClick={onOpenPreview}
+              className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl flex items-center gap-1.5 text-xs cursor-pointer shadow-xs border border-slate-700"
+              title="Ver vista previa de cómo saldrá en la hoja carta impresa"
+            >
+              <Eye className="w-3.5 h-3.5 text-cyan-300" />
+              <span>👁️ Vista Previa</span>
+            </button>
+          )}
+
+          {onPrint && (
+            <button
+              type="button"
+              onClick={onPrint}
+              className="px-4 py-1.5 bg-gradient-to-r from-blue-700 to-indigo-700 hover:from-blue-800 hover:to-indigo-800 text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+              title="Imprimir récipe directamente o guardar como PDF del sistema"
+            >
+              <Printer className="w-3.5 h-3.5 text-white" />
+              <span>🖨️ Imprimir Récipe</span>
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Main Printable Letter Sheet with Recipe in Quadrant 1 */}
+      {/* Main Printable Single Recipe Sheet */}
       <div className="w-full flex justify-center">
         <div
           ref={printableSheetRef}
-          className={`relative w-full shadow-2xl p-4 transition-all print-container recipe-4en1-container ${textureClass} max-w-[850px] min-h-[1090px] ${
+          className={`relative w-full max-w-[660px] min-h-[680px] bg-white shadow-xl p-6 sm:p-7 rounded-2xl transition-all print-container recipe-single-container flex flex-col justify-between ${textureClass} ${
             config.enforcePureBlackText ? 'enforce-pure-black' : ''
           }`}
           style={{
             backgroundColor: config.tonePapel || '#ffffff',
             border: borderStyle,
             borderRadius: config.docCornerRadius || '16px',
-            aspectRatio: '8.5 / 11',
           }}
         >
-          {/* Subtle Cut Lines / Guías de corte centrales en la hoja carta */}
-          {showCutGuides && (
-            <div className="absolute inset-0 pointer-events-none z-0">
-              <div className="absolute top-1/2 left-3 right-3 border-t border-dashed border-slate-300 -translate-y-1/2 flex items-center justify-center">
-                <span className="bg-white/90 px-2 py-0.5 rounded text-[9px] text-slate-400 font-mono tracking-widest flex items-center gap-1 shadow-2xs">
-                  ✂ - - - - - LÍNEA DE CORTE - - - - - ✂
-                </span>
-              </div>
-              <div className="absolute top-3 bottom-3 left-1/2 border-l border-dashed border-slate-300 -translate-x-1/2 flex items-center justify-center">
-                <span className="bg-white/90 px-1 py-1 rounded text-[8px] text-slate-400 font-mono [writing-mode:vertical-lr] tracking-widest shadow-2xs">
-                  ✂ CORTE
-                </span>
-              </div>
+          {config.marcaAgua && !config.marcaAgua.includes('DIGITAL') && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
+              <img
+                src={config.marcaAgua}
+                alt="Marca de agua"
+                className="marca-agua-img"
+                style={{
+                  opacity: Math.min(config.watermarkOpacity ?? 0.08, 0.12),
+                  width: `${Math.min(50, config.watermarkScale || 40)}%`,
+                  transform: `rotate(${config.watermarkRotation || 0}deg)`,
+                }}
+              />
             </div>
           )}
 
-          {/* 2x2 Grid representing the Letter sheet */}
-          <div className="relative z-10 grid grid-cols-2 grid-rows-2 gap-3.5 h-full min-h-[1040px]">
-            {/* Quadrant 1: The Active Recipe */}
-            <div
-              className="relative rounded-xl p-3.5 flex flex-col justify-between transition-all overflow-hidden bg-white/50 backdrop-blur-[0.5px] border border-blue-500 shadow-sm"
-              style={{
-                borderWidth: '1.5px',
-                borderColor: config.primaryDocColor || '#2563eb',
-                minHeight: '490px',
-              }}
-            >
-              {config.marcaAgua && (
-                <div className="marca-agua pointer-events-none">
-                  <img
-                    src={config.marcaAgua}
-                    alt="Marca de agua"
-                    className="marca-agua-img"
-                    style={{
-                      opacity: Math.min(config.watermarkOpacity ?? 0.05, 0.08),
-                      width: `${Math.min(50, config.watermarkScale || 45)}%`,
-                      transform: `rotate(${config.watermarkRotation || 0}deg)`,
-                    }}
-                  />
-                </div>
-              )}
+          <div className="relative z-10 flex flex-col justify-between h-full flex-1">
+            <div>
+              <DocumentHeader
+                config={config}
+                compact={true}
+                onUpdateField={(field, val) => onUpdateConfig?.({ [field]: val })}
+                editableInline={true}
+              />
 
-              <div className="absolute top-1.5 right-2 text-[10px] font-bold text-slate-400 no-print flex items-center gap-1 z-20">
-                <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">
-                  Cuadrante 1
-                </span>
-                <CheckCircle2 className="w-3.5 h-3.5 text-blue-600" />
-              </div>
-
-              <div className="relative z-10 flex flex-col justify-between h-full">
-                <div>
-                  <DocumentHeader config={config} compact={true} editableInline={false} />
-
-                  <div className="grid grid-cols-2 gap-x-2 gap-y-1 py-1 px-1.5 rounded-lg bg-transparent border-0 mb-1 text-[11px]">
-                    <div className="flex items-center gap-1">
-                      <span className="font-semibold text-slate-700">Pac:</span>
-                      <input
-                        type="text"
-                        value={recipe.patientName}
-                        onChange={(e) => onChangeRecipe({ patientName: e.target.value })}
-                        placeholder="Paciente"
-                        className="w-full bg-transparent border-b border-dashed border-slate-300 focus:border-blue-600 outline-none px-0.5 text-slate-900 font-medium"
-                      />
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span className="font-semibold text-slate-700">C.I:</span>
-                      <input
-                        type="text"
-                        value={recipe.patientCI || ''}
-                        onChange={(e) => onChangeRecipe({ patientCI: e.target.value })}
-                        placeholder="Cédula"
-                        className="w-full bg-transparent border-b border-dashed border-slate-300 focus:border-blue-600 outline-none px-0.5 text-slate-900 font-medium"
-                      />
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span className="font-semibold text-slate-700">Tel:</span>
-                      <input
-                        type="text"
-                        value={recipe.patientPhone || ''}
-                        onChange={(e) => onChangeRecipe({ patientPhone: e.target.value })}
-                        placeholder="Teléfono"
-                        className="w-full bg-transparent border-b border-dashed border-slate-300 focus:border-blue-600 outline-none px-0.5 text-slate-900"
-                      />
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span className="font-semibold text-slate-700">Edad:</span>
-                      <input
-                        type="text"
-                        value={recipe.patientAge}
-                        onChange={(e) => onChangeRecipe({ patientAge: e.target.value })}
-                        placeholder="Edad"
-                        className="w-full bg-transparent border-b border-dashed border-slate-300 focus:border-blue-600 outline-none px-0.5 text-slate-900"
-                      />
-                    </div>
-                    <div className="flex items-center gap-1 col-span-2 border-t border-slate-100/80 pt-1 mt-0.5">
-                      <div className="flex items-center gap-1 flex-1 min-w-0">
-                        <span className="font-semibold text-slate-700 shrink-0">Dx:</span>
-                        <input
-                          type="text"
-                          value={recipe.diagnosis || ''}
-                          onChange={(e) => onChangeRecipe({ diagnosis: e.target.value })}
-                          placeholder="Diagnóstico (opcional)"
-                          className="w-full bg-transparent border-b border-dashed border-slate-300 focus:border-blue-600 outline-none px-0.5 text-slate-900 font-medium truncate"
-                        />
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0 min-w-[95px]">
-                        <span className="font-semibold text-slate-700 shrink-0">Fecha:</span>
-                        <input
-                          type="text"
-                          value={recipe.date}
-                          onChange={(e) => onChangeRecipe({ date: e.target.value })}
-                          className="w-full bg-transparent border-b border-dashed border-slate-300 focus:border-blue-600 outline-none px-0.5 text-slate-900 text-right"
-                        />
-                      </div>
-                    </div>
+              {/* Patient Bar */}
+              <div 
+                className="py-2 px-3 bg-slate-50/90 border border-slate-200/90 rounded-xl mb-3 space-y-2 shadow-2xs text-xs"
+                style={{ fontSize: config.patientBarSize || '12px' }}
+              >
+                {/* Line 1: Paciente y Cédula */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="font-bold text-slate-800 shrink-0">Paciente:</span>
+                    <input
+                      type="text"
+                      value={recipe.patientName}
+                      onChange={(e) => onChangeRecipe({ patientName: e.target.value })}
+                      placeholder="Nombre y Apellidos del Paciente"
+                      className="w-full bg-transparent border-b border-dashed border-slate-300 focus:border-blue-600 outline-none font-semibold text-slate-900"
+                    />
                   </div>
-
-                  <div className="flex flex-col">
-                    <div className="flex items-center justify-between gap-1 mb-1">
-                      <span
-                        className="text-base font-black italic"
-                        style={{ color: config.primaryDocColor, fontFamily: "'Playfair Display', serif" }}
-                      >
-                        Rp.
-                      </span>
-                    </div>
-
-                    <textarea
-                      value={recipe.rp}
-                      onChange={(e) => onChangeRecipe({ rp: e.target.value })}
-                      placeholder="Prescripción e indicaciones del récipe..."
-                      className="w-full p-2.5 text-xs text-slate-900 bg-transparent border border-slate-200/70 rounded-lg focus:border-blue-500 focus:outline-none resize-none leading-relaxed placeholder:text-slate-300 h-[160px]"
-                      style={{
-                        fontFamily: config.rxBodyFontFamily || "'Roboto', sans-serif",
-                        fontSize: config.bodyFontSize || '12px',
-                      }}
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="font-bold text-slate-800 shrink-0">C.I. / Doc:</span>
+                    <input
+                      type="text"
+                      value={recipe.patientCI || ''}
+                      onChange={(e) => onChangeRecipe({ patientCI: e.target.value })}
+                      placeholder="V-00.000.000"
+                      className="w-full bg-transparent border-b border-dashed border-slate-300 focus:border-blue-600 outline-none font-semibold text-slate-900"
                     />
                   </div>
                 </div>
 
-                <DocumentFooter
-                  config={config}
-                  compact={true}
-                  notesText={recipe.indicationsNotes || config.footerNotesText}
-                  onUpdateNotes={(val) => onChangeRecipe({ indicationsNotes: val })}
-                  onUpdateConfigField={(field, val) => onUpdateConfig?.({ [field]: val })}
-                  editableInline={true}
+                {/* Line 2: Edad, Teléfono y Fecha */}
+                <div className="grid grid-cols-3 gap-2 pt-1 border-t border-slate-200/60 items-center">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="font-bold text-slate-800 shrink-0">Edad:</span>
+                    <input
+                      type="text"
+                      value={recipe.patientAge}
+                      onChange={(e) => onChangeRecipe({ patientAge: e.target.value })}
+                      placeholder="Edad"
+                      className="w-full bg-transparent border-b border-dashed border-slate-300 focus:border-blue-600 outline-none font-semibold text-slate-900"
+                    />
+                  </div>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="font-bold text-slate-800 shrink-0">Teléfono:</span>
+                    <input
+                      type="text"
+                      value={recipe.patientPhone || ''}
+                      onChange={(e) => onChangeRecipe({ patientPhone: e.target.value })}
+                      placeholder="Teléfono"
+                      className="w-full bg-transparent border-b border-dashed border-slate-300 focus:border-blue-600 outline-none font-semibold text-slate-900"
+                    />
+                  </div>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="font-bold text-slate-800 shrink-0">Fecha:</span>
+                    <input
+                      type="text"
+                      value={recipe.date}
+                      onChange={(e) => onChangeRecipe({ date: e.target.value })}
+                      className="w-full bg-transparent border-b border-dashed border-slate-300 focus:border-blue-600 outline-none font-semibold text-slate-900 text-right"
+                    />
+                  </div>
+                </div>
+
+                {/* Line 3: Diagnóstico */}
+                <div className="pt-1 border-t border-slate-200/60 flex items-center gap-1.5 min-w-0">
+                  <span className="font-bold text-slate-800 shrink-0">Dx / Diagnóstico:</span>
+                  <input
+                    type="text"
+                    value={recipe.diagnosis || ''}
+                    onChange={(e) => onChangeRecipe({ diagnosis: e.target.value })}
+                    placeholder="Diagnóstico médico principal (opcional)"
+                    className="w-full bg-transparent border-b border-dashed border-slate-300 focus:border-blue-600 outline-none font-semibold text-slate-900"
+                  />
+                </div>
+              </div>
+
+              {/* Rp Prescription Area */}
+              <div className="flex-1 my-3 flex flex-col min-h-[220px]">
+                <div className="flex items-center justify-between gap-2 mb-1.5">
+                  <span
+                    className="text-2xl font-black italic"
+                    style={{ color: config.rxTitleColor || config.primaryDocColor, fontFamily: "'Playfair Display', serif" }}
+                  >
+                    {config.rxTitle || 'Rp.'}
+                  </span>
+                </div>
+
+                <textarea
+                  value={recipe.rp}
+                  onChange={(e) => onChangeRecipe({ rp: e.target.value })}
+                  placeholder="Escriba la prescripción médica, medicamentos, dosis y posología..."
+                  className="w-full p-3 text-sm text-slate-900 bg-transparent border border-slate-200/80 rounded-xl focus:border-blue-500 focus:outline-none resize-none leading-relaxed placeholder:text-slate-300 flex-1 min-h-[200px]"
+                  style={{
+                    fontFamily: config.rxBodyFontFamily || "'Roboto', sans-serif",
+                    fontSize: config.bodyFontSize || '13px',
+                  }}
                 />
               </div>
             </div>
 
-            {/* Quadrants 2, 3, 4: Empty Quadrants with Cut Guides */}
-            {[2, 3, 4].map((quadrantNum) => (
-              <div
-                key={`empty-quadrant-${quadrantNum}`}
-                className="relative rounded-xl p-4 flex flex-col items-center justify-center text-center border-2 border-dashed border-slate-300/80 bg-slate-50/40 min-h-[490px]"
-              >
-                <div className="no-print flex flex-col items-center">
-                  <span className="font-bold text-slate-600 text-xs mb-1">
-                    Cuadrante #{quadrantNum} Libre
-                  </span>
-                  <p className="text-[11px] text-slate-400 max-w-[200px] leading-tight">
-                    Espacio disponible en la hoja tamaño carta.
-                  </p>
-                </div>
-                <div className="text-[9px] text-slate-400 font-mono tracking-wider flex items-center gap-1 opacity-70 mt-2">
-                  <span>✂ Guía de corte · Espacio libre</span>
-                </div>
-              </div>
-            ))}
+            {/* Document Footer */}
+            <DocumentFooter
+              config={config}
+              compact={true}
+              notesText={recipe.indicationsNotes || config.footerNotesText}
+              onUpdateNotes={(val) => onChangeRecipe({ indicationsNotes: val })}
+              onUpdateConfigField={(field, val) => onUpdateConfig?.({ [field]: val })}
+              editableInline={true}
+            />
           </div>
         </div>
       </div>
-
-      <WhatsAppShareModal
-        isOpen={isWhatsAppModalOpen}
-        onClose={() => setIsWhatsAppModalOpen(false)}
-        config={config}
-        documentType="recipe"
-        patientName={recipe.patientName}
-        patientPhone={recipe.patientPhone || ''}
-        documentTitle={`Récipe Médico - ${recipe.diagnosis || 'Prescripción'}`}
-        contentBody={recipe.rp + (recipe.indicationsNotes ? `\n\nNotas: ${recipe.indicationsNotes}` : '')}
-        onUpdatePatientPhone={(phone) => onChangeRecipe({ patientPhone: phone })}
-        onTriggerPrintPdf={onPrint}
-      />
     </div>
   );
 };

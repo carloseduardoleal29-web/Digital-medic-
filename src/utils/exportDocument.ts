@@ -20,14 +20,62 @@ export function sanitizeToAsciiFilename(filename: string, defaultName: string = 
     .replace(/_+/g, '_') // Colapsar guiones bajos repetidos
     .replace(/^_+|_+$/g, ''); // Quitar guiones al inicio o final
 
-  return asciiClean || 'Documento_Medico';
+  return asciiClean || defaultName;
 }
 
 /**
- * Genera un Blob PDF real a partir de un elemento HTML utilizando html2canvas + jsPDF.
- * - Resolución nítida en 2x (calidad de imprenta 200-300 DPI)
- * - Dimensiones exactas de hoja Carta (Letter: 215.9 x 279.4 mm)
- * - Soporte para documentos de 1 o múltiples páginas
+ * Prepara un clon del elemento para html2canvas asegurando que
+ * todos los inputs, textareas y selects mantengan sus valores editados.
+ */
+function prepareClonedElement(clonedElement: HTMLElement) {
+  // Ajustar transformaciones y sombras para que no alteren las proporciones del canvas
+  clonedElement.style.transform = 'none';
+  clonedElement.style.zoom = '1';
+  clonedElement.style.margin = '0 auto';
+  clonedElement.style.boxShadow = 'none';
+
+  // Ocultar botones o elementos de interfaz marcados como no-print
+  clonedElement.querySelectorAll('.no-print').forEach((el: any) => {
+    el.style.display = 'none';
+  });
+
+  // Asegurar que inputs y textareas muestren su contenido claramente
+  clonedElement.querySelectorAll('input').forEach((inputEl: HTMLInputElement) => {
+    if (inputEl.value) {
+      inputEl.setAttribute('value', inputEl.value);
+    }
+  });
+
+  clonedElement.querySelectorAll('textarea').forEach((ta: HTMLTextAreaElement) => {
+    if (ta.value) {
+      ta.textContent = ta.value;
+    }
+    ta.style.overflow = 'hidden';
+    ta.style.resize = 'none';
+  });
+
+  // Estandarizar documentos de hoja carta a 816 x 1056 px (8.5 x 11 pulgadas exactas a 96 DPI)
+  const isLetterDoc =
+    clonedElement.classList.contains('recipe-4en1-container') ||
+    clonedElement.classList.contains('report-sheet-container') ||
+    clonedElement.classList.contains('indications-container') ||
+    clonedElement.classList.contains('rest-container') ||
+    clonedElement.classList.contains('recipe-single-container');
+
+  if (isLetterDoc) {
+    clonedElement.style.width = '816px';
+    clonedElement.style.minWidth = '816px';
+    clonedElement.style.maxWidth = '816px';
+    clonedElement.style.height = '1056px';
+    clonedElement.style.minHeight = '1056px';
+    clonedElement.style.maxHeight = '1056px';
+    clonedElement.style.boxSizing = 'border-box';
+    clonedElement.style.display = 'block';
+  }
+}
+
+/**
+ * Genera un Blob PDF de alta nitidez y velocidad.
  */
 export async function generatePDFBlob(
   targetElement: HTMLElement | null
@@ -42,43 +90,18 @@ export async function generatePDFBlob(
   }
 
   try {
-    // 1. Capturar el elemento en canvas con alta resolución y fondos blancos
     const canvas = await html2canvas(element, {
-      scale: 2, // 2x para nitidez profesional sin pixelado en textos y sellos
+      scale: 2, // 2x para nitidez cristalina en impresión
       useCORS: true,
       allowTaint: true,
       backgroundColor: '#ffffff',
       logging: false,
-      imageTimeout: 15000,
+      imageTimeout: 0,
       onclone: (_clonedDoc, clonedElement) => {
-        // En el clon: normalizar zoom/transform a 100% para que no se exporte encogido
-        clonedElement.style.transform = 'none';
-        clonedElement.style.zoom = '1';
-        clonedElement.style.margin = '0 auto';
-        clonedElement.style.boxShadow = 'none';
-
-        // Ocultar botones o elementos de interfaz marcados como no-print
-        clonedElement.querySelectorAll('.no-print').forEach((el: any) => {
-          el.style.display = 'none';
-        });
-
-        // Asegurar que inputs y textareas muestren su contenido claramente
-        clonedElement.querySelectorAll('input').forEach((inputEl: any) => {
-          if (inputEl.value) {
-            inputEl.setAttribute('value', inputEl.value);
-          }
-        });
-        clonedElement.querySelectorAll('textarea').forEach((ta: any) => {
-          if (ta.value) {
-            ta.textContent = ta.value;
-          }
-          ta.style.overflow = 'hidden';
-          ta.style.resize = 'none';
-        });
+        prepareClonedElement(clonedElement);
       },
     });
 
-    // 2. Preparar el documento PDF en formato Carta (Letter)
     const pdf = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
@@ -88,34 +111,17 @@ export async function generatePDFBlob(
 
     const pageWidth = pdf.internal.pageSize.getWidth(); // 215.9 mm
     const pageHeight = pdf.internal.pageSize.getHeight(); // 279.4 mm
-    const imgData = canvas.toDataURL('image/jpeg', 0.98);
+    const imgData = canvas.toDataURL('image/jpeg', 0.95);
 
-    // Comprobar si es un documento explícitamente multi-página (Historia Clínica)
-    const isMultiPageDocument = element.classList.contains('clinical-history-container') ||
+    const isMultiPageDocument =
+      element.classList.contains('clinical-history-container') ||
       element.closest('.clinical-history-container') !== null;
 
     if (!isMultiPageDocument) {
-      // DOCUMENTOS DE 1 SOLA HOJA (Récipe individual, Récipe 4 en 1, Informe Médico, Constancia de Reposo, Indicaciones)
-      // Ajuste proporcional exacto (scale-to-fit) para que NUNCA se divida en 2 hojas ni se corte el pie de página
-      const margin = 4; // Margen de seguridad de 4mm para bordes e impresión física
-      const printableWidth = pageWidth - (margin * 2);
-      const printableHeight = pageHeight - (margin * 2);
-
-      const scaleWidth = printableWidth / canvas.width;
-      const scaleHeight = printableHeight / canvas.height;
-      const fitScale = Math.min(scaleWidth, scaleHeight);
-
-      const finalWidth = canvas.width * fitScale;
-      const finalHeight = canvas.height * fitScale;
-
-      // Centrado exacto en la hoja carta
-      const posX = margin + (printableWidth - finalWidth) / 2;
-      const posY = margin + (printableHeight - finalHeight) / 2;
-
-      pdf.addImage(imgData, 'JPEG', posX, posY, finalWidth, finalHeight, undefined, 'FAST');
-      return pdf.output('blob');
+      // Documentos de 1 hoja carta (Récipes, Informe, Reposo, Indicaciones)
+      pdf.addImage(imgData, 'JPEG', 0, 0, pageWidth, pageHeight, undefined, 'FAST');
     } else {
-      // Documento multi-página extenso (ej: Historia Clínica con varios folios)
+      // Documento multi-página
       const imgWidth = pageWidth;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
       let heightLeft = imgHeight;
@@ -130,71 +136,123 @@ export async function generatePDFBlob(
         pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
         heightLeft -= pageHeight;
       }
-
-      return pdf.output('blob');
     }
 
     return pdf.output('blob');
   } catch (err) {
-    console.error('[PDF Export Error]:', err);
+    console.error('[PDF Blob Generation Error]:', err);
     return null;
   }
 }
 
 /**
- * Función principal para exportar y DESCARGAR DIRECTAMENTE el PDF al dispositivo.
- * - Genera un archivo .pdf real y descarga automática en la carpeta de descargas del usuario.
- * - NO ejecuta window.print() (evitando el error "error running doc" en móviles e iframes).
- * - Totalmente compatible con celulares (Android / iPhone) y computadoras.
+ * Función ultra eficiente para descargar el PDF DIRECTAMENTE al dispositivo.
+ * Inicia la descarga automática de forma instantánea sin abrir pestañas innecesarias ni recargar la página.
  */
 export async function exportElementAsPDF(
   element: HTMLElement | null,
   rawFilename: string = 'Documento_Medico.pdf'
 ): Promise<boolean> {
+  const target = element || document.querySelector<HTMLElement>(
+    '.print-container, .recipe-4en1-container, .recipe-single-container, .report-sheet-container, .indications-container, .rest-container, .clinical-history-container'
+  );
+
+  if (!target) {
+    console.error('[PDF Export] No se encontró el elemento objetivo para descargar.');
+    return false;
+  }
+
   try {
     const baseFilename = sanitizeToAsciiFilename(rawFilename);
     const finalFilename = baseFilename.endsWith('.pdf') ? baseFilename : `${baseFilename}.pdf`;
 
-    const blob = await generatePDFBlob(element);
-    if (!blob) {
-      // Si por alguna razón de entorno html2canvas no responde, intentar fallback seguro
-      return fallbackNativePrintDownload(rawFilename);
+    const canvas = await html2canvas(target, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+      imageTimeout: 0,
+      onclone: (_clonedDoc, clonedElement) => {
+        prepareClonedElement(clonedElement);
+      },
+    });
+
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'letter',
+      compress: true,
+    });
+
+    const pageWidth = pdf.internal.pageSize.getWidth(); // 215.9 mm
+    const pageHeight = pdf.internal.pageSize.getHeight(); // 279.4 mm
+    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+
+    const isMultiPageDocument =
+      target.classList.contains('clinical-history-container') ||
+      target.closest('.clinical-history-container') !== null;
+
+    if (!isMultiPageDocument) {
+      pdf.addImage(imgData, 'JPEG', 0, 0, pageWidth, pageHeight, undefined, 'FAST');
+    } else {
+      const imgWidth = pageWidth;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
+      heightLeft -= pageHeight;
+
+      while (heightLeft > 5) {
+        position -= pageHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
+        heightLeft -= pageHeight;
+      }
     }
 
-    // Disparar la descarga directa del archivo PDF
+    // Convertir a Blob e invocar la descarga directa por elemento <a> nativo
+    const blob = pdf.output('blob');
     const blobUrl = URL.createObjectURL(blob);
-    const downloadLink = document.createElement('a');
-    downloadLink.style.display = 'none';
-    downloadLink.href = blobUrl;
-    downloadLink.download = finalFilename;
-    downloadLink.setAttribute('target', '_blank');
-
-    document.body.appendChild(downloadLink);
-    downloadLink.click();
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = finalFilename;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
 
     setTimeout(() => {
       try {
-        document.body.removeChild(downloadLink);
+        document.body.removeChild(link);
         URL.revokeObjectURL(blobUrl);
       } catch (_) {}
-    }, 4000);
+    }, 1000);
 
     return true;
   } catch (err) {
     console.error('[PDF Export Download Error]:', err);
-    return fallbackNativePrintDownload(rawFilename);
+    // Fallback secundario si html2canvas falla: guardar mediante jsPDF directo
+    try {
+      const baseFilename = sanitizeToAsciiFilename(rawFilename);
+      const finalFilename = baseFilename.endsWith('.pdf') ? baseFilename : `${baseFilename}.pdf`;
+      const fallbackPdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
+      fallbackPdf.save(finalFilename);
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 }
 
 /**
  * Comparte el archivo PDF real utilizando la API Web Share nativa del sistema (Android / iOS / Navegadores modernos).
- * Permite adjuntar directamente el archivo .pdf a WhatsApp, Gmail o cualquier app del teléfono.
  */
 export async function sharePDFViaWebShare(
   element: HTMLElement | null,
   rawFilename: string = 'Documento_Medico.pdf',
   shareTitle: string = 'Documento Médico Oficial',
-  shareText: string = 'Hola, te envío un documento'
+  shareText: string = 'Hola, le envío su documento médico oficial.'
 ): Promise<boolean> {
   try {
     const baseFilename = sanitizeToAsciiFilename(rawFilename);
@@ -212,34 +270,18 @@ export async function sharePDFViaWebShare(
         text: shareText,
       });
       return true;
+    } else {
+      // Fallback: Descargar el PDF directamente
+      return await exportElementAsPDF(element, finalFilename);
     }
   } catch (err) {
     console.warn('[WebShare API PDF Share Error]:', err);
-  }
-  return false;
-}
-
-/**
- * Fallback seguro únicamente en caso de falla extrema
- */
-function fallbackNativePrintDownload(rawFilename: string): boolean {
-  try {
-    const originalTitle = document.title;
-    const baseFilename = sanitizeToAsciiFilename(rawFilename);
-    document.title = baseFilename;
-    window.print();
-    setTimeout(() => {
-      document.title = originalTitle;
-    }, 2000);
-    return true;
-  } catch (e) {
-    console.error('[Print Fallback Failed]:', e);
     return false;
   }
 }
 
 /**
- * Descarga el documento como imagen PNG o JPEG de alta resolución
+ * Descarga el documento como imagen PNG o JPEG
  */
 export async function downloadElementAsImage(
   element: HTMLElement | null,
@@ -260,6 +302,7 @@ export async function downloadElementAsImage(
       allowTaint: true,
       backgroundColor: '#ffffff',
       logging: false,
+      imageTimeout: 0,
     });
 
     const mime = format === 'jpeg' ? 'image/jpeg' : 'image/png';
@@ -276,7 +319,7 @@ export async function downloadElementAsImage(
       try {
         document.body.removeChild(link);
       } catch (_) {}
-    }, 2000);
+    }, 1000);
 
     return true;
   } catch (err) {
@@ -302,6 +345,7 @@ export async function getElementImageBlob(
       allowTaint: true,
       backgroundColor: '#ffffff',
       logging: false,
+      imageTimeout: 0,
     });
 
     return new Promise<Blob | null>((resolve) => {

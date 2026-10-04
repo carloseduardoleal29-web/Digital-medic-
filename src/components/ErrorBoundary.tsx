@@ -25,7 +25,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   public handleReset = () => {
     try {
-      window.location.hash = '';
+      sessionStorage.clear();
       window.location.reload();
     } catch (e) {
       window.location.reload();

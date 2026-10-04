@@ -28,6 +28,7 @@ import {
   CreditCard,
   Smartphone,
   Copy,
+  Image as ImageIcon,
   Send,
   Zap,
   ChevronDown,
@@ -260,6 +261,20 @@ export const DoctorOnboardingWizard: React.FC<DoctorOnboardingWizardProps> = ({
   // Hidden file inputs
   const stampFileInputRef = useRef<HTMLInputElement | null>(null);
   const sigFileInputRef = useRef<HTMLInputElement | null>(null);
+  const logoFileInputRef = useRef<HTMLInputElement | null>(null);
+  const [customLogoImg, setCustomLogoImg] = useState<string | null>(null);
+
+  const handleLogoFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      if (typeof evt.target?.result === 'string') {
+        setCustomLogoImg(evt.target.result);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   // Login CI & Password State
   const [loginInput, setLoginInput] = useState('');
@@ -584,9 +599,9 @@ export const DoctorOnboardingWizard: React.FC<DoctorOnboardingWizardProps> = ({
       watermarkOpacity: 0.16,
       watermarkScale: 55,
       watermarkRotation: 0,
-      logoIzq: DIGITAL_MEDIC_OFFICIAL_LOGO_SVG,
-      logoDer: MEDICINE_EMBLEM_ESCULAPIO_SVG,
-      marcaAgua: DIGITAL_MEDIC_OFFICIAL_LOGO_SVG,
+      logoIzq: customLogoImg || '',
+      logoDer: '',
+      marcaAgua: customLogoImg || '',
       firmaImg: finalSignature,
       selloImg: finalStamp,
       selloFirma: finalStamp,
@@ -704,9 +719,9 @@ export const DoctorOnboardingWizard: React.FC<DoctorOnboardingWizardProps> = ({
         watermarkOpacity: 0.16,
         watermarkScale: 55,
         watermarkRotation: 0,
-        logoIzq: DIGITAL_MEDIC_OFFICIAL_LOGO_SVG,
-        logoDer: MEDICINE_EMBLEM_ESCULAPIO_SVG,
-        marcaAgua: DIGITAL_MEDIC_OFFICIAL_LOGO_SVG,
+        logoIzq: '',
+        logoDer: '',
+        marcaAgua: '',
         firmaImg: '',
         selloImg: '',
         selloFirma: '',
@@ -1180,7 +1195,8 @@ export const DoctorOnboardingWizard: React.FC<DoctorOnboardingWizardProps> = ({
                       <div 
                         onClick={() => {
                           setSelectedPaidPlan('mensual');
-                          setIsPaymentInfoModalOpen(true);
+                          setSelectedPlanType('pago');
+                          setCurrentStep(1);
                         }}
                         className="p-4 rounded-2xl border border-blue-500/40 bg-slate-950/80 hover:bg-blue-950/30 hover:border-blue-400 transition-all cursor-pointer flex flex-col justify-between group shadow-md hover:scale-[1.01]"
                       >
@@ -1236,7 +1252,8 @@ export const DoctorOnboardingWizard: React.FC<DoctorOnboardingWizardProps> = ({
                       <div 
                         onClick={() => {
                           setSelectedPaidPlan('trimestral');
-                          setIsPaymentInfoModalOpen(true);
+                          setSelectedPlanType('pago');
+                          setCurrentStep(1);
                         }}
                         className="p-4 rounded-2xl border-2 border-amber-400/80 bg-gradient-to-b from-amber-950/20 via-slate-950 to-slate-950 hover:bg-amber-950/40 hover:border-amber-300 transition-all cursor-pointer flex flex-col justify-between group shadow-lg relative hover:scale-[1.02]"
                       >
@@ -1298,7 +1315,8 @@ export const DoctorOnboardingWizard: React.FC<DoctorOnboardingWizardProps> = ({
                       <div 
                         onClick={() => {
                           setSelectedPaidPlan('anual');
-                          setIsPaymentInfoModalOpen(true);
+                          setSelectedPlanType('pago');
+                          setCurrentStep(1);
                         }}
                         className="p-4 rounded-2xl border-2 border-purple-500/80 bg-gradient-to-b from-purple-950/25 via-slate-950 to-slate-950 hover:bg-purple-950/40 hover:border-purple-400 transition-all cursor-pointer flex flex-col justify-between group shadow-lg hover:scale-[1.01]"
                       >
@@ -1366,25 +1384,6 @@ export const DoctorOnboardingWizard: React.FC<DoctorOnboardingWizardProps> = ({
                           className="py-2 px-3 text-xs font-bold text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-xl transition-all cursor-pointer"
                         >
                           Plegar Planes ▲
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setIsEditPaymentModalOpen(true)}
-                          className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold text-xs border border-amber-500/40 flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
-                          title="Editar mis cuentas y tasa Binance"
-                        >
-                          <CreditCard className="w-3.5 h-3.5 text-amber-400" />
-                          <span>⚙️ Editar Mis Cobros</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setIsPaymentInfoModalOpen(true)}
-                          className="py-2.5 px-5 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-amber-950 font-black text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer hover:scale-105"
-                        >
-                          <CreditCard className="w-4 h-4" />
-                          <span>Abrir Cuentas de Pago &amp; Adjuntar Comprobante</span>
                         </button>
                       </div>
                     </div>
@@ -2373,6 +2372,56 @@ export const DoctorOnboardingWizard: React.FC<DoctorOnboardingWizardProps> = ({
                   />
                 </div>
 
+                {/* Logotipo del Consultorio / Clínica (Opcional) */}
+                <div className="bg-slate-900/60 p-4 rounded-2xl border border-slate-800 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                      <ImageIcon className="w-4 h-4 text-blue-400" />
+                      <span>Logotipo Médico o de Clínica (Opcional):</span>
+                    </span>
+                    {customLogoImg && (
+                      <button
+                        type="button"
+                        onClick={() => setCustomLogoImg(null)}
+                        className="text-[11px] text-rose-400 hover:text-rose-300 font-bold"
+                      >
+                        Quitar Logo
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="w-14 h-14 rounded-xl bg-white p-1 flex items-center justify-center border border-slate-700 overflow-hidden shrink-0">
+                      {customLogoImg ? (
+                        <img src={customLogoImg} alt="Logo" className="w-full h-full object-contain" />
+                      ) : (
+                        <span className="text-[10px] text-slate-400 font-bold text-center leading-tight">Sin logo</span>
+                      )}
+                    </div>
+                    <div className="flex-1 space-y-1">
+                      <button
+                        type="button"
+                        onClick={() => logoFileInputRef.current?.click()}
+                        className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                      >
+                        <Upload className="w-3.5 h-3.5 text-blue-400" />
+                        <span>{customLogoImg ? 'Cambiar Logotipo' : 'Subir Logotipo'}</span>
+                      </button>
+                      <p className="text-[10px] text-slate-400">
+                        Se posicionará en el margen izquierdo del encabezado de sus documentos.
+                      </p>
+                    </div>
+                  </div>
+
+                  <input
+                    ref={logoFileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleLogoFileUpload}
+                  />
+                </div>
+
                 <div className="text-[11px] text-slate-400 text-center bg-slate-900/50 p-2.5 rounded-xl border border-slate-800/80">
                   💡 <strong>Grabado Permanente:</strong> Estos elementos quedarán almacenados de forma segura en su sesión y se insertarán de forma automática en cada récipe, informe médico y constancia de reposo que emita.
                 </div>
@@ -2850,17 +2899,17 @@ export const DoctorOnboardingWizard: React.FC<DoctorOnboardingWizardProps> = ({
         )}
 
         {/* ======================================================== */}
-        {/* MODE: LOGIN CON CORREO / CÉDULA Y CLAVE                  */}
+        {/* MODE: LOGIN CON CORREO Y CLAVE                          */}
         {/* ======================================================== */}
         {viewMode === 'login' && (
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 md:p-8 shadow-2xl relative">
             <div className="text-center mb-6">
-              <div className="w-12 h-12 rounded-2xl bg-blue-600/20 text-blue-400 flex items-center justify-center mx-auto mb-2 border border-blue-500/30">
+              <div className="w-12 h-12 rounded-2xl bg-blue-600/20 text-blue-400 flex items-center justify-center mx-auto mb-2 border border-blue-500/30 shadow-inner">
                 <LogIn className="w-6 h-6" />
               </div>
-              <h2 className="text-xl font-black text-white">Ingreso a Consulta Registrada</h2>
+              <h2 className="text-xl font-black text-white">Ingreso al Consultorio Digital</h2>
               <p className="text-xs text-slate-400 mt-1">
-                Ingrese con su Correo Electrónico (o Cédula) y su Clave de Acceso:
+                Ingrese con su <strong>Correo Electrónico</strong> y su <strong>Clave de Acceso</strong>:
               </p>
             </div>
 
@@ -2872,7 +2921,7 @@ export const DoctorOnboardingWizard: React.FC<DoctorOnboardingWizardProps> = ({
                   <span>¡Registro Exitoso de su Consultorio!</span>
                 </div>
                 <p className="text-xs text-emerald-100/90 leading-relaxed">
-                  Sus datos han sido guardados. Por favor ingrese a continuación con su <strong>correo electrónico</strong> (o cédula) y la <strong>clave de acceso</strong> que acaba de crear para ingresar a su consultorio digital.
+                  Sus datos han sido guardados de forma permanente. Por favor ingrese a continuación con su <strong>correo electrónico</strong> y la <strong>clave de acceso</strong> creada.
                 </p>
               </div>
             )}
@@ -2888,7 +2937,7 @@ export const DoctorOnboardingWizard: React.FC<DoctorOnboardingWizardProps> = ({
             <form onSubmit={handleLoginSubmit} className="space-y-4 max-w-sm mx-auto">
               <div>
                 <label className="block text-xs font-bold text-slate-300 mb-1">
-                  Correo Electrónico o Cédula de Identidad: *
+                  Correo Electrónico: *
                 </label>
                 <div className="relative">
                   <Mail className="w-4 h-4 absolute left-3 top-3 text-slate-500" />
@@ -2898,7 +2947,7 @@ export const DoctorOnboardingWizard: React.FC<DoctorOnboardingWizardProps> = ({
                     required
                     value={loginInput}
                     onChange={(e) => setLoginInput(e.target.value)}
-                    placeholder="doctor@ejemplo.com o V-12.345.678"
+                    placeholder="doctor@ejemplo.com o cédula"
                     className="w-full pl-9 pr-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-blue-500 placeholder:text-slate-600"
                   />
                 </div>
@@ -2928,7 +2977,7 @@ export const DoctorOnboardingWizard: React.FC<DoctorOnboardingWizardProps> = ({
                   </button>
                 </div>
                 <p className="text-[10px] text-slate-500 mt-1">
-                  💡 Si fue dado de alta por el administrador, use la clave que le proporcionó. Podrá cambiarla cuando lo desee.
+                  🔒 Sus datos, récipes, pacientes y administración están 100% protegidos y nunca se borran.
                 </p>
               </div>
 
@@ -2937,7 +2986,7 @@ export const DoctorOnboardingWizard: React.FC<DoctorOnboardingWizardProps> = ({
                 className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2 transition-all hover:scale-[1.01] active:scale-95 cursor-pointer"
               >
                 <LogIn className="w-4 h-4" />
-                <span>Ingresar a Mi Consultorio</span>
+                <span>Ingresar con Correo y Clave</span>
               </button>
 
               {/* Botón Cambiar Clave */}

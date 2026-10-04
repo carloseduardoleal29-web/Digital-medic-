@@ -7,6 +7,7 @@ import { BasicLogoSelectorModal } from './BasicLogoSelectorModal';
 interface DocumentHeaderProps {
   config: DoctorConfig;
   compact?: boolean;
+  title?: string;
   onUpdateField?: (field: keyof DoctorConfig, value: string) => void;
   onUploadLogo?: (side: 'logoIzq' | 'logoDer', dataUrl: string) => void;
   editableInline?: boolean;
@@ -15,6 +16,7 @@ interface DocumentHeaderProps {
 export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
   config,
   compact = false,
+  title,
   onUpdateField,
   onUploadLogo,
   editableInline = true,
@@ -22,6 +24,19 @@ export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
   const leftInputRef = useRef<HTMLInputElement>(null);
   const rightInputRef = useRef<HTMLInputElement>(null);
   const [logoModalSide, setLogoModalSide] = useState<'logoIzq' | 'logoDer' | null>(null);
+
+  const cfg = config || {
+    doctorName: '',
+    specialty: '',
+    mpps: '',
+    ci: '',
+    collegeNumber: '',
+    phone: '',
+    email: '',
+    headerStyle: 'clasico',
+    headerLayout: 'ambos-logos',
+    primaryDocColor: '#2563eb',
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, side: 'logoIzq' | 'logoDer') => {
     const file = e.target.files?.[0];
@@ -55,36 +70,36 @@ export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
     }
   };
 
-  const layout = config.headerLayout || 'ambos-logos';
-  const showLeft = layout !== 'solo-texto' && layout !== 'solo-logo-der';
-  const showRight = layout !== 'solo-texto' && layout !== 'solo-logo-izq';
+  const layout = (cfg.headerLayout || 'ambos-logos') as string;
+  const showLeft = layout !== 'sin-logos' && layout !== 'logo-der';
+  const showRight = layout !== 'sin-logos' && layout !== 'logo-izq';
 
-  const logoClasses = config.formaLogo === 'logo-redondo'
+  const logoClasses = cfg.formaLogo === 'logo-redondo'
     ? 'rounded-full object-contain bg-transparent transition-transform'
     : 'rounded-lg object-contain bg-transparent transition-transform';
 
-  const logoBorderColor = config.primaryDocColor;
+  const logoBorderColor = cfg.primaryDocColor || '#2563eb';
 
   // Medical symbols flanking the doctor's name
-  const showSymbols = config.showMedicalSymbols !== false;
-  const symbolType = config.medicalSymbolType || 'esculapio';
-  const symbolColor = config.medicalSymbolColor || config.nombreColor || config.primaryDocColor || '#2563eb';
+  const showSymbols = cfg.showMedicalSymbols !== false;
+  const symbolType = cfg.medicalSymbolType || 'esculapio';
+  const symbolColor = cfg.medicalSymbolColor || cfg.nombreColor || cfg.primaryDocColor || '#2563eb';
   const symbolSvg = getMedicalSymbolSVG(symbolType, symbolColor);
 
-  const leftLogo = config.logoIzq || DIGITAL_MEDIC_OFFICIAL_LOGO_SVG;
-  const rightLogo = config.logoDer || MEDICINE_EMBLEM_ESCULAPIO_SVG;
+  const leftLogo = cfg.logoIzq !== undefined ? cfg.logoIzq : DIGITAL_MEDIC_OFFICIAL_LOGO_SVG;
+  const rightLogo = cfg.logoDer || '';
 
-  const scaleCompact = config.headerScaleCompact ?? 0.78;
+  const scaleCompact = cfg.headerScaleCompact ?? 0.78;
 
   return (
     <div 
       className={`relative w-full border-b-2 flex items-center justify-between gap-3 pb-3 mb-3 transition-all ${
         compact ? 'pb-2 mb-2' : 'pb-3.5 mb-3.5'
       } ${
-        config.headerStyle === 'destacado' 
+        (config.headerStyle as string) === 'destacado' 
           ? 'bg-slate-50/80 p-3 rounded-xl border-2' 
           : ''
-      } ${layout === 'solo-texto' ? 'justify-center text-center' : ''}`}
+      } ${layout === 'sin-logos' ? 'justify-center text-center' : ''}`}
       style={{ borderColor: config.primaryDocColor }}
     >
       {/* Basic Logo Selector Modal */}
@@ -116,7 +131,7 @@ export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
       />
 
       {/* Left Logo */}
-      {showLeft && (
+      {showLeft && (leftLogo || editableInline) && (
         <div 
           onClick={() => editableInline && setLogoModalSide('logoIzq')}
           className={`shrink-0 flex items-center justify-center relative group ${
@@ -127,19 +142,21 @@ export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
           {leftLogo ? (
             <img
               src={leftLogo}
-              alt="Logo Digital Médic Izquierdo"
+              alt="Logo Izquierdo"
               className={`${logoClasses} transition-transform group-hover:scale-105`}
               style={{
-                width: compact ? Math.max(34, config.logoSize * 0.75) + 'px' : config.logoSize + 'px',
-                height: compact ? Math.max(34, config.logoSize * 0.75) + 'px' : config.logoSize + 'px',
+                width: compact ? Math.max(30, config.logoSize * 0.7) + 'px' : config.logoSize + 'px',
+                height: compact ? Math.max(30, config.logoSize * 0.7) + 'px' : config.logoSize + 'px',
+                maxHeight: compact ? '40px' : '52px',
+                objectFit: 'contain',
                 borderColor: logoBorderColor,
               }}
             />
-          ) : (
+          ) : editableInline ? (
             <div 
               style={{ 
-                width: (compact ? 36 : config.logoSize) + 'px', 
-                height: (compact ? 36 : config.logoSize) + 'px',
+                width: (compact ? 32 : Math.min(48, config.logoSize)) + 'px', 
+                height: (compact ? 32 : Math.min(48, config.logoSize)) + 'px',
                 borderColor: logoBorderColor
               }}
               className="rounded-xl bg-slate-50 border-2 border-dashed flex flex-col items-center justify-center text-[9px] text-slate-400 no-print hover:border-blue-500 hover:text-blue-600 transition-colors p-1 text-center"
@@ -147,9 +164,9 @@ export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
               <ImageIcon className="w-3.5 h-3.5 mb-0.5 opacity-60" />
               <span>+ Logo</span>
             </div>
-          )}
+          ) : null}
 
-          {editableInline && (
+          {editableInline && leftLogo && (
             <div className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white no-print">
               <Camera className="w-3.5 h-3.5 drop-shadow" />
             </div>
@@ -158,25 +175,27 @@ export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
       )}
 
       {/* Central Medical Text Header Box */}
-      <div className={`flex-1 text-center px-1 ${layout === 'solo-texto' ? 'max-w-xl mx-auto py-1' : ''}`}>
+      <div className={`flex-1 text-center px-1 ${layout === 'sin-logos' ? 'max-w-xl mx-auto py-1' : ''}`}>
         
-        {/* Cajón 1: Institución / Clínica / Hospital */}
-        <div
-          contentEditable={editableInline}
-          suppressContentEditableWarning
-          onBlur={(e) => onUpdateField?.('institution', e.currentTarget.innerText)}
-          className={`font-bold uppercase tracking-wider transition-colors outline-none cursor-text ${
-            compact ? 'mb-0.5' : 'mb-1'
-          } ${editableInline ? 'hover:bg-blue-50/70 hover:ring-1 hover:ring-blue-300 rounded px-1' : ''}`}
-          style={{
-            color: config.institutionColor || config.headerColor,
-            fontFamily: config.fuenteInstitution || config.fuenteHeader,
-            fontSize: config.institutionSize ? (compact ? `calc(${config.institutionSize} * ${scaleCompact})` : config.institutionSize) : (compact ? '10px' : '12px'),
-          }}
-          title="Haga clic para editar nombre de la Institución o Clínica"
-        >
-          {config.institution || (editableInline ? '[Nombre de la Institución / Clínica]' : '')}
-        </div>
+        {/* Cajón 1: Institución / Clínica / Hospital (Solo si el médico definió una institución) */}
+        {config.institution && config.institution.trim() !== '' && (
+          <div
+            contentEditable={editableInline}
+            suppressContentEditableWarning
+            onBlur={(e) => onUpdateField?.('institution', e.currentTarget.innerText)}
+            className={`font-bold uppercase tracking-wider transition-colors outline-none cursor-text ${
+              compact ? 'mb-0.5' : 'mb-0.5'
+            } ${editableInline ? 'hover:bg-blue-50/70 hover:ring-1 hover:ring-blue-300 rounded px-1' : ''}`}
+            style={{
+              color: config.institutionColor || config.headerColor,
+              fontFamily: config.fuenteInstitution || config.fuenteHeader,
+              fontSize: config.institutionSize ? (compact ? `calc(${config.institutionSize} * ${scaleCompact})` : config.institutionSize) : (compact ? '10px' : '11px'),
+            }}
+            title="Haga clic para editar nombre de la Institución o Clínica"
+          >
+            {config.institution}
+          </div>
+        )}
 
         {/* Cajón 2: Nombre del Médico / Colega Flanqueado por 2 Símbolos de la Medicina */}
         <div className="flex items-center justify-center gap-1.5 sm:gap-2 my-0.5 whitespace-nowrap">
@@ -331,8 +350,8 @@ export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
           )}
         </div>
 
-        {/* Cajón 5: Sub-detalles (Ubicación de consultorio, horarios) */}
-        {!compact && (
+        {/* Cajón 5: Sub-detalles (Ubicación de consultorio, horarios - Solo si existen) */}
+        {!compact && config.institutionDetails && config.institutionDetails.trim() !== '' && (
           <div 
             contentEditable={editableInline}
             suppressContentEditableWarning
@@ -347,7 +366,7 @@ export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
             }}
             title="Haga clic para editar dirección, piso o consultorio"
           >
-            {config.institutionDetails || (editableInline ? '[Dirección del consultorio / piso / horario]' : '')}
+            {config.institutionDetails}
           </div>
         )}
 
@@ -406,7 +425,7 @@ export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
       </div>
 
       {/* Right Logo */}
-      {showRight && (
+      {showRight && (rightLogo || editableInline) && (
         <div 
           onClick={() => editableInline && setLogoModalSide('logoDer')}
           className={`shrink-0 flex items-center justify-center relative group ${
@@ -417,19 +436,21 @@ export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
           {rightLogo ? (
             <img
               src={rightLogo}
-              alt="Logo Medicina ⚕️ Derecho"
+              alt="Logo Derecho"
               className={`${logoClasses} transition-transform group-hover:scale-105`}
               style={{
-                width: compact ? Math.max(34, config.logoSize * 0.75) + 'px' : config.logoSize + 'px',
-                height: compact ? Math.max(34, config.logoSize * 0.75) + 'px' : config.logoSize + 'px',
+                width: compact ? Math.max(30, config.logoSize * 0.7) + 'px' : config.logoSize + 'px',
+                height: compact ? Math.max(30, config.logoSize * 0.7) + 'px' : config.logoSize + 'px',
+                maxHeight: compact ? '40px' : '52px',
+                objectFit: 'contain',
                 borderColor: logoBorderColor,
               }}
             />
-          ) : (
+          ) : editableInline ? (
             <div 
               style={{ 
-                width: (compact ? 36 : config.logoSize) + 'px', 
-                height: (compact ? 36 : config.logoSize) + 'px',
+                width: (compact ? 32 : Math.min(48, config.logoSize)) + 'px', 
+                height: (compact ? 32 : Math.min(48, config.logoSize)) + 'px',
                 borderColor: logoBorderColor
               }}
               className="rounded-xl bg-slate-50 border-2 border-dashed flex flex-col items-center justify-center text-[9px] text-slate-400 no-print hover:border-blue-500 hover:text-blue-600 transition-colors p-1 text-center"
@@ -437,9 +458,9 @@ export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
               <ImageIcon className="w-3.5 h-3.5 mb-0.5 opacity-60" />
               <span>+ Logo</span>
             </div>
-          )}
+          ) : null}
 
-          {editableInline && (
+          {editableInline && rightLogo && (
             <div className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white no-print">
               <Camera className="w-3.5 h-3.5 drop-shadow" />
             </div>

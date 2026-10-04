@@ -42,6 +42,13 @@ export const SubscriptionBillingPanel: React.FC<SubscriptionBillingPanelProps> =
   currentDoctor,
   onActivateLicense
 }) => {
+  // Check if current session belongs to the Administrator
+  const isDoctorAdmin = Boolean(
+    currentDoctor.isAdmin || 
+    currentDoctor.id === 'doc-admin-master' || 
+    (currentDoctor.email && currentDoctor.email.toLowerCase().includes('carloseduardoleal29'))
+  );
+
   // Load saved payment settings from central service
   const [payConfig, setPayConfig] = useState<PaymentConfig>(DEFAULT_PAYMENT_CONFIG);
   const [isEditPaymentModalOpen, setIsEditPaymentModalOpen] = useState(false);
@@ -49,7 +56,13 @@ export const SubscriptionBillingPanel: React.FC<SubscriptionBillingPanelProps> =
 
   useEffect(() => {
     fetchPaymentConfig().then((cfg) => {
-      if (cfg && cfg.pagoMovil) setPayConfig(cfg);
+      if (cfg && cfg.pagoMovil) {
+        setPayConfig(cfg);
+      }
+      // If tasa is not set, fetch live Binance rate immediately
+      if (!cfg?.tasaBinanceUsd || cfg.tasaBinanceUsd <= 0) {
+        handleRefreshLiveBinanceRate();
+      }
     });
   }, []);
 
@@ -71,15 +84,15 @@ export const SubscriptionBillingPanel: React.FC<SubscriptionBillingPanelProps> =
     }
   };
 
-  const [selectedPlan, setSelectedPlan] = useState<'mensual' | 'trimestral' | 'anual'>('trimestral');
+  const [selectedPlan, setSelectedPlan] = useState<'mensual' | 'trimestral' | 'anual'>('mensual');
   const [selectedMethod, setSelectedMethod] = useState<'pagomovil' | 'binance' | 'zinli'>('pagomovil');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [showComparisonMatrix, setShowComparisonMatrix] = useState<boolean>(false);
 
-  // Form states for reporting payment
+  // Form states for reporting payment - Blank by default so paying doctor enters their own data
   const [refNumber, setRefNumber] = useState('');
-  const [payerName, setPayerName] = useState(currentDoctor.doctorName || '');
-  const [payerCi, setPayerCi] = useState(currentDoctor.ci || '');
+  const [payerName, setPayerName] = useState('');
+  const [payerCi, setPayerCi] = useState('');
   const [isReportSubmitted, setIsReportSubmitted] = useState(false);
 
   // Admin Master Unlock Modal / Tab
@@ -193,10 +206,12 @@ export const SubscriptionBillingPanel: React.FC<SubscriptionBillingPanelProps> =
   };
 
   const currentPlanObj = plans[selectedPlan];
-  const totalBs = (currentPlanObj.priceUsd * payConfig.tasaBinanceUsd).toLocaleString('es-VE', {
+  const liveRate = payConfig.tasaBinanceUsd > 0 ? payConfig.tasaBinanceUsd : 0;
+  const rawTotalBs = currentPlanObj.priceUsd * liveRate;
+  const totalBs = rawTotalBs > 0 ? rawTotalBs.toLocaleString('es-VE', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
-  });
+  }) : '0,00';
 
   // Handle WhatsApp Report Generator
   const handleSendWhatsAppReport = () => {
@@ -336,13 +351,17 @@ export const SubscriptionBillingPanel: React.FC<SubscriptionBillingPanelProps> =
                 <div className="mt-4 pt-3">
                   <button
                     type="button"
-                    className={`w-full py-2 rounded-xl text-xs font-bold transition-all ${
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedPlan(key);
+                    }}
+                    className={`w-full py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                       isSelected
-                        ? 'bg-blue-600 text-white shadow-xs'
+                        ? 'bg-blue-600 text-white shadow-xs scale-[1.02]'
                         : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                     }`}
                   >
-                    {isSelected ? 'Plan Seleccionado' : 'Elegir este Plan'}
+                    {isSelected ? '✓ Plan Seleccionado' : 'Elegir este Plan'}
                   </button>
                 </div>
               </div>
@@ -515,7 +534,7 @@ export const SubscriptionBillingPanel: React.FC<SubscriptionBillingPanelProps> =
             tasaUltimaActualizacion: new Date().toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' })
           }));
         }}
-        onOpenEditPaymentConfig={() => setIsEditPaymentModalOpen(true)}
+        onOpenEditPaymentConfig={isDoctorAdmin ? () => setIsEditPaymentModalOpen(true) : undefined}
       />
 
       {/* STEP 2: Payment Methods Panel */}
@@ -530,15 +549,17 @@ export const SubscriptionBillingPanel: React.FC<SubscriptionBillingPanelProps> =
             </h2>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setIsEditPaymentModalOpen(true)}
-            className="py-1.5 px-3 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold text-xs flex items-center gap-1.5 transition-all shadow-xs cursor-pointer hover:scale-105 active:scale-95"
-            title="Editar mis cuentas bancarias, Binance y Zinli"
-          >
-            <CreditCard className="w-3.5 h-3.5 text-amber-600" />
-            <span>⚙️ Editar Mis Datos de Cobro</span>
-          </button>
+          {isDoctorAdmin && (
+            <button
+              type="button"
+              onClick={() => setIsEditPaymentModalOpen(true)}
+              className="py-1.5 px-3 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold text-xs flex items-center gap-1.5 transition-all shadow-xs cursor-pointer hover:scale-105 active:scale-95"
+              title="Editar mis cuentas bancarias, Binance y Zinli"
+            >
+              <CreditCard className="w-3.5 h-3.5 text-amber-600" />
+              <span>⚙️ Editar Mis Datos de Cobro (Admin)</span>
+            </button>
+          )}
         </div>
 
         {/* Method Switcher Tabs */}
@@ -586,35 +607,76 @@ export const SubscriptionBillingPanel: React.FC<SubscriptionBillingPanelProps> =
         {/* Dynamic Payment Details Container */}
         <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-6">
           
+          {/* Quick Plan Switcher Pills Bar */}
+          <div className="p-3 bg-gradient-to-r from-blue-50/90 via-slate-50 to-blue-50/90 border border-blue-200/80 rounded-2xl flex flex-wrap items-center justify-between gap-3 shadow-2xs">
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-800">
+              <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></span>
+              <span>Cambiar Plan a Pagar en 1 Clic:</span>
+            </div>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {(Object.keys(plans) as Array<'mensual' | 'trimestral' | 'anual'>).map((pKey) => {
+                const p = plans[pKey];
+                const isSelected = selectedPlan === pKey;
+                return (
+                  <button
+                    key={pKey}
+                    type="button"
+                    onClick={() => setSelectedPlan(pKey)}
+                    className={`px-3 py-1.5 rounded-xl font-black text-xs transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs ${
+                      isSelected
+                        ? 'bg-blue-600 text-white ring-2 ring-blue-400/50 scale-105'
+                        : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 hover:border-blue-300'
+                    }`}
+                  >
+                    <span>{p.name}</span>
+                    <span className={`px-1.5 py-0.2 rounded-md font-mono text-[11px] ${
+                      isSelected ? 'bg-blue-700 text-white' : 'bg-slate-100 text-slate-600'
+                    }`}>
+                      ${p.priceUsd} USD
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* METHOD A: PAGO MOVIL VENEZUELA */}
           {selectedMethod === 'pagomovil' && (
             <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
                 <div className="flex items-center gap-2.5">
                   <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
                     🇻🇪
                   </div>
                   <div>
                     <h3 className="font-bold text-slate-900 text-base">Datos Oficiales para Pago Móvil</h3>
-                    <p className="text-xs text-slate-500">Bancos nacionales de Venezuela a tasa Binance</p>
+                    <p className="text-xs text-slate-500">Bancos nacionales de Venezuela a tasa Binance del día</p>
                   </div>
                 </div>
 
-                <div className="bg-blue-50 px-3.5 py-2 rounded-xl border border-blue-200 text-right space-y-0.5">
-                  <span className="text-[10px] text-blue-700 font-bold block uppercase">Monto Exacto a Transferir</span>
-                  <div className="text-xl font-black text-blue-900 font-mono">
-                    Bs. {totalBs} <span className="text-xs text-blue-600 font-normal">(${currentPlanObj.priceUsd} USD)</span>
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100/60 px-5 py-3 rounded-2xl border-2 border-blue-300 text-right space-y-1 shadow-sm">
+                  <div className="flex items-center justify-end gap-2">
+                    <span className="text-[10px] text-blue-700 font-black uppercase tracking-wider">Plan Activo:</span>
+                    <span className="text-xs font-black text-blue-950 bg-white px-2.5 py-0.5 rounded-md border border-blue-200 shadow-2xs">
+                      {currentPlanObj.name} ({currentPlanObj.duration}) · ${currentPlanObj.priceUsd}.00 USD
+                    </span>
                   </div>
-                  <div className="flex items-center gap-1.5 justify-end text-[10px] text-slate-600">
-                    <span className="font-bold text-amber-700">Tasa Binance: Bs. {payConfig.tasaBinanceUsd.toFixed(2)}</span>
+                  <div className="text-2xl sm:text-3xl font-black text-blue-900 font-mono tracking-tight animate-in fade-in duration-200">
+                    Bs. {totalBs}
+                  </div>
+                  <div className="flex items-center gap-1.5 justify-end text-[10.5px] text-slate-700 font-semibold flex-wrap">
+                    <span className="bg-white px-2 py-0.5 rounded border border-blue-200 text-blue-950 font-bold">
+                      ${currentPlanObj.priceUsd}.00 USD × {liveRate.toFixed(2)} Bs
+                    </span>
+                    <span className="text-slate-300">•</span>
                     <button
                       type="button"
                       onClick={handleRefreshLiveBinanceRate}
                       disabled={isRefreshingRate}
-                      className="px-1.5 py-0.5 bg-white border border-slate-300 rounded text-blue-700 hover:bg-blue-50 text-[9px] font-bold cursor-pointer"
+                      className="px-2 py-0.5 bg-white border border-slate-300 rounded-md text-blue-700 hover:bg-blue-50 text-[10px] font-bold cursor-pointer transition-colors shadow-2xs"
                       title="Actualizar tasa Binance en vivo"
                     >
-                      {isRefreshingRate ? '...' : '⚡ En vivo'}
+                      {isRefreshingRate ? '...' : '⚡ Actualizar Tasa'}
                     </button>
                     <a
                       href="https://p2p.binance.com/es/trade/all-payments/USDT?fiat=VES"
@@ -629,19 +691,37 @@ export const SubscriptionBillingPanel: React.FC<SubscriptionBillingPanelProps> =
               </div>
 
               {(!payConfig.pagoMovil.banco && !payConfig.pagoMovil.telefono) ? (
-                <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                  <div className="space-y-0.5">
-                    <strong>Datos de Pago Móvil aún no registrados.</strong>
-                    <p className="text-[11px] text-amber-800">Configure su banco, teléfono y cédula para recibir transferencias en bolívares a tasa Binance.</p>
+                isDoctorAdmin ? (
+                  <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div className="space-y-0.5">
+                      <strong>Datos de Pago Móvil aún no registrados (Sesión de Administrador).</strong>
+                      <p className="text-[11px] text-amber-800">Configure su banco, teléfono y cédula para recibir transferencias en bolívares a tasa Binance.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsEditPaymentModalOpen(true)}
+                      className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg cursor-pointer shrink-0"
+                    >
+                      ⚙️ Ingresar Mis Datos
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsEditPaymentModalOpen(true)}
-                    className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg cursor-pointer shrink-0"
-                  >
-                    ⚙️ Ingresar Mis Datos
-                  </button>
-                </div>
+                ) : (
+                  <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 text-blue-950 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div className="space-y-0.5">
+                      <strong className="text-blue-900">Transferencia vía Pago Móvil (Venezuela)</strong>
+                      <p className="text-[11px] text-blue-800">Monto exacto a transferir: <strong className="font-mono">Bs. {totalBs}</strong> (${currentPlanObj.priceUsd} USD a tasa Binance del día). Para obtener los datos de la cuenta receptora o activar de inmediato, contáctenos directamente al WhatsApp de soporte médico.</p>
+                    </div>
+                    <a
+                      href={`https://wa.me/${(payConfig.adminWhatsapp || '584141234567').replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hola, deseo realizar el pago de mi suscripción médica (${currentPlanObj.name} por Bs. ${totalBs}). Por favor facilíteme los datos de Pago Móvil.`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shrink-0 transition-colors cursor-pointer"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      <span>Solicitar Datos por WhatsApp</span>
+                    </a>
+                  </div>
+                )
               ) : (
                 <>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -739,7 +819,7 @@ export const SubscriptionBillingPanel: React.FC<SubscriptionBillingPanelProps> =
           {/* METHOD B: BINANCE PAY */}
           {selectedMethod === 'binance' && (
             <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
                 <div className="flex items-center gap-2.5">
                   <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
                     🟡
@@ -750,26 +830,44 @@ export const SubscriptionBillingPanel: React.FC<SubscriptionBillingPanelProps> =
                   </div>
                 </div>
 
-                <div className="bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-200 text-right">
-                  <span className="text-[10px] text-amber-800 font-bold block uppercase">Monto a Enviar</span>
-                  <span className="text-lg font-black text-amber-900 font-mono">${currentPlanObj.priceUsd}.00 USDT</span>
+                <div className="bg-amber-50 px-4 py-2 rounded-2xl border border-amber-200 text-right">
+                  <div className="text-[10px] text-amber-800 font-black uppercase tracking-wider">Plan {currentPlanObj.name}:</div>
+                  <div className="text-xl font-black text-amber-900 font-mono">${currentPlanObj.priceUsd}.00 USDT</div>
                 </div>
               </div>
 
               {(!payConfig.binance.payId && !payConfig.binance.email) ? (
-                <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                  <div className="space-y-0.5">
-                    <strong>Cuenta de Binance Pay aún no configurada.</strong>
-                    <p className="text-[11px] text-amber-800">Configure su Binance Pay ID o correo para recibir pagos en USDT directo en su cuenta.</p>
+                isDoctorAdmin ? (
+                  <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div className="space-y-0.5">
+                      <strong>Cuenta de Binance Pay aún no configurada (Sesión de Administrador).</strong>
+                      <p className="text-[11px] text-amber-800">Configure su Binance Pay ID o correo para recibir pagos en USDT directo en su cuenta.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsEditPaymentModalOpen(true)}
+                      className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg cursor-pointer shrink-0"
+                    >
+                      ⚙️ Ingresar Mis Datos
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsEditPaymentModalOpen(true)}
-                    className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg cursor-pointer shrink-0"
-                  >
-                    ⚙️ Ingresar Mis Datos
-                  </button>
-                </div>
+                ) : (
+                  <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-950 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div className="space-y-0.5">
+                      <strong className="text-amber-900">Transferencia vía Binance Pay (USDT)</strong>
+                      <p className="text-[11px] text-amber-800">Monto a transferir: <strong className="font-mono">${currentPlanObj.priceUsd}.00 USDT</strong>. Para recibir el Binance Pay ID de recepción y confirmar su activación inmediata, escríbanos a WhatsApp.</p>
+                    </div>
+                    <a
+                      href={`https://wa.me/${(payConfig.adminWhatsapp || '584141234567').replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hola, deseo pagar mi suscripción médica (${currentPlanObj.name} - $${currentPlanObj.priceUsd} USDT) mediante Binance Pay. Por favor facilíteme su Pay ID.`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shrink-0 transition-colors cursor-pointer"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      <span>Solicitar Binance Pay ID</span>
+                    </a>
+                  </div>
+                )
               ) : (
                 <>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -826,7 +924,7 @@ export const SubscriptionBillingPanel: React.FC<SubscriptionBillingPanelProps> =
           {/* METHOD C: ZINLI */}
           {selectedMethod === 'zinli' && (
             <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
                 <div className="flex items-center gap-2.5">
                   <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
                     🟣
@@ -837,26 +935,44 @@ export const SubscriptionBillingPanel: React.FC<SubscriptionBillingPanelProps> =
                   </div>
                 </div>
 
-                <div className="bg-purple-50 px-3 py-1.5 rounded-xl border border-purple-200 text-right">
-                  <span className="text-[10px] text-purple-800 font-bold block uppercase">Monto a Enviar</span>
-                  <span className="text-lg font-black text-purple-900 font-mono">${currentPlanObj.priceUsd}.00 USD</span>
+                <div className="bg-purple-50 px-4 py-2 rounded-2xl border border-purple-200 text-right">
+                  <div className="text-[10px] text-purple-800 font-black uppercase tracking-wider">Plan {currentPlanObj.name}:</div>
+                  <div className="text-xl font-black text-purple-900 font-mono">${currentPlanObj.priceUsd}.00 USD</div>
                 </div>
               </div>
 
               {(!payConfig.zinli.email) ? (
-                <div className="p-4 rounded-xl bg-purple-50 border border-purple-200 text-purple-900 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                  <div className="space-y-0.5">
-                    <strong>Cuenta de Zinli aún no configurada.</strong>
-                    <p className="text-[11px] text-purple-800">Configure su correo registrado en Zinli para recibir transferencias en dólares.</p>
+                isDoctorAdmin ? (
+                  <div className="p-4 rounded-xl bg-purple-50 border border-purple-200 text-purple-900 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div className="space-y-0.5">
+                      <strong>Cuenta de Zinli aún no configurada (Sesión de Administrador).</strong>
+                      <p className="text-[11px] text-purple-800">Configure su correo registrado en Zinli para recibir transferencias en dólares.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsEditPaymentModalOpen(true)}
+                      className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-lg cursor-pointer shrink-0"
+                    >
+                      ⚙️ Ingresar Mis Datos
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsEditPaymentModalOpen(true)}
-                    className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-lg cursor-pointer shrink-0"
-                  >
-                    ⚙️ Ingresar Mis Datos
-                  </button>
-                </div>
+                ) : (
+                  <div className="p-4 rounded-xl bg-purple-50 border border-purple-200 text-purple-950 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div className="space-y-0.5">
+                      <strong className="text-purple-900">Transferencia vía Billetera Zinli (USD)</strong>
+                      <p className="text-[11px] text-purple-800">Monto a transferir: <strong className="font-mono">${currentPlanObj.priceUsd}.00 USD</strong>. Para recibir el correo Zinli destinatario y procesar su activación al instante, escríbanos por WhatsApp.</p>
+                    </div>
+                    <a
+                      href={`https://wa.me/${(payConfig.adminWhatsapp || '584141234567').replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hola, deseo pagar mi suscripción médica (${currentPlanObj.name} - $${currentPlanObj.priceUsd} USD) mediante Zinli. Por favor facilíteme su correo Zinli.`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shrink-0 transition-colors cursor-pointer"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      <span>Solicitar Correo Zinli</span>
+                    </a>
+                  </div>
+                )
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {/* Correo Zinli */}
@@ -911,6 +1027,22 @@ export const SubscriptionBillingPanel: React.FC<SubscriptionBillingPanelProps> =
         </div>
 
         <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+          
+          {/* Selected Plan Summary Badge */}
+          <div className="p-3 bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border border-emerald-200 rounded-xl flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span className="font-bold text-slate-800">
+                Plan a Activar: <strong className="text-emerald-950 font-black">{currentPlanObj.name} ({currentPlanObj.duration})</strong>
+              </span>
+            </div>
+            <div className="text-right">
+              <span className="font-mono font-black text-emerald-900 bg-white px-2.5 py-1 rounded-lg border border-emerald-200 shadow-2xs">
+                ${currentPlanObj.priceUsd}.00 USD {selectedMethod === 'pagomovil' ? `(Bs. ${totalBs})` : `(${selectedMethod === 'binance' ? 'USDT' : 'USD'})`}
+              </span>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="text-xs font-bold text-slate-700 block mb-1">
@@ -978,225 +1110,227 @@ export const SubscriptionBillingPanel: React.FC<SubscriptionBillingPanelProps> =
         </div>
       </div>
 
-      {/* ADMIN MASTER SECTION (Collapsible) */}
-      <div className="border-t border-slate-200 pt-6">
-        <div className="flex items-center justify-between">
-          <button
-            type="button"
-            onClick={() => setIsAdminEditorOpen(!isAdminEditorOpen)}
-            className="text-xs font-bold text-slate-500 hover:text-slate-800 flex items-center gap-1.5"
-          >
-            <KeyRound className="w-3.5 h-3.5 text-slate-400" />
-            <span>Configuración de Administrador Master (Editar Cuentas y Tasa Binance)</span>
-          </button>
-        </div>
+      {/* ADMIN MASTER SECTION (Visible only in Administrator Session) */}
+      {isDoctorAdmin && (
+        <div className="border-t border-slate-200 pt-6">
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => setIsAdminEditorOpen(!isAdminEditorOpen)}
+              className="text-xs font-bold text-slate-500 hover:text-slate-800 flex items-center gap-1.5 cursor-pointer"
+            >
+              <KeyRound className="w-3.5 h-3.5 text-slate-400" />
+              <span>Configuración de Administrador Master (Editar Cuentas y Tasa Binance)</span>
+            </button>
+          </div>
 
-        {isAdminEditorOpen && (
-          <div className="mt-4 p-5 bg-slate-900 text-white rounded-2xl border border-slate-800 space-y-4">
-            {!isAdminUnlocked ? (
-              <div className="max-w-md space-y-3">
-                <div className="flex items-center gap-2 text-amber-400 text-xs font-bold">
-                  <Lock className="w-4 h-4" />
-                  <span>Acceso Restringido para el Administrador del Sistema</span>
-                </div>
-                <p className="text-slate-400 text-xs">
-                  Introduce el PIN Master para modificar tus cuentas bancarias, tu correo de Zinli, tu Pay ID de Binance y actualizar la Tasa de Cambio Bs/USDT.
-                </p>
-                <div className="flex gap-2">
-                  <input
-                    type="password"
-                    value={adminPinInput}
-                    onChange={(e) => setAdminPinInput(e.target.value)}
-                    placeholder="PIN Master (ej: 1234)"
-                    className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white outline-hidden font-mono"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (adminPinInput === '1234' || adminPinInput.length >= 4) {
-                        setIsAdminUnlocked(true);
-                      } else {
-                        alert('PIN Incorrecto');
-                      }
-                    }}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold"
-                  >
-                    Desbloquear
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                  <h3 className="font-bold text-sm text-amber-400 flex items-center gap-2">
-                    <Sparkles className="w-4 h-4" />
-                    <span>Panel Master de Cobros y Tasa Binance</span>
-                  </h3>
-                  <button
-                    type="button"
-                    onClick={() => setIsAdminUnlocked(false)}
-                    className="text-xs text-slate-400 hover:text-white"
-                  >
-                    Cerrar Sesión Master
-                  </button>
-                </div>
-
-                {/* Botón Destacado para Abrir Editor Completo de Cuentas */}
-                <button
-                  type="button"
-                  onClick={() => setIsEditPaymentModalOpen(true)}
-                  className="w-full py-2.5 px-4 bg-gradient-to-r from-amber-500 via-amber-400 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer shadow-md"
-                >
-                  <CreditCard className="w-4 h-4 text-slate-950" />
-                  <span>⚙️ Abrir Editor Completo de Cuentas y Tasa Binance</span>
-                </button>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {/* Tasa Binance */}
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-300 block">
-                      Tasa Binance USDT (Bs):
-                    </label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      value={payConfig.tasaBinanceUsd}
-                      onChange={(e) => handleSavePayConfig({ ...payConfig, tasaBinanceUsd: parseFloat(e.target.value) || 0 })}
-                      className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs font-mono text-emerald-400 font-bold"
-                    />
+          {isAdminEditorOpen && (
+            <div className="mt-4 p-5 bg-slate-900 text-white rounded-2xl border border-slate-800 space-y-4">
+              {!isAdminUnlocked ? (
+                <div className="max-w-md space-y-3">
+                  <div className="flex items-center gap-2 text-amber-400 text-xs font-bold">
+                    <Lock className="w-4 h-4" />
+                    <span>Acceso Restringido para el Administrador del Sistema</span>
                   </div>
-
-                  {/* Teléfono WhatsApp Admin */}
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-300 block">
-                      WhatsApp para Recibir Pagos:
-                    </label>
+                  <p className="text-slate-400 text-xs">
+                    Introduce el PIN Master para modificar tus cuentas bancarias, tu correo de Zinli, tu Pay ID de Binance y actualizar la Tasa de Cambio Bs/USDT.
+                  </p>
+                  <div className="flex gap-2">
                     <input
-                      type="text"
-                      value={payConfig.adminWhatsapp}
-                      onChange={(e) => handleSavePayConfig({ ...payConfig, adminWhatsapp: e.target.value })}
-                      className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs font-mono text-white"
-                      placeholder="584141234567"
+                      type="password"
+                      value={adminPinInput}
+                      onChange={(e) => setAdminPinInput(e.target.value)}
+                      placeholder="PIN Master (ej: 1234)"
+                      className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white outline-hidden font-mono"
                     />
-                  </div>
-
-                  {/* Binance Pay ID */}
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-300 block">
-                      Binance Pay ID:
-                    </label>
-                    <input
-                      type="text"
-                      value={payConfig.binance.payId}
-                      onChange={(e) => handleSavePayConfig({ 
-                        ...payConfig, 
-                        binance: { ...payConfig.binance, payId: e.target.value } 
-                      })}
-                      className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs font-mono text-amber-400"
-                    />
-                  </div>
-
-                  {/* Pago Movil Banco */}
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-300 block">
-                      Pago Móvil - Banco:
-                    </label>
-                    <input
-                      type="text"
-                      value={payConfig.pagoMovil.banco}
-                      onChange={(e) => handleSavePayConfig({ 
-                        ...payConfig, 
-                        pagoMovil: { ...payConfig.pagoMovil, banco: e.target.value } 
-                      })}
-                      className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white"
-                    />
-                  </div>
-
-                  {/* Pago Movil Telefono */}
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-300 block">
-                      Pago Móvil - Teléfono:
-                    </label>
-                    <input
-                      type="text"
-                      value={payConfig.pagoMovil.telefono}
-                      onChange={(e) => handleSavePayConfig({ 
-                        ...payConfig, 
-                        pagoMovil: { ...payConfig.pagoMovil, telefono: e.target.value } 
-                      })}
-                      className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs font-mono text-white"
-                    />
-                  </div>
-
-                  {/* Pago Movil Cedula */}
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-300 block">
-                      Pago Móvil - Cédula / RIF:
-                    </label>
-                    <input
-                      type="text"
-                      value={payConfig.pagoMovil.cedula}
-                      onChange={(e) => handleSavePayConfig({ 
-                        ...payConfig, 
-                        pagoMovil: { ...payConfig.pagoMovil, cedula: e.target.value } 
-                      })}
-                      className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs font-mono text-white"
-                    />
-                  </div>
-                </div>
-
-                {/* Activador Manual de Licencia para Médicos */}
-                <div className="p-3 bg-slate-800/80 rounded-xl border border-slate-700 space-y-2">
-                  <span className="text-xs font-bold text-emerald-400 block">
-                    ⚡ Activador Inmediato de Licencia por Cédula:
-                  </span>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <input
-                      type="text"
-                      value={targetDoctorCi}
-                      onChange={(e) => setTargetDoctorCi(e.target.value)}
-                      placeholder="C.I del Médico (ej: V-20.123.456)"
-                      className="px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs font-mono text-white"
-                    />
-                    <select
-                      value={daysToAdd}
-                      onChange={(e) => setDaysToAdd(parseInt(e.target.value))}
-                      className="px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white"
-                    >
-                      <option value={30}>+30 Días (1 Mes)</option>
-                      <option value={90}>+90 Días (3 Meses)</option>
-                      <option value={365}>+365 Días (1 Año VIP)</option>
-                      <option value={3650}>Licencia Vitalicia</option>
-                    </select>
                     <button
                       type="button"
                       onClick={() => {
-                        if (!targetDoctorCi.trim()) {
-                          alert('Indica la Cédula del médico');
-                          return;
+                        if (adminPinInput === '1234' || adminPinInput === '2534' || adminPinInput.length >= 4) {
+                          setIsAdminUnlocked(true);
+                        } else {
+                          alert('PIN Incorrecto');
                         }
-                        if (onActivateLicense) {
-                          onActivateLicense(targetDoctorCi, daysToAdd);
-                        }
-                        setActivationFeedback(`¡Licencia de ${targetDoctorCi} activada con éxito por ${daysToAdd} días!`);
-                        setTimeout(() => setActivationFeedback(null), 4000);
                       }}
-                      className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold"
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold cursor-pointer"
                     >
-                      Activar Licencia Ahora
+                      Desbloquear
                     </button>
                   </div>
-                  {activationFeedback && (
-                    <span className="text-xs text-emerald-400 font-bold block animate-in fade-in">
-                      {activationFeedback}
-                    </span>
-                  )}
                 </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                    <h3 className="font-bold text-sm text-amber-400 flex items-center gap-2">
+                      <Sparkles className="w-4 h-4" />
+                      <span>Panel Master de Cobros y Tasa Binance</span>
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => setIsAdminUnlocked(false)}
+                      className="text-xs text-slate-400 hover:text-white cursor-pointer"
+                    >
+                      Cerrar Sesión Master
+                    </button>
+                  </div>
+
+                  {/* Botón Destacado para Abrir Editor Completo de Cuentas */}
+                  <button
+                    type="button"
+                    onClick={() => setIsEditPaymentModalOpen(true)}
+                    className="w-full py-2.5 px-4 bg-gradient-to-r from-amber-500 via-amber-400 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer shadow-md"
+                  >
+                    <CreditCard className="w-4 h-4 text-slate-950" />
+                    <span>⚙️ Abrir Editor Completo de Cuentas y Tasa Binance</span>
+                  </button>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {/* Tasa Binance */}
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-slate-300 block">
+                        Tasa Binance USDT (Bs):
+                      </label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={payConfig.tasaBinanceUsd}
+                        onChange={(e) => handleSavePayConfig({ ...payConfig, tasaBinanceUsd: parseFloat(e.target.value) || 0 })}
+                        className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs font-mono text-emerald-400 font-bold"
+                      />
+                    </div>
+
+                    {/* Teléfono WhatsApp Admin */}
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-slate-300 block">
+                        WhatsApp para Recibir Pagos:
+                      </label>
+                      <input
+                        type="text"
+                        value={payConfig.adminWhatsapp}
+                        onChange={(e) => handleSavePayConfig({ ...payConfig, adminWhatsapp: e.target.value })}
+                        className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs font-mono text-white"
+                        placeholder="584141234567"
+                      />
+                    </div>
+
+                    {/* Binance Pay ID */}
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-slate-300 block">
+                        Binance Pay ID:
+                      </label>
+                      <input
+                        type="text"
+                        value={payConfig.binance.payId}
+                        onChange={(e) => handleSavePayConfig({ 
+                          ...payConfig, 
+                          binance: { ...payConfig.binance, payId: e.target.value } 
+                        })}
+                        className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs font-mono text-amber-400"
+                      />
+                    </div>
+
+                    {/* Pago Movil Banco */}
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-slate-300 block">
+                        Pago Móvil - Banco:
+                      </label>
+                      <input
+                        type="text"
+                        value={payConfig.pagoMovil.banco}
+                        onChange={(e) => handleSavePayConfig({ 
+                          ...payConfig, 
+                          pagoMovil: { ...payConfig.pagoMovil, banco: e.target.value } 
+                        })}
+                        className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white"
+                      />
+                    </div>
+
+                    {/* Pago Movil Telefono */}
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-slate-300 block">
+                        Pago Móvil - Teléfono:
+                      </label>
+                      <input
+                        type="text"
+                        value={payConfig.pagoMovil.telefono}
+                        onChange={(e) => handleSavePayConfig({ 
+                          ...payConfig, 
+                          pagoMovil: { ...payConfig.pagoMovil, telefono: e.target.value } 
+                        })}
+                        className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs font-mono text-white"
+                      />
+                    </div>
+
+                    {/* Pago Movil Cedula */}
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-slate-300 block">
+                        Pago Móvil - Cédula / RIF:
+                      </label>
+                      <input
+                        type="text"
+                        value={payConfig.pagoMovil.cedula}
+                        onChange={(e) => handleSavePayConfig({ 
+                          ...payConfig, 
+                          pagoMovil: { ...payConfig.pagoMovil, cedula: e.target.value } 
+                        })}
+                        className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs font-mono text-white"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Activador Manual de Licencia para Médicos */}
+                  <div className="p-3 bg-slate-800/80 rounded-xl border border-slate-700 space-y-2">
+                    <span className="text-xs font-bold text-emerald-400 block">
+                      ⚡ Activador Inmediato de Licencia por Cédula:
+                    </span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <input
+                        type="text"
+                        value={targetDoctorCi}
+                        onChange={(e) => setTargetDoctorCi(e.target.value)}
+                        placeholder="C.I del Médico (ej: V-20.123.456)"
+                        className="px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs font-mono text-white"
+                      />
+                      <select
+                        value={daysToAdd}
+                        onChange={(e) => setDaysToAdd(parseInt(e.target.value))}
+                        className="px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white"
+                      >
+                        <option value={30}>+30 Días (1 Mes)</option>
+                        <option value={90}>+90 Días (3 Meses)</option>
+                        <option value={365}>+365 Días (1 Año VIP)</option>
+                        <option value={3650}>Licencia Vitalicia</option>
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!targetDoctorCi.trim()) {
+                            alert('Indica la Cédula del médico');
+                            return;
+                          }
+                          if (onActivateLicense) {
+                            onActivateLicense(targetDoctorCi, daysToAdd);
+                          }
+                          setActivationFeedback(`¡Licencia de ${targetDoctorCi} activada con éxito por ${daysToAdd} días!`);
+                          setTimeout(() => setActivationFeedback(null), 4000);
+                        }}
+                        className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold cursor-pointer"
+                      >
+                        Activar Licencia Ahora
+                      </button>
+                    </div>
+                    {activationFeedback && (
+                      <span className="text-xs text-emerald-400 font-bold block animate-in fade-in">
+                        {activationFeedback}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Strategic Developer Logo Footer */}
       <CeLealStudioLogo variant="footer" className="mt-6" />

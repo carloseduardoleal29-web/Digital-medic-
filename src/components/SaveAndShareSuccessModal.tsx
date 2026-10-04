@@ -283,80 +283,57 @@ export const SaveAndShareSuccessModal: React.FC<SaveAndShareSuccessModalProps> =
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-  // Generate and Upload PDF in the background
-  React.useEffect(() => {
-    if (!isOpen || !record) return;
-
-    const capturedPatientName = record.patientName || 'Paciente';
-    const capturedDocumentType = record.documentType || 'Documento';
-
-    async function autoUploadPdf() {
-      try {
-        setIsUploading(true);
-        // Find visible active sheet container
-        const targetElement = document.querySelector<HTMLElement>(
-          '.print-container, .report-sheet-container, .recipe-single-container, .indications-container, .rest-container, .recipe-4en1-container, .clinical-history-container'
-        );
-        const blob = await generatePDFBlob(targetElement);
-        if (!blob) {
-          console.warn('[Auto Upload Success] Could not generate PDF blob');
-          setIsUploading(false);
-          return;
-        }
-
-        const reader = new FileReader();
-        reader.readAsDataURL(blob);
-        reader.onloadend = async () => {
-          const base64 = reader.result as string;
-          try {
-            const cleanPatientName = capturedPatientName.replace(/[^a-zA-Z0-9]/g, '_');
-            const filename = `${capturedDocumentType}_${cleanPatientName}.pdf`;
-
-            const res = await fetch('/api/pdf/upload', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ pdfBase64: base64, filename })
-            });
-            const data = await res.json();
-            if (data.success && data.url) {
-              setPdfUrl(data.url);
-              console.log('[Auto Upload Success] PDF uploaded successfully:', data.url);
-            }
-          } catch (err) {
-            console.error('[Auto Upload Success] Error calling upload API:', err);
-          } finally {
-            setIsUploading(false);
-          }
-        };
-      } catch (err) {
-        console.error('[Auto Upload Success] Failed PDF generation:', err);
-        setIsUploading(false);
-      }
+  const getDocTypeHeader = () => {
+    if (!record) return '📋 *RÉCIPE Y ORDEN MÉDICA*';
+    switch (record.documentType) {
+      case 'informe':
+        return '📑 *INFORME MÉDICO OFICIAL*';
+      case 'indicaciones':
+        return '📝 *INDICACIONES Y POSOLOGÍA MÉDICA*';
+      case 'reposo':
+        return '🛡️ *CONSTANCIA DE REPOSO MÉDICO*';
+      case 'historia':
+        return '📁 *HISTORIA CLÍNICA Y TRATAMIENTO*';
+      case 'recipe-4en1':
+      case 'recipe-master':
+      default:
+        return '📋 *RÉCIPE Y ORDEN MÉDICA*';
     }
+  };
 
-    setPdfUrl(null);
-    autoUploadPdf();
-  }, [isOpen, record]);
+  const getDocumentTypeName = () => {
+    if (!record) return 'récipe y orden médica';
+    switch (record.documentType) {
+      case 'informe':
+        return 'informe médico oficial';
+      case 'indicaciones':
+        return 'indicaciones y cuidados médicos';
+      case 'reposo':
+        return 'constancia de reposo médico';
+      case 'historia':
+        return 'historia clínica de consulta';
+      case 'recipe-4en1':
+        return 'récipe médico (formato 4 en 1)';
+      case 'recipe-master':
+      default:
+        return 'récipe y orden médica';
+    }
+  };
 
-  const buildWhatsAppMessage = (overrideUrl?: string | null) => {
+  const buildWhatsAppMessage = () => {
     if (!record) return '';
     const docName = getDocumentTypeName();
     const cleanDate = record.date || new Intl.DateTimeFormat('es-ES').format(new Date());
-    const effectiveUrl = overrideUrl !== undefined ? overrideUrl : pdfUrl;
+    const pdfFilename = record.pdfFileName || `${record.documentType}_${(record.patientName || 'Paciente').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
 
-    let msg = `Estimado(a) *${record.patientName}*,\n\n` +
+    let msg = `Estimado(a) *${record.patientName || 'Paciente'}*,\n\n` +
       `Le saluda el/la *Dr(a). ${record.doctorName || config.doctorName}* (${record.doctorSpecialty || config.specialty || 'Médico Especialista'}).\n\n` +
-      `📌 Se ha emitido su *${docName.toUpperCase()}* oficial con fecha de emisión *${cleanDate}* en formato PDF digital con firma y sello legal autorizados.\n\n`;
-
-    if (effectiveUrl) {
-      msg += `📥 *VER / DESCARGAR PDF OFICIAL:* ${effectiveUrl}\n\n`;
-    } else {
-      msg += `📄 *PDF oficial adjunto a este mensaje.*\n\n`;
-    }
-
-    msg += `*M.P.P.S:* ${record.doctorMPPS || config.mpps || '00.000'} · *C.I:* ${record.doctorCI || config.ci || 'V-00.000.000'}\n` +
+      `📄 *${docName.toUpperCase()} OFICIAL*\n\n` +
+      `📎 *INSTRUCCIÓN:* Se ha descargado automáticamente en su dispositivo el archivo PDF oficial (*${pdfFilename}*) con fecha *${cleanDate}*, firmado y sellado digitalmente con plena validez legal. Por favor adjunte o presente el archivo PDF descargado para su presentación en farmacias y centros asistenciales.\n\n` +
+      (record.contentBody ? `📋 *RESUMEN DE PRESCRIPCIÓN / INDICACIÓN:*\n${record.contentBody.length > 500 ? record.contentBody.slice(0, 480) + '...' : record.contentBody}\n\n` : '') +
+      `*M.P.P.S:* ${record.doctorMPPS || config.mpps || '00.000'} · *C.I:* ${record.doctorCI || config.ci || 'V-00.000.000'}\n` +
       (config.phone ? `*Contacto / Consultas:* ${config.phone}\n` : '') +
-      `\n*Indicación:* Cumpla las indicaciones especificadas en su documento oficial en PDF. ¡Que tenga una pronta y satisfactoria recuperación! ✨`;
+      `\n_Por favor cumpla las indicaciones especificadas en su documento oficial en PDF. ¡Que tenga una pronta y satisfactoria recuperación! ✨_`;
 
     return msg;
   };
@@ -427,41 +404,6 @@ export const SaveAndShareSuccessModal: React.FC<SaveAndShareSuccessModalProps> =
     }
   };
 
-  const getDocTypeHeader = () => {
-    switch (record.documentType) {
-      case 'informe':
-        return '📑 *INFORME MÉDICO OFICIAL*';
-      case 'indicaciones':
-        return '📝 *INDICACIONES Y POSOLOGÍA MÉDICA*';
-      case 'reposo':
-        return '🛡️ *CONSTANCIA DE REPOSO MÉDICO*';
-      case 'historia':
-        return '📁 *HISTORIA CLÍNICA Y TRATAMIENTO*';
-      case 'recipe-4en1':
-      case 'recipe-master':
-      default:
-        return '📋 *RÉCIPE Y ORDEN MÉDICA*';
-    }
-  };
-
-  const getDocumentTypeName = () => {
-    switch (record.documentType) {
-      case 'informe':
-        return 'informe médico oficial';
-      case 'indicaciones':
-        return 'indicaciones y cuidados médicos';
-      case 'reposo':
-        return 'constancia de reposo médico';
-      case 'historia':
-        return 'historia clínica de consulta';
-      case 'recipe-4en1':
-        return 'récipe médico (formato 4 en 1)';
-      case 'recipe-master':
-      default:
-        return 'récipe y orden médica';
-    }
-  };
-
   const handleCopyMessage = () => {
     navigator.clipboard.writeText(messageText);
     setCopied(true);
@@ -470,38 +412,13 @@ export const SaveAndShareSuccessModal: React.FC<SaveAndShareSuccessModalProps> =
 
   const handleOpenWhatsApp = async (e: React.FormEvent) => {
     e.preventDefault();
-    let currentPdfUrl = pdfUrl;
 
-    if (!currentPdfUrl) {
-      setIsUploading(true);
+    // 1. Force local download of the PDF file
+    if (onDownloadPdf) {
       try {
-        const targetElement = document.querySelector<HTMLElement>(
-          '.print-container, .recipe-4en1-container, .recipe-single-container, .report-sheet-container, .indications-container, .rest-container, .clinical-history-container'
-        );
-        const blob = await generatePDFBlob(targetElement);
-        if (blob) {
-          const cleanPatientName = (record.patientName || 'Paciente').replace(/[^a-zA-Z0-9]/g, '_');
-          const filename = `${record.documentType}_${cleanPatientName}.pdf`;
-          const base64 = await new Promise<string>((resolve) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result as string);
-            reader.readAsDataURL(blob);
-          });
-          const res = await fetch('/api/pdf/upload', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ pdfBase64: base64, filename })
-          });
-          const data = await res.json();
-          if (data.success && data.url) {
-            currentPdfUrl = data.url;
-            setPdfUrl(data.url);
-          }
-        }
+        onDownloadPdf();
       } catch (err) {
-        console.error('[PDF Fast Upload Error]:', err);
-      } finally {
-        setIsUploading(false);
+        console.warn('PDF download error:', err);
       }
     }
 
@@ -509,7 +426,7 @@ export const SaveAndShareSuccessModal: React.FC<SaveAndShareSuccessModalProps> =
     if (onUpdatePatientPhone) {
       onUpdatePatientPhone(phoneNumber);
     }
-    const finalMsg = buildWhatsAppMessage(currentPdfUrl);
+    const finalMsg = buildWhatsAppMessage();
     const encoded = encodeURIComponent(finalMsg);
     const targetUrl = cleanNumber.length > 6 
       ? `https://wa.me/${cleanNumber}?text=${encoded}`
@@ -523,7 +440,7 @@ export const SaveAndShareSuccessModal: React.FC<SaveAndShareSuccessModalProps> =
     link.click();
     setTimeout(() => {
       if (document.body.contains(link)) document.body.removeChild(link);
-    }, 100);
+    }, 150);
   };
 
   const handleSendEmailDirectly = () => {
@@ -589,6 +506,8 @@ export const SaveAndShareSuccessModal: React.FC<SaveAndShareSuccessModalProps> =
       handleCopyMessage();
     }
   };
+
+  if (!isOpen || !record) return null;
 
   return (
     <div 

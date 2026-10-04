@@ -321,29 +321,6 @@ export const WelcomeInicioModule: React.FC<WelcomeInicioModuleProps> = ({
               <ChevronRight className="w-4 h-4 text-slate-500 group-hover:translate-x-1 transition-transform shrink-0" />
             </button>
 
-            {/* BOTÓN TERCIARIO: VISTA PREVIA 1:1 DE FORMATOS */}
-            <button
-              onClick={() => onOpenFormatPreview ? onOpenFormatPreview('recipe-4en1') : onOpenPreview()}
-              className="w-full p-3 bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 hover:from-blue-800 hover:to-indigo-800 text-white rounded-2xl transition-all flex items-center justify-between text-left shadow-sm group hover:scale-[1.01] border border-blue-400/40 cursor-pointer"
-              title="Abrir vista previa física de todos los formatos médicos con su membrete y diseño"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-blue-500/20 text-cyan-300 flex items-center justify-center shrink-0 border border-blue-400/30">
-                  <Eye className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="text-xs font-black uppercase tracking-wide text-white flex items-center gap-1.5">
-                    <span>Vista Previa de Formatos</span>
-                    <span className="px-1.5 py-0.2 bg-cyan-400 text-slate-950 text-[9px] font-black rounded font-mono">1:1</span>
-                  </div>
-                  <div className="text-[10.5px] text-blue-200">
-                    Ver cómo lucen impresos sus récipes e informes
-                  </div>
-                </div>
-              </div>
-              <ChevronRight className="w-4 h-4 text-cyan-300 group-hover:translate-x-1 transition-transform shrink-0" />
-            </button>
-
             {/* INSTALAR COMO APLICACIÓN EN PC / ESCRITORIO CON LOGO OFICIAL */}
             <div className="pt-0.5 flex justify-center">
               <PWAInstallButton />

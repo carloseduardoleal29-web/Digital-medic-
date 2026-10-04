@@ -19,7 +19,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { DoctorConfig } from '../types';
-import { generatePDFBlob } from '../utils/exportDocument';
+import { generatePDFBlob, exportElementAsPDF } from '../utils/exportDocument';
 
 interface CountryData {
   code: string;
@@ -243,58 +243,6 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
     }
   }, [isOpen, patientPhone]);
 
-  // Generate and Upload PDF in the background
-  React.useEffect(() => {
-    if (!isOpen) return;
-
-    async function autoUploadPdf() {
-      try {
-        setIsUploading(true);
-        // Find visible active sheet container
-        const targetElement = document.querySelector<HTMLElement>(
-          '.print-container, .recipe-4en1-container, .recipe-single-container, .report-sheet-container, .indications-container, .rest-container, .clinical-history-container'
-        );
-        const blob = await generatePDFBlob(targetElement);
-        if (!blob) {
-          console.warn('[Auto Upload] Could not generate PDF blob');
-          setIsUploading(false);
-          return;
-        }
-
-        const reader = new FileReader();
-        reader.readAsDataURL(blob);
-        reader.onloadend = async () => {
-          const base64 = reader.result as string;
-          try {
-            const cleanPatientName = (patientName || 'Paciente').replace(/[^a-zA-Z0-9]/g, '_');
-            const filename = `${documentType}_${cleanPatientName}.pdf`;
-
-            const res = await fetch('/api/pdf/upload', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ pdfBase64: base64, filename })
-            });
-            const data = await res.json();
-            if (data.success && data.url) {
-              setPdfUrl(data.url);
-              console.log('[Auto Upload] PDF uploaded successfully:', data.url);
-            }
-          } catch (err) {
-            console.error('[Auto Upload] Error calling upload API:', err);
-          } finally {
-            setIsUploading(false);
-          }
-        };
-      } catch (err) {
-        console.error('[Auto Upload] Failed PDF generation:', err);
-        setIsUploading(false);
-      }
-    }
-
-    setPdfUrl(null);
-    autoUploadPdf();
-  }, [isOpen, documentType, patientName]);
-
   const getDocumentTypeName = () => {
     switch (documentType) {
       case 'report':
@@ -343,24 +291,20 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
     }
   };
 
-  // Build professional WhatsApp markdown message with direct link to the legal PDF document
-  const buildWhatsAppMessage = (overrideUrl?: string | null) => {
+  // Build professional WhatsApp markdown message with direct attachment instruction
+  const buildWhatsAppMessage = () => {
     const docName = getDocumentTypeName();
-    const effectiveUrl = overrideUrl !== undefined ? overrideUrl : pdfUrl;
+    const cleanPatient = (patientName || 'Paciente').replace(/[^a-zA-Z0-9]/g, '_');
+    const pdfFilename = `${documentType}_${cleanPatient}.pdf`;
     
     let msg = `Estimado(a) *${patientName || 'Paciente'}*,\n\n` +
       `Le saluda el/la *Dr(a). ${config.doctorName}* (${config.specialty || 'Médico Especialista'}).\n\n` +
-      `Aquí tiene su *${docName.toUpperCase()}* digital oficial en formato PDF, firmado, sellado y con plena validez legal:\n\n`;
-
-    if (effectiveUrl) {
-      msg += `📥 *VER / DESCARGAR PDF OFICIAL:* ${effectiveUrl}\n\n`;
-    } else {
-      msg += `📄 *PDF oficial adjunto a este mensaje.*\n\n`;
-    }
-
-    msg += `*M.P.P.S:* ${config.mpps || '00.000'} · *C.I:* ${config.ci || 'V-00.000.000'}\n` +
+      `📄 *${docName.toUpperCase()} OFICIAL*\n\n` +
+      `📎 *INSTRUCCIÓN:* Se ha descargado automáticamente en su dispositivo el archivo PDF oficial (*${pdfFilename}*) firmado y sellado digitalmente. Por favor adjunte o presente el archivo PDF descargado para su validez legal en farmacias y centros asistenciales.\n\n` +
+      (contentBody ? `📋 *RESUMEN DE PRESCRIPCIÓN / INDICACIÓN:*\n${contentBody.length > 500 ? contentBody.slice(0, 480) + '...' : contentBody}\n\n` : '') +
+      `*M.P.P.S:* ${config.mpps || '00.000'} · *C.I:* ${config.ci || 'V-00.000.000'}\n` +
       (config.phone ? `*Contacto / Consultas:* ${config.phone}\n` : '') +
-      `\n*Indicación:* Cumpla las indicaciones especificadas en su documento oficial en PDF. ¡Que tenga una pronta y satisfactoria recuperación! ✨`;
+      `\n_Por favor cumpla las indicaciones especificadas en su documento oficial en PDF. ¡Que tenga una pronta y satisfactoria recuperación! ✨_`;
     return msg;
   };
 
@@ -384,7 +328,7 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
         light: '#ffffff'
       }
     }).then(setQrCodeDataUrl).catch(console.error);
-  }, [isOpen, selectedCountry, selectedOperator, localNumber, config, patientName, pdfUrl, contentBody, documentTitle]);
+  }, [isOpen, selectedCountry, selectedOperator, localNumber, config, patientName, contentBody, documentTitle]);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(messageText);
@@ -394,39 +338,19 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
 
   const handleSendWhatsApp = async (e: React.FormEvent) => {
     e.preventDefault();
-    let currentPdfUrl = pdfUrl;
 
-    if (!currentPdfUrl) {
-      setIsUploading(true);
-      try {
-        const targetElement = document.querySelector<HTMLElement>(
-          '.print-container, .recipe-4en1-container, .recipe-single-container, .report-sheet-container, .indications-container, .rest-container, .clinical-history-container'
-        );
-        const blob = await generatePDFBlob(targetElement);
-        if (blob) {
-          const cleanPatientName = (patientName || 'Paciente').replace(/[^a-zA-Z0-9]/g, '_');
-          const filename = `${documentType}_${cleanPatientName}.pdf`;
-          const base64 = await new Promise<string>((resolve) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result as string);
-            reader.readAsDataURL(blob);
-          });
-          const res = await fetch('/api/pdf/upload', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ pdfBase64: base64, filename })
-          });
-          const data = await res.json();
-          if (data.success && data.url) {
-            currentPdfUrl = data.url;
-            setPdfUrl(data.url);
-          }
-        }
-      } catch (err) {
-        console.error('[Auto Upload] Failed PDF upload on send:', err);
-      } finally {
-        setIsUploading(false);
-      }
+    // 1. Force instant local PDF download in browser (jsPDF / Blob)
+    const todayDateStr = new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date()).replace(/\//g, '-');
+    const cleanPatient = (patientName || 'Paciente').replace(/[^a-zA-Z0-9]/g, '_');
+    const filename = `${documentType || 'Recipe'}_${cleanPatient}_${todayDateStr}.pdf`;
+
+    try {
+      const targetElement = document.querySelector<HTMLElement>(
+        '.print-container, .recipe-4en1-container, .recipe-single-container, .report-sheet-container, .indications-container, .rest-container, .clinical-history-container'
+      );
+      await exportElementAsPDF(targetElement, filename);
+    } catch (err) {
+      console.warn('[Auto PDF Download Error]:', err);
     }
 
     const cleanNumber = getCleanWhatsAppNumber(selectedCountry, selectedOperator, localNumber);
@@ -434,33 +358,13 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
       onUpdatePatientPhone(phoneNumber);
     }
 
-    // Auto-download PDF to the doctor's PC/downloads
-    if (onTriggerPrintPdf) {
-      try {
-        onTriggerPrintPdf();
-      } catch (_) {}
-    }
-
-    const finalMsg = buildWhatsAppMessage(currentPdfUrl);
+    const finalMsg = buildWhatsAppMessage();
     const encoded = encodeURIComponent(finalMsg);
     const targetUrl = cleanNumber.length > 6 
-      ? `https://api.whatsapp.com/send?phone=${cleanNumber}&text=${encoded}`
-      : `https://api.whatsapp.com/send?text=${encoded}`;
+      ? `https://wa.me/${cleanNumber}?text=${encoded}`
+      : `https://wa.me/?text=${encoded}`;
 
     try {
-      const win = window.open(targetUrl, '_blank', 'noopener,noreferrer');
-      if (!win || win.closed || typeof win.closed === 'undefined') {
-        const link = document.createElement('a');
-        link.href = targetUrl;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        document.body.appendChild(link);
-        link.click();
-        setTimeout(() => {
-          if (document.body.contains(link)) document.body.removeChild(link);
-        }, 100);
-      }
-    } catch (_) {
       const link = document.createElement('a');
       link.href = targetUrl;
       link.target = '_blank';
@@ -469,7 +373,9 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
       link.click();
       setTimeout(() => {
         if (document.body.contains(link)) document.body.removeChild(link);
-      }, 100);
+      }, 150);
+    } catch (_) {
+      window.open(targetUrl, '_blank');
     }
   };
 
@@ -515,6 +421,8 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
 
   return (
     <div 

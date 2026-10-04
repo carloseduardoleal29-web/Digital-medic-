@@ -25,6 +25,18 @@ export const DocumentFooter: React.FC<DocumentFooterProps> = ({
 }) => {
   const stampInputRef = useRef<HTMLInputElement>(null);
 
+  const cfg = config || {
+    signatureTitle: 'Firma y Sello del Médico Tratante',
+    doctorName: '',
+    specialty: '',
+    mpps: '',
+    primaryDocColor: '#2563eb',
+    stampPosX: 0,
+    stampPosY: 0,
+    signaturePosX: 0,
+    signaturePosY: 0,
+  };
+
   // Dragging state for stamp and signature
   const [activeDrag, setActiveDrag] = useState<'stamp' | 'signature' | null>(null);
   const dragStartRef = useRef<{
@@ -321,7 +333,7 @@ export const DocumentFooter: React.FC<DocumentFooterProps> = ({
                 alt="Firma Real del Médico"
                 className="firma-digital-print object-contain pointer-events-none transition-all"
                 style={{
-                  width: `${(config.signatureSize || (compact ? 90 : 135)) * (compact ? 0.78 : 1)}px`,
+                  width: `${(typeof config.signatureSize === 'number' ? config.signatureSize : (parseFloat(String(config.signatureSize || '')) || (compact ? 90 : 135))) * (compact ? 0.78 : 1)}px`,
                   maxWidth: '100%',
                   maxHeight: compact ? '65px' : '110px',
                   mixBlendMode: 'multiply',
@@ -364,7 +376,7 @@ export const DocumentFooter: React.FC<DocumentFooterProps> = ({
                 alt="Sello Médico"
                 className="sello-digital-print object-contain pointer-events-none transition-all"
                 style={{
-                  width: `${(config.stampSize || (compact ? 85 : 125)) * (compact ? 0.78 : 1)}px`,
+                  width: `${(typeof config.stampSize === 'number' ? config.stampSize : (parseFloat(String(config.stampSize || '')) || (compact ? 85 : 125))) * (compact ? 0.78 : 1)}px`,
                   maxWidth: '100%',
                   maxHeight: compact ? '75px' : '140px',
                   mixBlendMode: 'multiply',

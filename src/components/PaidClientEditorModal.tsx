@@ -261,7 +261,7 @@ export const PaidClientEditorModal: React.FC<PaidClientEditorModalProps> = ({
                     <span className="text-[10px] uppercase font-bold text-slate-400 block mb-2">
                       Elegir de Logos Básicos:
                     </span>
-                    <div className="grid grid-cols-4 gap-2">
+                    <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 max-h-48 overflow-y-auto pr-1">
                       {BASIC_MEDICAL_LOGOS.map((bLogo: BasicMedicalLogo) => (
                         <button
                           key={bLogo.id}
@@ -336,7 +336,7 @@ export const PaidClientEditorModal: React.FC<PaidClientEditorModalProps> = ({
                     <span className="text-[10px] uppercase font-bold text-slate-400 block mb-2">
                       Elegir de Logos Básicos:
                     </span>
-                    <div className="grid grid-cols-4 gap-2">
+                    <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 max-h-48 overflow-y-auto pr-1">
                       {BASIC_MEDICAL_LOGOS.map((bLogo: BasicMedicalLogo) => (
                         <button
                           key={bLogo.id}

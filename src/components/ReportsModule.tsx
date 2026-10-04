@@ -4,14 +4,17 @@ import { DocumentHeader } from './DocumentHeader';
 import { DocumentFooter } from './DocumentFooter';
 import { WhatsAppShareModal } from './WhatsAppShareModal';
 import { getDocumentBorderStyle, getPaperTextureClass } from '../utils/documentStyles';
-import { FileText, Printer, MessageSquare, Eye, ArrowLeft, Trash2, Save, Download, Calendar } from 'lucide-react';
+import { FileText, Printer, MessageSquare, Eye, ArrowLeft, Trash2, Save, Download, Calendar, Mail } from 'lucide-react';
 
 interface ReportsModuleProps {
   config: DoctorConfig;
   currentReport: MedicalReport;
   onChangeReport: (updated: Partial<MedicalReport>) => void;
   onPrint: () => void;
+  onDownloadPdf?: () => void;
+  onOpenEmailModal?: () => void;
   onSaveAndShare?: (shouldDownload?: boolean) => void;
+  onInstantWhatsApp?: () => void;
   onOpenPreview?: () => void;
   onUpdateConfig?: (updated: Partial<DoctorConfig>) => void;
   onBackToHome?: () => void;
@@ -58,7 +61,10 @@ export const ReportsModule: React.FC<ReportsModuleProps> = ({
   currentReport,
   onChangeReport,
   onPrint,
+  onDownloadPdf,
+  onOpenEmailModal,
   onSaveAndShare,
+  onInstantWhatsApp,
   onOpenPreview,
   onUpdateConfig,
   onBackToHome,
@@ -76,16 +82,46 @@ export const ReportsModule: React.FC<ReportsModuleProps> = ({
     }
   };
 
-  const reportBodyForWhatsApp = 
-    `1. RESUMEN CLÍNICO:\n${currentReport.clinicalSummary}\n\n` +
-    `2. PROCEDIMIENTOS / EXAMEN:\n${currentReport.procedures}\n\n` +
-    `3. ESTUDIOS PARACLÍNICOS:\n${currentReport.paraclinicalStudies}\n\n` +
-    `4. IMPRESIÓN DIAGNÓSTICA:\n${currentReport.diagnosticImpression}\n\n` +
-    `5. CONDUCTA Y RECOMENDACIONES:\n${currentReport.recommendations}` +
-    (currentReport.daysRest ? `\n\n6. REPOSO MÉDICO: ${currentReport.daysRest} continuos` + (currentReport.restStartDate ? ` (Desde: ${currentReport.restStartDate} Hasta: ${currentReport.restEndDate || '—'})` : '') : '');
+  const safeReport = currentReport || {
+    id: 'INF-01',
+    patientName: '',
+    patientAge: '',
+    patientCI: '',
+    patientPhone: '',
+    patientGender: 'M',
+    date: new Date().toLocaleDateString('es-VE'),
+    reportType: 'consulta',
+    title: 'INFORME MÉDICO',
+    reasonForConsultation: '',
+    clinicalSummary: '',
+    procedures: '',
+    paraclinicalStudies: '',
+    diagnosticImpression: '',
+    treatmentPlan: '',
+    recommendations: '',
+    daysRest: '',
+    restStartDate: new Date().toLocaleDateString('es-VE'),
+    restEndDate: '',
+  };
 
-  const borderStyle = getDocumentBorderStyle(config.borderStyle, config.primaryDocColor);
-  const textureClass = getPaperTextureClass(config.paperTexture);
+  const safeConfig = config || {
+    doctorName: 'Dr. Médico Tratante',
+    specialty: 'Médico Cirujano',
+    borderStyle: 'solido',
+    primaryDocColor: '#2563eb',
+    paperTexture: 'lisa',
+  };
+
+  const reportBodyForWhatsApp = 
+    `1. RESUMEN CLÍNICO:\n${safeReport.clinicalSummary || ''}\n\n` +
+    `2. PROCEDIMIENTOS / EXAMEN:\n${safeReport.procedures || ''}\n\n` +
+    `3. ESTUDIOS PARACLÍNICOS:\n${safeReport.paraclinicalStudies || ''}\n\n` +
+    `4. IMPRESIÓN DIAGNÓSTICA:\n${safeReport.diagnosticImpression || ''}\n\n` +
+    `5. CONDUCTA Y RECOMENDACIONES:\n${safeReport.recommendations || ''}` +
+    (safeReport.daysRest ? `\n\n6. REPOSO MÉDICO: ${safeReport.daysRest} continuos` + (safeReport.restStartDate ? ` (Desde: ${safeReport.restStartDate} Hasta: ${safeReport.restEndDate || '—'})` : '') : '');
+
+  const borderStyle = getDocumentBorderStyle(safeConfig.borderStyle, safeConfig.primaryDocColor);
+  const textureClass = getPaperTextureClass(safeConfig.paperTexture);
 
   return (
     <div className="w-full flex flex-col items-center">
@@ -179,59 +215,68 @@ export const ReportsModule: React.FC<ReportsModuleProps> = ({
             </button>
           </div>
 
-          {/* Prominent Save Patient Button */}
-          {onSaveAndShare && (
-            <div className="flex items-center gap-1.5 flex-wrap">
+          {/* Actions: Guardar Paciente, Vista Previa & Imprimir */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {onSaveAndShare && (
               <button
                 type="button"
                 onClick={() => {
-                  if (onSaveAndShare) {
-                    (onSaveAndShare as any)(false);
-                  }
+                  (onSaveAndShare as any)(false);
                 }}
-                className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold border border-slate-300 rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold border border-slate-300 rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer"
                 title="Guardar informe en el Banco de Pacientes."
               >
                 <Save className="w-4 h-4 text-slate-500" />
                 <span>💾 Guardar Paciente</span>
               </button>
+            )}
 
+            {onDownloadPdf && (
               <button
                 type="button"
-                onClick={() => {
-                  if (onSaveAndShare) {
-                    (onSaveAndShare as any)(true);
-                  }
-                }}
-                className="px-4 py-1.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-700 text-white font-black rounded-xl text-xs shadow-md hover:shadow-lg flex items-center gap-1.5 transform hover:scale-[1.02] active:scale-95 transition-all border border-emerald-400/40 cursor-pointer"
-                title="Descargar PDF del informe y luego abrir opciones de envío"
+                onClick={onDownloadPdf}
+                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-sm hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                title="Descargar informe en archivo PDF con el nombre del paciente y fecha"
               >
-                <Download className="w-4 h-4 text-emerald-100" />
-                <span>Descargar PDF</span>
+                <Download className="w-3.5 h-3.5 text-white" />
+                <span>📥 Descargar PDF</span>
               </button>
+            )}
 
+            {onOpenEmailModal && (
               <button
                 type="button"
-                onClick={() => setIsWhatsAppModalOpen(true)}
-                className="px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black rounded-xl text-xs shadow-sm hover:shadow flex items-center gap-1.5 transform active:scale-95 transition-all cursor-pointer border border-emerald-400/30"
-                title="Enviar automáticamente el informe médico oficial en PDF al paciente por WhatsApp o correo"
+                onClick={onOpenEmailModal}
+                className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-sm hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                title="Enviar informe por correo electrónico al paciente"
               >
-                <MessageSquare className="w-3.5 h-3.5 text-emerald-100" />
-                <span>⚡ Enviar PDF (WhatsApp)</span>
+                <Mail className="w-3.5 h-3.5 text-white" />
+                <span>✉️ Enviar por Correo</span>
               </button>
-            </div>
-          )}
+            )}
 
-          {onOpenPreview && (
+            {onOpenPreview && (
+              <button
+                type="button"
+                onClick={onOpenPreview}
+                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl flex items-center gap-1 text-xs shadow-2xs transition-colors cursor-pointer"
+                title="Ver cómo queda el informe médico en 1 sola hoja carta completa antes de imprimir"
+              >
+                <Eye className="w-3.5 h-3.5 text-blue-400" />
+                <span>Vista Previa</span>
+              </button>
+            )}
+
             <button
-              onClick={onOpenPreview}
-              className="px-2.5 py-1 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-lg flex items-center gap-1 text-[11px] shadow-2xs transition-colors cursor-pointer"
-              title="Ver cómo queda el informe médico en 1 sola hoja carta completa antes de imprimir"
+              type="button"
+              onClick={onPrint}
+              className="px-4 py-1.5 bg-gradient-to-r from-blue-700 to-indigo-700 hover:from-blue-800 hover:to-indigo-800 text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+              title="Imprimir informe directamente o guardar como PDF del sistema"
             >
-              <Eye className="w-3.5 h-3.5 text-blue-400" />
-              <span>Vista Previa</span>
+              <Printer className="w-4 h-4 text-white" />
+              <span>🖨️ Imprimir Informe</span>
             </button>
-          )}
+          </div>
         </div>
       </div>
 
@@ -248,8 +293,8 @@ export const ReportsModule: React.FC<ReportsModuleProps> = ({
         }}
       >
         {/* Watermark */}
-        {config.marcaAgua && (
-          <div className="marca-agua">
+        {config.marcaAgua && !config.marcaAgua.includes('DIGITAL') && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
             <img
               src={config.marcaAgua}
               alt="Marca de agua"
@@ -555,21 +600,6 @@ export const ReportsModule: React.FC<ReportsModuleProps> = ({
         </div>
 
       </div>
-
-      {/* WhatsApp Modal */}
-      <WhatsAppShareModal
-        isOpen={isWhatsAppModalOpen}
-        onClose={() => setIsWhatsAppModalOpen(false)}
-        config={config}
-        documentType="report"
-        patientName={currentReport.patientName}
-        patientPhone={currentReport.patientPhone || ''}
-        documentTitle={currentReport.title}
-        contentBody={reportBodyForWhatsApp}
-        onUpdatePatientPhone={(phone) => onChangeReport({ patientPhone: phone })}
-        onTriggerPrintPdf={onPrint}
-      />
-
     </div>
   );
 };

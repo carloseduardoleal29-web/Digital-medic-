@@ -33,7 +33,9 @@ import {
   ChevronRight,
   Clock,
   Key,
-  Cloud
+  Cloud,
+  CreditCard,
+  Crown
 } from 'lucide-react';
 
 import { 
@@ -89,36 +91,37 @@ import {
   exportAllLocalData, 
   applyEcosystemToLocalStorage 
 } from './services/ecosystemSync';
-import { exportElementAsPDF, sharePDFViaWebShare } from './utils/exportDocument';
+import { exportElementAsPDF, sharePDFViaWebShare, generatePDFBlob } from './utils/exportDocument';
 
 export default function App() {
-  // 1. Colleagues Profiles Management
+  // 1. Colleagues Profiles Management - Robust persistent profile state
   const [colleagueProfiles, setColleagueProfiles] = useState<DoctorConfig[]>(() => {
     const masterAdminDefault: DoctorConfig = {
       ...DEFAULT_DOCTOR_CONFIG,
       id: 'doc-admin-master',
-      profileName: 'Administrador Master',
-      doctorName: '',
-      specialty: '',
-      mpps: '',
-      ci: '',
-      collegeNumber: '',
-      phone: '',
-      email: 'admin@digitalmedic.com',
+      profileName: 'Dr. Carlos E. Leal S.',
+      doctorName: 'Dr. Carlos E. Leal S.',
+      specialty: 'Especialista en Anestesiología y Reanimación',
+      mpps: '94.228',
+      ci: '15.489.288',
+      collegeNumber: '12.450',
+      phone: '+584243291438',
+      email: 'carloseduardoleal29@gmail.com',
       password: '2534',
       paymentStatus: 'activo',
       isPaidClient: true,
       paidPlanName: 'Acceso Master Administrador',
       isAdmin: true,
       isVip: true,
-      socialHandle: '',
-      institution: '',
-      institutionDetails: '',
-      firmaImg: '',
-      selloImg: '',
-      selloFirma: '',
+      socialHandle: '@drcarlosleal',
+      institution: 'Centro Médico Quirúrgico',
+      institutionDetails: 'Consultorio 4B',
       headerStyle: 'clasico',
       headerLayout: 'ambos-logos',
+      logoIzq: DIGITAL_MEDIC_OFFICIAL_LOGO_SVG,
+      marcaAgua: DIGITAL_MEDIC_OFFICIAL_LOGO_SVG,
+      primaryDocColor: '#2563eb',
+      headerColor: '#1e3a8a',
     };
 
     const saved = localStorage.getItem('digital_medic_colleagues_v2');
@@ -127,25 +130,27 @@ export default function App() {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
           const cleaned = parsed.map((d: DoctorConfig): DoctorConfig => {
-            if (d.id === 'doc-admin-master' || d.email === 'carloseduardoleal29@gmail.com') {
+            const cleanDoc = { ...d };
+            if (cleanDoc.id === 'doc-admin-master' || cleanDoc.email === 'carloseduardoleal29@gmail.com') {
               return {
-                ...d,
-                doctorName: d.doctorName || '',
-                profileName: d.profileName || 'Administrador Master',
+                ...cleanDoc,
+                doctorName: cleanDoc.doctorName || 'Dr. Carlos E. Leal S.',
+                profileName: cleanDoc.profileName || 'Dr. Carlos E. Leal S.',
+                specialty: cleanDoc.specialty || 'Especialista en Anestesiología y Reanimación',
+                mpps: cleanDoc.mpps || '94.228',
+                ci: cleanDoc.ci || '15.489.288',
+                phone: cleanDoc.phone || '+584243291438',
+                email: cleanDoc.email || 'carloseduardoleal29@gmail.com',
                 isAdmin: true,
                 isPaidClient: true,
                 isVip: true,
                 paymentStatus: 'activo' as const,
               };
             }
-            if (d.signatureTitle === 'Firma del Administrador del Sistema' || d.signatureTitle === 'Firma y Sello del Médico Tratante' || !d.signatureTitle) {
-              return { ...d, signatureTitle: 'Firma del médico (a)' } as DoctorConfig;
-            }
-            return d as DoctorConfig;
-          }).filter((d: DoctorConfig) => !d.doctorName?.includes('Juan Lugo') && !d.ci?.includes('15.489.288') && !d.ci?.includes('15489288'));
+            return cleanDoc as DoctorConfig;
+          });
           
-          // Asegurar que el master admin esté siempre presente en la lista
-          const hasMaster = cleaned.some(d => d.email === 'carloseduardoleal29@gmail.com' || d.isAdmin);
+          const hasMaster = cleaned.some(d => d.email === 'carloseduardoleal29@gmail.com' || d.id === 'doc-admin-master' || d.isAdmin);
           if (!hasMaster) {
             cleaned.unshift(masterAdminDefault);
           }
@@ -167,16 +172,12 @@ export default function App() {
 
   const [activeColleagueId, setActiveColleagueId] = useState<string>(() => {
     const storedSession = getStoredDoctorSessionId();
-    if (storedSession) {
-      const foundInProfiles = colleagueProfiles.find(p => p.id === storedSession || (p.email && p.email.toLowerCase() === storedSession.toLowerCase()));
-      if (foundInProfiles) return foundInProfiles.id;
-      return storedSession;
-    }
+    if (storedSession) return storedSession;
     try {
       const storedActive = localStorage.getItem('digital_medic_active_colleague');
       if (storedActive) return storedActive;
     } catch (_) {}
-    return colleagueProfiles[0]?.id || DEFAULT_DOCTOR_CONFIG.id;
+    return 'doc-admin-master';
   });
 
   // User Identity & Sync Safety Helpers
@@ -192,9 +193,10 @@ export default function App() {
   };
 
   // Current active doctor configuration
-  const config = colleagueProfiles.find((p) => p.id === activeColleagueId) || colleagueProfiles[0] || DEFAULT_DOCTOR_CONFIG;
+  const config = colleagueProfiles.find((p) => p.id === activeColleagueId || (p.email && activeColleagueId && p.email.toLowerCase() === activeColleagueId.toLowerCase())) || colleagueProfiles[0] || DEFAULT_DOCTOR_CONFIG;
 
   const updateCurrentConfig = (updated: Partial<DoctorConfig>) => {
+    hasUserEditedStateRef.current = true;
     const updatedFull = { ...config, ...updated, updatedAt: Date.now() };
     const nextProfiles = colleagueProfiles.map((p) => (p.id === config.id ? updatedFull : p));
 
@@ -207,26 +209,20 @@ export default function App() {
     saveSingleDoctorToCloud(updatedFull);
 
     // Save ecosystem so changes in Estudio de Diseño (colors, logos, seals, stamps, header) persist immediately in cloud
-    const ident = updatedFull.email || updatedFull.ci || updatedFull.id;
-    if (ident) {
-      if (!isUserLoaded(ident)) {
-        console.warn('[CloudSync] Delaying cloud save in updateCurrentConfig because ecosystem is not loaded.');
-        return;
-      }
-      saveEcosystemToCloud({
-        identifier: ident,
-        email: updatedFull.email,
-        ci: updatedFull.ci,
-        doctorConfig: updatedFull,
-        colleagueProfiles: nextProfiles,
-        patientBank,
-        recipes,
-        report: currentReport,
-        indications,
-        rest: restCert,
-        records,
-      });
-    }
+    const ident = updatedFull.email || updatedFull.ci || updatedFull.id || 'carloseduardoleal29@gmail.com';
+    saveEcosystemToCloud({
+      identifier: ident,
+      email: updatedFull.email,
+      ci: updatedFull.ci,
+      doctorConfig: updatedFull,
+      colleagueProfiles: nextProfiles,
+      patientBank,
+      recipes,
+      report: currentReport,
+      indications,
+      rest: restCert,
+      records,
+    }).catch((e) => console.warn('Cloud save error in updateCurrentConfig:', e));
   };
 
   // Doctor Session & Authentication State
@@ -356,8 +352,8 @@ export default function App() {
       firmaImg: finalDoc.firmaImg || cloudDoc?.firmaImg || existingDoc?.firmaImg || '',
       selloImg: finalDoc.selloImg || cloudDoc?.selloImg || existingDoc?.selloImg || '',
       selloFirma: finalDoc.selloFirma || cloudDoc?.selloFirma || existingDoc?.selloFirma || '',
-      logoIzq: finalDoc.logoIzq || cloudDoc?.logoIzq || existingDoc?.logoIzq,
-      logoDer: finalDoc.logoDer || cloudDoc?.logoDer || existingDoc?.logoDer,
+      logoIzq: finalDoc.logoIzq || cloudDoc?.logoIzq || existingDoc?.logoIzq || '',
+      logoDer: finalDoc.logoDer || cloudDoc?.logoDer || existingDoc?.logoDer || '',
       marcaAgua: finalDoc.marcaAgua || cloudDoc?.marcaAgua || existingDoc?.marcaAgua,
       institution: finalDoc.institution || cloudDoc?.institution || existingDoc?.institution || '',
       institutionDetails: finalDoc.institutionDetails || cloudDoc?.institutionDetails || existingDoc?.institutionDetails || '',
@@ -429,18 +425,27 @@ export default function App() {
 
     await saveSingleDoctorToCloud(docWithTime);
 
-    const activeSession = getStoredDoctorSessionId();
-    if (activeSession) {
-      if (!isUserLoaded(activeSession)) {
-        console.warn('[CloudSync] Delaying cloud save in handleUpdateDoctor because ecosystem is not loaded.');
-        return;
-      }
-      await saveEcosystemToCloud({
-        identifier: activeSession,
+    const targetIdent = docWithTime.email || docWithTime.ci || docWithTime.id;
+    if (targetIdent) {
+      saveEcosystemToCloud({
+        identifier: targetIdent,
+        email: docWithTime.email,
+        ci: docWithTime.ci,
+        doctorConfig: docWithTime,
         colleagueProfiles: updatedList,
-      });
+      }).catch((e) => console.warn(e));
     }
     showToast(`✓ Datos, fotos y logos actualizados para ${docWithTime.doctorName}`);
+  };
+
+  const handleLoginAsDoctor = (targetDoc: DoctorConfig) => {
+    handleLoginDoctor(targetDoc);
+    setIsAdminPanelOpen(false);
+    setActiveColleagueId(targetDoc.id);
+    setActiveDoctorSessionId(targetDoc.id);
+    storeDoctorSessionId(targetDoc.id);
+    setActiveModule('recipe-4en1');
+    showToast(`✓ Sesión activa cambiada al Dr(a). ${targetDoc.doctorName}. Membrete, logo, sello y firma cargados.`);
   };
 
   // 2. Active View Module & Master Lock (PIN 2534)
@@ -723,6 +728,7 @@ export default function App() {
   // Cloud Ecosystem Synchronization State (Automático PC <-> Móvil)
   const isSyncingFromCloudRef = useRef<boolean>(false);
   const loadedEcosystemUserRef = useRef<string | null>(null);
+  const hasUserEditedStateRef = useRef<boolean>(false);
 
   const getLocalPatientBank = (): SavedPatientEntry[] => {
     try {
@@ -734,7 +740,7 @@ export default function App() {
 
   // Download complete ecosystem from cloud and hydrate local state
   const syncWithCloudEcosystem = async (targetIdentifier?: string): Promise<boolean> => {
-    let ident = targetIdentifier || config.email || getStoredDoctorSessionId() || 'admin@digitalmedic.com';
+    let ident = targetIdentifier || config.email || getStoredDoctorSessionId() || 'carloseduardoleal29@gmail.com';
     ident = ident.toLowerCase().trim();
     if (ident === 'doc-admin-master' || ident === 'admin@digitalmedic.com' || ident === 'admin') {
       ident = 'carloseduardoleal29@gmail.com';
@@ -743,53 +749,72 @@ export default function App() {
     try {
       const cloudEco = await fetchEcosystemFromCloud(ident);
       if (cloudEco) {
+        let currentList = colleagueProfiles;
         if (cloudEco.colleagueProfiles && Array.isArray(cloudEco.colleagueProfiles) && cloudEco.colleagueProfiles.length > 0) {
-          const sanitized = cloudEco.colleagueProfiles.map((p) => {
-            if (p.id === 'doc-admin-master' || (p.email && p.email.toLowerCase().includes('carloseduardoleal29'))) {
-              return {
-                ...p,
-                profileName: p.profileName || 'Administrador Master',
-                doctorName: p.doctorName || '',
-                isAdmin: true,
-                isPaidClient: true,
-                isVip: true,
-                paymentStatus: 'activo' as const
-              };
-            }
-            return p;
+          currentList = cloudEco.colleagueProfiles;
+        }
+
+        if (cloudEco.doctorConfig) {
+          const doc = cloudEco.doctorConfig;
+          const targetId = doc.id;
+          const targetEmail = (doc.email || '').toLowerCase().trim();
+          const targetCI = (doc.ci || '').toLowerCase().replace(/[^a-z0-9]/gi, '');
+
+          const index = currentList.findIndex(p => {
+            if (p.id && targetId && p.id === targetId) return true;
+            if (p.email && targetEmail && p.email.toLowerCase().trim() === targetEmail) return true;
+            if (p.ci && targetCI && p.ci.toLowerCase().replace(/[^a-z0-9]/gi, '') === targetCI) return true;
+            return false;
           });
-          setColleagueProfiles(sanitized);
-          if (cloudEco.doctorConfig?.id) {
-            setActiveColleagueId(cloudEco.doctorConfig.id);
+
+          if (index >= 0) {
+            currentList = currentList.map((p, i) => i === index ? { ...p, ...doc } : p);
+          } else {
+            currentList = [doc, ...currentList];
           }
-        } else if (cloudEco.doctorConfig) {
-          const sanitizedDoc: DoctorConfig = {
-            ...cloudEco.doctorConfig,
-            ...(cloudEco.doctorConfig.id === 'doc-admin-master' || cloudEco.doctorConfig.email?.toLowerCase().includes('carloseduardoleal29') ? {
-              profileName: cloudEco.doctorConfig.profileName || 'Administrador Master',
-              doctorName: cloudEco.doctorConfig.doctorName || '',
+          setActiveColleagueId(doc.id || currentList[0]?.id);
+        }
+
+        const sanitized = currentList.map((p) => {
+          if (p.id === 'doc-admin-master' || (p.email && p.email.toLowerCase().includes('carloseduardoleal29'))) {
+            return {
+              ...p,
+              profileName: p.profileName || 'Dr. Carlos E. Leal S.',
+              doctorName: p.doctorName || 'Dr. Carlos E. Leal S.',
+              specialty: p.specialty || 'Especialista en Anestesiología y Reanimación',
+              mpps: p.mpps || '94.228',
+              ci: p.ci || '15.489.288',
+              phone: p.phone || '+584243291438',
+              email: p.email || 'carloseduardoleal29@gmail.com',
               isAdmin: true,
               isPaidClient: true,
               isVip: true,
               paymentStatus: 'activo' as const
-            } : {})
-          };
-          setColleagueProfiles([sanitizedDoc]);
-          setActiveColleagueId(sanitizedDoc.id);
-        }
+            };
+          }
+          return p;
+        });
+
+        setColleagueProfiles(sanitized);
 
         if (cloudEco.recipes && Array.isArray(cloudEco.recipes) && cloudEco.recipes.length > 0) {
           setRecipes(cloudEco.recipes);
         }
 
-        if (cloudEco.patientBank && Array.isArray(cloudEco.patientBank)) {
+        if (cloudEco.patientBank && Array.isArray(cloudEco.patientBank) && cloudEco.patientBank.length > 0) {
           setPatientBank(cloudEco.patientBank);
           localStorage.setItem('digital_medic_patient_bank_v1', JSON.stringify(cloudEco.patientBank));
         }
 
-        if (cloudEco.report) setCurrentReport(cloudEco.report);
-        if (cloudEco.indications) setIndications(cloudEco.indications);
-        if (cloudEco.rest) setRestCert(cloudEco.rest);
+        if (cloudEco.report) {
+          setCurrentReport(cloudEco.report);
+        }
+        if (cloudEco.indications) {
+          setIndications(cloudEco.indications);
+        }
+        if (cloudEco.rest) {
+          setRestCert(cloudEco.rest);
+        }
         if (cloudEco.records && Array.isArray(cloudEco.records) && cloudEco.records.length > 0) {
           setRecords(cloudEco.records);
         }
@@ -849,36 +874,44 @@ export default function App() {
             const localTime = local.updatedAt || 0;
             const cloudTime = match.updatedAt || 0;
 
-            if (cloudTime >= localTime) {
-              return {
-                ...local,
-                ...match,
-                firmaImg: match.firmaImg || local.firmaImg || '',
-                selloImg: match.selloImg || local.selloImg || '',
-                selloFirma: match.selloFirma || local.selloFirma || '',
-                logoIzq: match.logoIzq || local.logoIzq,
-                logoDer: match.logoDer || local.logoDer,
-                marcaAgua: match.marcaAgua || local.marcaAgua,
-              };
-            } else {
-              return {
-                ...match,
-                ...local,
-                specialty: local.specialty || match.specialty || 'Médico Cirujano',
-                mpps: local.mpps || match.mpps || '',
-                ci: local.ci || match.ci || '',
-                collegeNumber: local.collegeNumber || match.collegeNumber || '',
-                phone: local.phone || match.phone || '',
-                firmaImg: local.firmaImg || match.firmaImg || '',
-                selloImg: local.selloImg || match.selloImg || '',
-                selloFirma: local.selloFirma || match.selloFirma || '',
-                logoIzq: local.logoIzq || match.logoIzq,
-                logoDer: local.logoDer || match.logoDer,
-                marcaAgua: local.marcaAgua || match.marcaAgua,
-                institution: local.institution || match.institution || '',
-                institutionDetails: local.institutionDetails || match.institutionDetails || '',
-              };
-            }
+            // Non-destructive merge: newer timestamp wins, but never drop custom properties
+            const base = localTime >= cloudTime ? match : local;
+            const override = localTime >= cloudTime ? local : match;
+
+            const mergedDoctor: DoctorConfig = {
+              ...base,
+              ...override,
+              id: override.id || base.id,
+              doctorName: override.doctorName?.trim() || base.doctorName?.trim() || '',
+              profileName: override.profileName?.trim() || base.profileName?.trim() || '',
+              specialty: override.specialty?.trim() || base.specialty?.trim() || '',
+              mpps: override.mpps?.trim() || base.mpps?.trim() || '',
+              ci: override.ci?.trim() || base.ci?.trim() || '',
+              collegeNumber: override.collegeNumber?.trim() || base.collegeNumber?.trim() || '',
+              phone: override.phone?.trim() || base.phone?.trim() || '',
+              email: override.email?.trim() || base.email?.trim() || '',
+              primaryDocColor: override.primaryDocColor || base.primaryDocColor || '#2563eb',
+              headerColor: override.headerColor || base.headerColor || '#1e3a8a',
+              fuenteHeader: override.fuenteHeader || base.fuenteHeader,
+              fuenteNombre: override.fuenteNombre || base.fuenteNombre,
+              borderStyle: override.borderStyle || base.borderStyle,
+              paperTexture: override.paperTexture || base.paperTexture,
+              tonePapel: override.tonePapel || base.tonePapel,
+              firmaImg: override.firmaImg !== undefined ? override.firmaImg : (base.firmaImg || ''),
+              selloImg: override.selloImg !== undefined ? override.selloImg : (base.selloImg || ''),
+              selloFirma: override.selloFirma !== undefined ? override.selloFirma : (base.selloFirma || ''),
+              logoIzq: override.logoIzq !== undefined ? override.logoIzq : (base.logoIzq || ''),
+              logoDer: override.logoDer !== undefined ? override.logoDer : (base.logoDer || ''),
+              marcaAgua: override.marcaAgua !== undefined ? override.marcaAgua : (base.marcaAgua || ''),
+              institution: override.institution || base.institution || '',
+              institutionDetails: override.institutionDetails || base.institutionDetails || '',
+              isAdmin: Boolean(override.isAdmin || base.isAdmin || override.id === 'doc-admin-master'),
+              isPaidClient: Boolean(override.isPaidClient || base.isPaidClient || override.id === 'doc-admin-master'),
+              isVip: Boolean(override.isVip || base.isVip || override.id === 'doc-admin-master'),
+              paymentStatus: (override.paymentStatus || base.paymentStatus || 'activo') as 'activo' | 'pendiente' | 'vencido',
+              updatedAt: Math.max(localTime, cloudTime, Date.now())
+            };
+            return mergedDoctor;
           });
 
           for (const c of cloudDocs) {
@@ -927,8 +960,10 @@ export default function App() {
   }, []);
 
   // Continuous Background Auto-Sync to Cloud Database (2500ms debounce)
-  // SEGURIDAD: Solo sincroniza a la nube si hay una sesión activa, para no sobreescribir datos con plantillas en blanco
+  // SEGURIDAD CRÍTICA: Solo sincroniza si el médico modificó activamente algún dato (hasUserEditedStateRef.current)
+  // para NUNCA sobreescribir la base de datos de la nube con plantillas en blanco al arrancar
   useEffect(() => {
+    if (!hasUserEditedStateRef.current) return;
     if (isSyncingFromCloudRef.current) return;
     if (!activeDoctorSessionId) return;
     let ident = config.email || config.ci || config.id;
@@ -1053,8 +1088,12 @@ export default function App() {
       localStorage.setItem('digital_medic_patient_bank_v1', JSON.stringify(patientBank));
     } catch (_) {}
 
-    const userIdent = config.email || config.ci || config.id || 'admin@digitalmedic.com';
-    loadedEcosystemUserRef.current = userIdent; // Manual save establishes that cloud load is fully verified
+    let userIdent = config.email || config.ci || config.id || 'carloseduardoleal29@gmail.com';
+    userIdent = userIdent.toLowerCase().trim();
+    if (userIdent === 'doc-admin-master' || userIdent === 'admin@digitalmedic.com' || userIdent === 'admin') {
+      userIdent = 'carloseduardoleal29@gmail.com';
+    }
+    loadedEcosystemUserRef.current = userIdent;
 
     // 1. Guardar el ecosistema completo (récipes, historias, reposos, indicaciones y diseño)
     await saveEcosystemToCloud({
@@ -1319,6 +1358,7 @@ export default function App() {
 
   // Save recipe with automatic real-time synchronization to Indications Sheet
   const handleUpdateRecipe = (index: number, updated: Partial<RecipeItem>) => {
+    hasUserEditedStateRef.current = true;
     setRecipes((prev) => {
       const next = [...prev];
       next[index] = { ...next[index], ...updated };
@@ -1647,11 +1687,28 @@ export default function App() {
 
   // Transfer patient from Clinical History to Recipe module
   const handleTransferPatientToRecipe = (
-    name: string,
-    age: string,
-    ci: string,
-    diagnosis: string
+    param1: string | ClinicalRecord,
+    param2?: string,
+    param3?: string,
+    param4?: string
   ) => {
+    let name = '';
+    let age = '';
+    let ci = '';
+    let diagnosis = '';
+
+    if (typeof param1 === 'object' && param1 !== null) {
+      name = param1.patientName || '';
+      age = param1.patientAge || '';
+      ci = param1.patientCI || '';
+      diagnosis = param1.diagnoses || param1.reason || '';
+    } else {
+      name = param1 || '';
+      age = param2 || '';
+      ci = param3 || '';
+      diagnosis = param4 || '';
+    }
+
     setRecipes((prev) =>
       prev.map((r) => ({
         ...r,
@@ -1662,7 +1719,7 @@ export default function App() {
       }))
     );
     setActiveModule('recipe-4en1');
-    showToast(`Paciente "${name}" transferido al módulo de Récipes`);
+    showToast(`Paciente "${name || 'Seleccionado'}" transferido al módulo de Récipes`);
   };
 
   // Handle New Clinical Record
@@ -1963,13 +2020,15 @@ export default function App() {
     // Contextual Short Greetings when generating or accessing a format
     const greetingsMap: Record<ActiveModule, string> = {
       inicio: `🏥 Panel Principal · ${getTimeOfDayGreeting(config.doctorName)}`,
+      recipe: `🩺 ¡Nuevo Récipe Médico iniciado! Listo para prescribir.`,
       'recipe-master': `🩺 ¡Nuevo Récipe Médico iniciado! Listo para prescribir.`,
       'recipe-4en1': `📑 ¡Formato 4 en 1 preparado! 4 récipes en una sola hoja carta.`,
+      informe: `📋 ¡Nuevo Informe Médico iniciado! Redacte diagnóstico y evolución.`,
       informes: `📋 ¡Nuevo Informe Médico iniciado! Redacte diagnóstico y evolución.`,
       reposo: `📝 ¡Nueva Constancia y Reposo Médico listo! Calcule días y fechas.`,
       indicaciones: `💊 ¡Nuevas Indicaciones de Tratamiento listas para el paciente!`,
+      historia: `🏥 ¡Nueva Historia Clínica iniciada! Registre los antecedentes.`,
       historias: `🏥 ¡Nueva Historia Clínica iniciada! Registre los antecedentes.`,
-      farmacos: `💊 Banco de Fármacos y Vademécum Digital.`,
       diseno: `🎨 Estudio de Diseño y Personalización de Formatos Médicos.`,
       suscripcion: `⭐ Planes y Suscripción Digital Médic.`,
     };
@@ -2060,14 +2119,30 @@ export default function App() {
       showToast('Generando y descargando PDF en su equipo...');
 
       const cleanDate = todayStr.replace(/\//g, '-');
-      const safePatient = ((activeRec?.patientName || recipes[0]?.patientName || 'Paciente') as string)
+      let pName = activeRec?.patientName;
+      if (!pName) {
+        if (activeModule === 'informes') pName = currentReport?.patientName;
+        else if (activeModule === 'indicaciones') pName = indications?.patientName;
+        else if (activeModule === 'reposo') pName = restCert?.patientName;
+        else if (activeModule === 'historias') pName = activeRecord?.patientName;
+        else pName = recipes[activeRecipeIndex]?.patientName || recipes[0]?.patientName;
+      }
+
+      const safePatient = (pName || 'Paciente')
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
         .trim()
         .replace(/[/\\?%*:|"<>]/g, '')
         .replace(/\s+/g, '_');
       
-      const fileName = activeRec?.pdfFileName || `Recipe_${safePatient}_${cleanDate}.pdf`;
+      let prefix = 'Recipe';
+      if (activeModule === 'informes') prefix = 'Informe';
+      else if (activeModule === 'indicaciones') prefix = 'Indicaciones';
+      else if (activeModule === 'reposo') prefix = 'Reposo';
+      else if (activeModule === 'historias') prefix = 'Historia';
+      else if (activeModule === 'recipe-4en1') prefix = 'Recipes_Medicos';
+
+      const fileName = activeRec?.pdfFileName || `${prefix}_${safePatient}_${cleanDate}.pdf`;
       const success = await exportElementAsPDF(container, fileName);
       if (success) {
         showToast('✓ ¡PDF descargado con éxito en su equipo!');
@@ -2085,231 +2160,474 @@ export default function App() {
 
   // Save Document to Patient Bank, Generate PDF and open Share Modal
   const handleSaveDocumentAndOpenShare = (moduleTarget?: ActiveModule, shouldDownload: boolean = false) => {
-    const mod = moduleTarget || activeModule;
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: true });
-    const cleanDate = todayStr.replace(/\//g, '-');
-    
-    let patientName = '';
-    let patientCI = '';
-    let patientAge = '';
-    let patientPhone = '';
-    let patientEmail = '';
-    let diagnosis = '';
-    let contentBody = '';
-    let docTitle = '';
-    let docType: SavedDocumentRecord['documentType'] = 'recipe-4en1';
-    let pdfFileName = '';
-
-    if (mod === 'informes') {
-      patientName = currentReport.patientName || 'Paciente';
-      patientCI = currentReport.patientCI || '';
-      patientAge = currentReport.patientAge || '';
-      patientPhone = currentReport.patientPhone || '';
-      patientEmail = (currentReport as any).patientEmail || '';
-      diagnosis = currentReport.diagnosticImpression || currentReport.title || 'Evaluación médica';
-      docTitle = `Informe Médico - ${patientName}`;
-      docType = 'informe';
-      contentBody = 
-        `MOTIVO: ${currentReport.reasonForConsultation || 'Consulta'}\n` +
-        `RESUMEN: ${currentReport.clinicalSummary || 'Sin datos'}\n` +
-        `DIAGNÓSTICO: ${currentReport.diagnosticImpression || 'Evaluado'}\n` +
-        `PLAN Y TRATAMIENTO: ${currentReport.treatmentPlan || 'Plan terapéutico establecido'}\n` +
-        `RECOMENDACIONES: ${currentReport.recommendations || 'Control regular'}` +
-        (currentReport.daysRest ? `\nREPOSO MÉDICO: ${currentReport.daysRest} continuos` + (currentReport.restStartDate ? ` (Desde: ${currentReport.restStartDate} Hasta: ${currentReport.restEndDate || '—'})` : '') : '');
-    } else if (mod === 'indicaciones') {
-      patientName = indications.patientName || 'Paciente';
-      patientCI = indications.patientCI || '';
-      patientAge = indications.patientAge || '';
-      patientPhone = indications.patientPhone || '';
-      patientEmail = (indications as any).patientEmail || '';
-      diagnosis = indications.diagnosis || 'Indicaciones Médicas';
-      docTitle = `Indicaciones Médicas - ${patientName}`;
-      docType = 'indicaciones';
-      contentBody = 
-        `1. HORARIO Y MEDICAMENTOS:\n${indications.medicationSchedule || 'Indicaciones según récipe'}\n\n` +
-        `2. DIETA Y REPOSO:\n${indications.dietAndRest || 'Dieta balanceada e hidratación'}\n\n` +
-        `3. SIGNOS DE ALARMA:\n${indications.alarmSigns || 'Consultar ante fiebre o dolor agudo'}\n\n` +
-        `4. PRÓXIMA CITA: ${indications.nextAppointment || 'Según evolución'}`;
-    } else if (mod === 'reposo') {
-      patientName = restCert.patientName || 'Paciente';
-      patientCI = restCert.patientCI || '';
-      patientAge = restCert.patientAge || '';
-      patientPhone = restCert.patientPhone || '';
-      patientEmail = (restCert as any).patientEmail || '';
-      diagnosis = restCert.diagnosis || 'Reposo médico';
-      docTitle = `Constancia de Reposo - ${patientName}`;
-      docType = 'reposo';
-      contentBody = 
-        `DÍAS DE REPOSO: ${restCert.daysRest} días continuos\n` +
-        `PERIODO: Desde ${restCert.startDate} hasta ${restCert.endDate || 'cumplimiento'}\n` +
-        `DIAGNÓSTICO: ${restCert.diagnosis}\n` +
-        `OBSERVACIONES: ${restCert.observations || 'Reposo médico en domicilio'}`;
-    } else if (mod === 'historias') {
-      patientName = activeRecord.patientName || 'Paciente';
-      patientCI = activeRecord.patientCI || '';
-      patientAge = activeRecord.patientAge || '';
-      patientPhone = activeRecord.patientPhone || '';
-      patientEmail = activeRecord.patientEmail || '';
-      diagnosis = activeRecord.diagnoses || activeRecord.reason || 'Historia Clínica';
-      docTitle = `Historia Clínica - ${patientName}`;
-      docType = 'historia';
-      contentBody = 
-        `MOTIVO: ${activeRecord.reason || 'Sin datos'}\n` +
-        `ENFERMEDAD ACTUAL: ${activeRecord.currentIllness || 'Sin datos'}\n` +
-        `EXAMEN FÍSICO: ${activeRecord.physicalExam || 'Normal'}\n` +
-        `DIAGNÓSTICO: ${activeRecord.diagnoses || 'Evaluado'}\n` +
-        `PLAN Y TRATAMIENTO: ${activeRecord.treatmentPlan || 'Plan indicado'}`;
-    } else if (mod === 'recipe-master') {
-      const rec = recipes[activeRecipeIndex] || recipes[0];
-      patientName = rec.patientName || 'Paciente';
-      patientCI = rec.patientCI || '';
-      patientAge = rec.patientAge || '';
-      patientPhone = rec.patientPhone || '';
-      patientEmail = rec.patientEmail || '';
-      diagnosis = rec.diagnosis || 'Consulta Médica';
-      docTitle = `Récipe Médico - ${patientName}`;
-      docType = 'recipe-master';
-      const cleanRp = (rec.rp || '').trim();
-      const cleanNotes = (rec.indicationsNotes || '').trim();
-      contentBody = cleanRp + (cleanNotes ? `\n\n📌 INDICACIONES ADICIONALES:\n${cleanNotes}` : '');
-      if (!contentBody) contentBody = 'Prescripción médica emitida en consulta.';
-    } else {
-      // recipe-4en1 or default
-      const rec = recipes[activeRecipeIndex] || recipes[0];
-      patientName = rec.patientName || recipes[0]?.patientName || 'Paciente';
-      patientCI = rec.patientCI || recipes[0]?.patientCI || '';
-      patientAge = rec.patientAge || recipes[0]?.patientAge || '';
-      patientPhone = rec.patientPhone || recipes[0]?.patientPhone || '';
-      patientEmail = rec.patientEmail || recipes[0]?.patientEmail || '';
-      diagnosis = rec.diagnosis || recipes[0]?.diagnosis || 'Consulta Médica';
-      docTitle = `Hoja de Récipes - ${patientName}`;
-      docType = 'recipe-4en1';
-
-      // Gather all filled recipes from the 4-in-1 sheet
-      const filledRecipes = recipes
-        .map((r, i) => {
-          const rp = (r.rp || '').trim();
-          const notes = (r.indicationsNotes || '').trim();
-          if (!rp && !notes) return null;
-          let block = `📋 RÉCIPE #${i + 1}`;
-          if (r.diagnosis && r.diagnosis.trim()) block += ` (${r.diagnosis.trim()})`;
-          block += `:\n${rp || 'Indicaciones del récipe'}`;
-          if (notes) block += `\nNotas: ${notes}`;
-          return block;
-        })
-        .filter(Boolean);
-
-      if (filledRecipes.length > 1) {
-        contentBody = filledRecipes.join('\n\n');
-      } else if (filledRecipes.length === 1) {
-        const single = (recipes[0]?.rp || rec.rp || '').trim();
-        const singleNotes = (rec.indicationsNotes || recipes[0]?.indicationsNotes || '').trim();
-        contentBody = single + (singleNotes ? `\n\n📌 NOTAS: ${singleNotes}` : '');
-      } else {
-        contentBody = (rec.rp || recipes[0]?.rp || 'Prescripción médica emitida en consulta.').trim();
-      }
-    }
-
-    // Lookup email from patient database if empty by CI or name
-    if (!patientEmail && (patientCI || patientName)) {
-      try {
-        const savedBank = localStorage.getItem('digital_medic_patient_bank_v1');
-        if (savedBank) {
-          const list = JSON.parse(savedBank);
-          const cleanCI = (patientCI || '').replace(/[^0-9]/g, '');
-          const found = list.find((p: any) => {
-            const pCI = (p.patientCI || '').replace(/[^0-9]/g, '');
-            if (cleanCI && pCI && cleanCI === pCI && p.patientEmail) return true;
-            return p.patientName?.toLowerCase().trim() === patientName.toLowerCase().trim() && p.patientEmail;
-          });
-          if (found?.patientEmail) {
-            patientEmail = found.patientEmail;
-          }
-        }
-      } catch (e) {}
-    }
-
-    const safePatient = (patientName || 'Paciente')
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .trim()
-      .replace(/[/\\?%*:|"<>]/g, '')
-      .replace(/\s+/g, '_');
-    pdfFileName = `${docType === 'informe' ? 'Informe' : docType === 'indicaciones' ? 'Indicaciones' : docType === 'reposo' ? 'Reposo' : docType === 'historia' ? 'Historia' : 'Recipe'}_${safePatient}_${cleanDate}.pdf`;
-
-    const newRecord: SavedDocumentRecord = {
-      id: `doc-${Date.now()}`,
-      documentType: docType,
-      documentTitle: docTitle,
-      patientName: patientName || 'Paciente Registrado',
-      patientCI: patientCI || 'S/C',
-      patientAge: patientAge || 'N/A',
-      patientPhone: patientPhone || '',
-      patientEmail: patientEmail || '',
-      date: todayStr,
-      time: timeStr,
-      timestamp: Date.now(),
-      diagnosis: diagnosis || 'Consulta médica',
-      contentBody: contentBody || 'Documento emitido en consulta.',
-      pdfFileName: pdfFileName,
-      doctorName: config.doctorName,
-      doctorSpecialty: config.specialty,
-      doctorMPPS: config.mpps,
-      doctorCI: config.ci,
-      institution: config.institution,
-    };
-
-    // Save into Patient Bank localStorage via state
     try {
-      const patientEntry: SavedPatientEntry = {
-        id: `patient-${Date.now()}`,
-        patientName: newRecord.patientName,
-        patientCI: newRecord.patientCI,
-        patientAge: newRecord.patientAge,
-        patientPhone: newRecord.patientPhone,
-        patientEmail: newRecord.patientEmail || '',
-        date: newRecord.date,
-        diagnosis: newRecord.diagnosis,
-        rp: newRecord.contentBody,
-        sourceModule: mod === 'informes' ? 'informe' : mod === 'reposo' ? 'reposo' : 'recipe',
+      const mod = moduleTarget || activeModule;
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: true });
+      const cleanDate = todayStr.replace(/\//g, '-');
+      
+      let patientName = '';
+      let patientCI = '';
+      let patientAge = '';
+      let patientPhone = '';
+      let patientEmail = '';
+      let diagnosis = '';
+      let contentBody = '';
+      let docTitle = '';
+      let docType: SavedDocumentRecord['documentType'] = 'recipe-4en1';
+      let pdfFileName = '';
+
+      if (mod === 'informes') {
+        patientName = currentReport?.patientName || 'Paciente';
+        patientCI = currentReport?.patientCI || '';
+        patientAge = currentReport?.patientAge || '';
+        patientPhone = currentReport?.patientPhone || '';
+        patientEmail = (currentReport as any)?.patientEmail || '';
+        diagnosis = currentReport?.diagnosticImpression || currentReport?.title || 'Evaluación médica';
+        docTitle = `Informe Médico - ${patientName}`;
+        docType = 'informe';
+        contentBody = 
+          `MOTIVO: ${currentReport?.reasonForConsultation || 'Consulta'}\n` +
+          `RESUMEN: ${currentReport?.clinicalSummary || 'Sin datos'}\n` +
+          `DIAGNÓSTICO: ${currentReport?.diagnosticImpression || 'Evaluado'}\n` +
+          `PLAN Y TRATAMIENTO: ${currentReport?.treatmentPlan || 'Plan terapéutico establecido'}\n` +
+          `RECOMENDACIONES: ${currentReport?.recommendations || 'Control regular'}` +
+          (currentReport?.daysRest ? `\nREPOSO MÉDICO: ${currentReport.daysRest} continuos` + (currentReport.restStartDate ? ` (Desde: ${currentReport.restStartDate} Hasta: ${currentReport.restEndDate || '—'})` : '') : '');
+      } else if (mod === 'indicaciones') {
+        patientName = indications?.patientName || 'Paciente';
+        patientCI = indications?.patientCI || '';
+        patientAge = indications?.patientAge || '';
+        patientPhone = indications?.patientPhone || '';
+        patientEmail = (indications as any)?.patientEmail || '';
+        diagnosis = indications?.diagnosis || 'Indicaciones Médicas';
+        docTitle = `Indicaciones Médicas - ${patientName}`;
+        docType = 'indicaciones';
+        contentBody = 
+          `1. HORARIO Y MEDICAMENTOS:\n${indications?.medicationSchedule || 'Indicaciones según récipe'}\n\n` +
+          `2. DIETA Y REPOSO:\n${indications?.dietAndRest || 'Dieta balanceada e hidratación'}\n\n` +
+          `3. SIGNOS DE ALARMA:\n${indications?.alarmSigns || 'Consultar ante fiebre o dolor agudo'}\n\n` +
+          `4. PRÓXIMA CITA: ${indications?.nextAppointment || 'Según evolución'}`;
+      } else if (mod === 'reposo') {
+        patientName = restCert?.patientName || 'Paciente';
+        patientCI = restCert?.patientCI || '';
+        patientAge = restCert?.patientAge || '';
+        patientPhone = restCert?.patientPhone || '';
+        patientEmail = (restCert as any)?.patientEmail || '';
+        diagnosis = restCert?.diagnosis || 'Reposo médico';
+        docTitle = `Constancia de Reposo - ${patientName}`;
+        docType = 'reposo';
+        contentBody = 
+          `DÍAS DE REPOSO: ${restCert?.daysRest || 1} días continuos\n` +
+          `PERIODO: Desde ${restCert?.startDate || todayStr} hasta ${restCert?.endDate || 'cumplimiento'}\n` +
+          `DIAGNÓSTICO: ${restCert?.diagnosis || 'Reposo médico'}\n` +
+          `OBSERVACIONES: ${restCert?.observations || 'Reposo médico en domicilio'}`;
+      } else if (mod === 'historias') {
+        patientName = activeRecord?.patientName || 'Paciente';
+        patientCI = activeRecord?.patientCI || '';
+        patientAge = activeRecord?.patientAge || '';
+        patientPhone = activeRecord?.patientPhone || '';
+        patientEmail = activeRecord?.patientEmail || '';
+        diagnosis = activeRecord?.diagnoses || activeRecord?.reason || 'Historia Clínica';
+        docTitle = `Historia Clínica - ${patientName}`;
+        docType = 'historia';
+        contentBody = 
+          `MOTIVO: ${activeRecord?.reason || 'Sin datos'}\n` +
+          `ENFERMEDAD ACTUAL: ${activeRecord?.currentIllness || 'Sin datos'}\n` +
+          `EXAMEN FÍSICO: ${activeRecord?.physicalExam || 'Normal'}\n` +
+          `DIAGNÓSTICO: ${activeRecord?.diagnoses || 'Evaluado'}\n` +
+          `PLAN Y TRATAMIENTO: ${activeRecord?.treatmentPlan || 'Plan indicado'}`;
+      } else if (mod === 'recipe-master') {
+        const rec = recipes[activeRecipeIndex] || recipes[0] || {};
+        patientName = rec.patientName || 'Paciente';
+        patientCI = rec.patientCI || '';
+        patientAge = rec.patientAge || '';
+        patientPhone = rec.patientPhone || '';
+        patientEmail = rec.patientEmail || '';
+        diagnosis = rec.diagnosis || 'Consulta Médica';
+        docTitle = `Récipe Médico - ${patientName}`;
+        docType = 'recipe-master';
+        const cleanRp = (rec.rp || '').trim();
+        const cleanNotes = (rec.indicationsNotes || '').trim();
+        contentBody = cleanRp + (cleanNotes ? `\n\n📌 INDICACIONES ADICIONALES:\n${cleanNotes}` : '');
+        if (!contentBody) contentBody = 'Prescripción médica emitida en consulta.';
+      } else {
+        // recipe-4en1 or default
+        const rec = recipes[activeRecipeIndex] || recipes[0] || {};
+        patientName = rec.patientName || recipes[0]?.patientName || 'Paciente';
+        patientCI = rec.patientCI || recipes[0]?.patientCI || '';
+        patientAge = rec.patientAge || recipes[0]?.patientAge || '';
+        patientPhone = rec.patientPhone || recipes[0]?.patientPhone || '';
+        patientEmail = rec.patientEmail || recipes[0]?.patientEmail || '';
+        diagnosis = rec.diagnosis || recipes[0]?.diagnosis || 'Consulta Médica';
+        docTitle = `Hoja de Récipes - ${patientName}`;
+        docType = 'recipe-4en1';
+
+        // Gather all filled recipes from the 4-in-1 sheet
+        const filledRecipes = (recipes || [])
+          .map((r, i) => {
+            const rp = (r?.rp || '').trim();
+            const notes = (r?.indicationsNotes || '').trim();
+            if (!rp && !notes) return null;
+            let block = `📋 RÉCIPE #${i + 1}`;
+            if (r.diagnosis && r.diagnosis.trim()) block += ` (${r.diagnosis.trim()})`;
+            block += `:\n${rp || 'Indicaciones del récipe'}`;
+            if (notes) block += `\nNotas: ${notes}`;
+            return block;
+          })
+          .filter(Boolean);
+
+        if (filledRecipes.length > 1) {
+          contentBody = filledRecipes.join('\n\n');
+        } else if (filledRecipes.length === 1) {
+          const single = (recipes[0]?.rp || rec.rp || '').trim();
+          const singleNotes = (rec.indicationsNotes || recipes[0]?.indicationsNotes || '').trim();
+          contentBody = single + (singleNotes ? `\n\n📌 NOTAS: ${singleNotes}` : '');
+        } else {
+          contentBody = (rec.rp || recipes[0]?.rp || 'Prescripción médica emitida en consulta.').trim();
+        }
+      }
+
+      // Lookup email from patient database if empty by CI or name
+      if (!patientEmail && (patientCI || patientName)) {
+        try {
+          const savedBank = localStorage.getItem('digital_medic_patient_bank_v1');
+          if (savedBank) {
+            const list = JSON.parse(savedBank);
+            const cleanCI = (patientCI || '').replace(/[^0-9]/g, '');
+            const found = list.find((p: any) => {
+              const pCI = (p.patientCI || '').replace(/[^0-9]/g, '');
+              if (cleanCI && pCI && cleanCI === pCI && p.patientEmail) return true;
+              return p.patientName?.toLowerCase().trim() === patientName.toLowerCase().trim() && p.patientEmail;
+            });
+            if (found?.patientEmail) {
+              patientEmail = found.patientEmail;
+            }
+          }
+        } catch (e) {}
+      }
+
+      const safePatient = (patientName || 'Paciente')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .replace(/[/\\?%*:|"<>]/g, '')
+        .replace(/\s+/g, '_');
+      pdfFileName = `${docType === 'informe' ? 'Informe' : docType === 'indicaciones' ? 'Indicaciones' : docType === 'reposo' ? 'Reposo' : docType === 'historia' ? 'Historia' : 'Recipe'}_${safePatient}_${cleanDate}.pdf`;
+
+      const newRecord: SavedDocumentRecord = {
+        id: `doc-${Date.now()}`,
+        documentType: docType,
+        documentTitle: docTitle,
+        patientName: patientName || 'Paciente Registrado',
+        patientCI: patientCI || 'S/C',
+        patientAge: patientAge || 'N/A',
+        patientPhone: patientPhone || '',
+        patientEmail: patientEmail || '',
+        date: todayStr,
+        time: timeStr,
+        timestamp: Date.now(),
+        diagnosis: diagnosis || 'Consulta médica',
+        contentBody: contentBody || 'Documento emitido en consulta.',
+        pdfFileName: pdfFileName,
+        doctorName: config.doctorName,
+        doctorSpecialty: config.specialty,
+        doctorMPPS: config.mpps,
+        doctorCI: config.ci,
+        institution: config.institution,
       };
 
-      const updatedBank = [patientEntry, ...patientBank.filter(x => x.patientName !== newRecord.patientName || x.date !== newRecord.date)];
-      setPatientBank(updatedBank);
+      // Save into Patient Bank localStorage via state
       try {
-        localStorage.setItem('digital_medic_patient_bank_v1', JSON.stringify(updatedBank));
-      } catch (_) {}
-      syncEcosystemImmediate(updatedBank);
+        const patientEntry: SavedPatientEntry = {
+          id: `patient-${Date.now()}`,
+          patientName: newRecord.patientName,
+          patientCI: newRecord.patientCI,
+          patientAge: newRecord.patientAge,
+          patientPhone: newRecord.patientPhone,
+          patientEmail: newRecord.patientEmail || '',
+          date: newRecord.date,
+          diagnosis: newRecord.diagnosis,
+          rp: newRecord.contentBody,
+          sourceModule: mod === 'informes' ? 'informe' : mod === 'reposo' ? 'reposo' : 'recipe',
+        };
 
-      // Asynchronously sync to backend for cross-device QR lookup
-      fetch('/api/documents', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newRecord)
-      }).catch(() => {});
+        const currentBank = Array.isArray(patientBank) ? patientBank : [];
+        const updatedBank = [patientEntry, ...currentBank.filter(x => x && (x.patientName !== newRecord.patientName || x.date !== newRecord.date))];
+        setPatientBank(updatedBank);
+        try {
+          localStorage.setItem('digital_medic_patient_bank_v1', JSON.stringify(updatedBank));
+        } catch (_) {}
+        try {
+          syncEcosystemImmediate(updatedBank);
+        } catch (_) {}
+
+        // Asynchronously sync to backend for cross-device QR lookup
+        fetch('/api/documents', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newRecord)
+        }).catch(() => {});
+      } catch (err) {
+        console.warn('Error saving patient record:', err);
+      }
+
+      setSavedDocumentRecord(newRecord);
+
+      if (shouldDownload) {
+        handleDownloadRealPdf(newRecord);
+      } else {
+        showToast(`✓ ¡${docTitle} guardado en el Banco de Pacientes!`);
+      }
     } catch (err) {
-      console.warn('Error saving patient record:', err);
-    }
-
-    setSavedDocumentRecord(newRecord);
-
-    if (shouldDownload) {
-      handleDownloadRealPdf(newRecord);
-      setIsSaveSuccessModalOpen(true);
-    } else {
-      showToast(`✓ ¡${docTitle} guardado en el Banco de Pacientes!`);
+      console.error('[Save Error]:', err);
+      showToast('⚠️ No se pudo guardar el paciente.');
     }
   };
 
-  // 1. Guardar paciente ÚNICAMENTE en el banco de pacientes (sin abrir ventana de compartir)
+  // 1. Guardar paciente ÚNICAMENTE en el banco de pacientes
   const handleSavePatientOnly = (moduleTarget?: ActiveModule) => {
     handleSaveDocumentAndOpenShare(moduleTarget, false);
+    showToast('✓ ¡Paciente guardado exitosamente en el Banco de Pacientes!');
   };
 
-  // 2. Descargar PDF en el equipo y luego de descargado abrir ventana de opciones de envío
-  const handleDownloadPdfAndOpenShare = async (moduleTarget?: ActiveModule) => {
-    handleSaveDocumentAndOpenShare(moduleTarget, true);
+  // 2. Abrir Modal de Envío por Correo Electrónico
+  const handleOpenEmailDirectly = (moduleTarget?: ActiveModule) => {
+    handleSaveDocumentAndOpenShare(moduleTarget, false);
+    setIsEmailModalOpen(true);
+  };
+
+  // 3. Guardar y Enviar a WhatsApp de forma 100% Automática en 1 Solo Clic
+  const handleInstantWhatsApp = async (moduleTarget?: ActiveModule) => {
+    try {
+      const mod = moduleTarget || activeModule;
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+      // Extract patient and prescription details
+      let patientName = '';
+      let patientCI = '';
+      let patientAge = '';
+      let patientPhone = '';
+      let patientEmail = '';
+      let diagnosis = '';
+      let contentBody = '';
+      let docTitle = '';
+      let docType: SavedDocumentRecord['documentType'] = 'recipe-4en1';
+      const cleanDate = todayStr.replace(/\//g, '-');
+
+      if (mod === 'informes') {
+        patientName = currentReport?.patientName || 'Paciente';
+        patientCI = currentReport?.patientCI || '';
+        patientAge = currentReport?.patientAge || '';
+        patientPhone = currentReport?.patientPhone || '';
+        patientEmail = (currentReport as any)?.patientEmail || '';
+        diagnosis = currentReport?.diagnosticImpression || 'Informe Médico';
+        docTitle = `Informe Médico - ${patientName}`;
+        docType = 'informe';
+        contentBody = 
+          `MOTIVO: ${currentReport?.reasonForConsultation || 'Evaluación médica'}\n` +
+          `DIAGNÓSTICO: ${currentReport?.diagnosticImpression || 'Evaluación médica general'}\n` +
+          `PLAN Y TRATAMIENTO: ${currentReport?.treatmentPlan || 'Tratamiento indicado'}`;
+      } else if (mod === 'indicaciones') {
+        patientName = indications?.patientName || 'Paciente';
+        patientCI = indications?.patientCI || '';
+        patientAge = indications?.patientAge || '';
+        patientPhone = indications?.patientPhone || '';
+        patientEmail = (indications as any)?.patientEmail || '';
+        diagnosis = indications?.diagnosis || 'Indicaciones Médicas';
+        docTitle = `Indicaciones Médicas - ${patientName}`;
+        docType = 'indicaciones';
+        contentBody = 
+          `1. HORARIO Y MEDICAMENTOS:\n${indications?.medicationSchedule || 'Indicaciones según récipe'}\n\n` +
+          `2. DIETA Y REPOSO:\n${indications?.dietAndRest || 'Dieta balanceada e hidratación'}`;
+      } else if (mod === 'reposo') {
+        patientName = restCert?.patientName || 'Paciente';
+        patientCI = restCert?.patientCI || '';
+        patientAge = restCert?.patientAge || '';
+        patientPhone = restCert?.patientPhone || '';
+        patientEmail = (restCert as any)?.patientEmail || '';
+        diagnosis = restCert?.diagnosis || 'Reposo médico';
+        docTitle = `Constancia de Reposo - ${patientName}`;
+        docType = 'reposo';
+        contentBody = 
+          `DÍAS DE REPOSO: ${restCert?.daysRest || 1} días continuos\n` +
+          `PERIODO: Desde ${restCert?.startDate || todayStr} hasta ${restCert?.endDate || 'cumplimiento'}\n` +
+          `DIAGNÓSTICO: ${restCert?.diagnosis || 'Reposo médico'}`;
+      } else if (mod === 'historias') {
+        patientName = activeRecord?.patientName || 'Paciente';
+        patientCI = activeRecord?.patientCI || '';
+        patientAge = activeRecord?.patientAge || '';
+        patientPhone = activeRecord?.patientPhone || '';
+        patientEmail = activeRecord?.patientEmail || '';
+        diagnosis = activeRecord?.diagnoses || activeRecord?.reason || 'Historia Clínica';
+        docTitle = `Historia Clínica - ${patientName}`;
+        docType = 'historia';
+        contentBody = `DIAGNÓSTICO: ${activeRecord?.diagnoses || 'Evaluado'}\nTRATAMIENTO: ${activeRecord?.treatmentPlan || 'Plan indicado'}`;
+      } else if (mod === 'recipe-master') {
+        const rec = recipes[activeRecipeIndex] || recipes[0] || {};
+        patientName = rec.patientName || 'Paciente';
+        patientCI = rec.patientCI || '';
+        patientAge = rec.patientAge || '';
+        patientPhone = rec.patientPhone || '';
+        patientEmail = rec.patientEmail || '';
+        diagnosis = rec.diagnosis || 'Consulta Médica';
+        docTitle = `Récipe Médico - ${patientName}`;
+        docType = 'recipe-master';
+        const cleanRp = (rec.rp || '').trim();
+        const cleanNotes = (rec.indicationsNotes || '').trim();
+        contentBody = cleanRp + (cleanNotes ? `\n\n📌 NOTAS: ${cleanNotes}` : '');
+        if (!contentBody) contentBody = 'Prescripción médica emitida en consulta.';
+      } else {
+        const rec = recipes[activeRecipeIndex] || recipes[0] || {};
+        patientName = rec.patientName || recipes[0]?.patientName || 'Paciente';
+        patientCI = rec.patientCI || recipes[0]?.patientCI || '';
+        patientAge = rec.patientAge || recipes[0]?.patientAge || '';
+        patientPhone = rec.patientPhone || recipes[0]?.patientPhone || '';
+        patientEmail = rec.patientEmail || recipes[0]?.patientEmail || '';
+        diagnosis = rec.diagnosis || recipes[0]?.diagnosis || 'Consulta Médica';
+        docTitle = `Hoja de Récipes - ${patientName}`;
+        docType = 'recipe-4en1';
+        const cleanRp = (rec.rp || recipes[0]?.rp || '').trim();
+        const cleanNotes = (rec.indicationsNotes || recipes[0]?.indicationsNotes || '').trim();
+        contentBody = cleanRp + (cleanNotes ? `\n\n📌 NOTAS: ${cleanNotes}` : '');
+        if (!contentBody) contentBody = 'Prescripción médica emitida en consulta.';
+      }
+
+      // Lookup phone from patient bank if empty
+      if (!patientPhone && (patientCI || patientName)) {
+        try {
+          const savedBank = localStorage.getItem('digital_medic_patient_bank_v1');
+          if (savedBank) {
+            const list = JSON.parse(savedBank);
+            const cleanCI = (patientCI || '').replace(/[^0-9]/g, '');
+            const found = list.find((p: any) => {
+              const pCI = (p.patientCI || '').replace(/[^0-9]/g, '');
+              if (cleanCI && pCI && cleanCI === pCI && p.patientPhone) return true;
+              return p.patientName?.toLowerCase().trim() === patientName.toLowerCase().trim() && p.patientPhone;
+            });
+            if (found?.patientPhone) {
+              patientPhone = found.patientPhone;
+            }
+          }
+        } catch (_) {}
+      }
+
+      const safePatient = (patientName || 'Paciente')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .replace(/[/\\?%*:|"<>]/g, '')
+        .replace(/\s+/g, '_');
+      const pdfFileName = `${docType === 'informe' ? 'Informe' : docType === 'indicaciones' ? 'Indicaciones' : docType === 'reposo' ? 'Reposo' : docType === 'historia' ? 'Historia' : 'Recipe'}_${safePatient}_${cleanDate}.pdf`;
+
+      const newRecord: SavedDocumentRecord = {
+        id: `doc-${Date.now()}`,
+        documentType: docType,
+        documentTitle: docTitle,
+        patientName: patientName || 'Paciente Registrado',
+        patientCI: patientCI || 'S/C',
+        patientAge: patientAge || 'N/A',
+        patientPhone: patientPhone || '',
+        patientEmail: patientEmail || '',
+        date: todayStr,
+        time: timeStr,
+        timestamp: Date.now(),
+        diagnosis: diagnosis || 'Consulta médica',
+        contentBody: contentBody || 'Documento emitido en consulta.',
+        pdfFileName: pdfFileName,
+        doctorName: config.doctorName,
+        doctorSpecialty: config.specialty,
+        doctorMPPS: config.mpps,
+        doctorCI: config.ci,
+        institution: config.institution,
+      };
+
+      // Save to patient bank & ecosystem immediately
+      try {
+        const patientEntry: SavedPatientEntry = {
+          id: `patient-${Date.now()}`,
+          patientName: newRecord.patientName,
+          patientCI: newRecord.patientCI,
+          patientAge: newRecord.patientAge,
+          patientPhone: newRecord.patientPhone,
+          patientEmail: newRecord.patientEmail || '',
+          date: newRecord.date,
+          diagnosis: newRecord.diagnosis,
+          rp: newRecord.contentBody,
+          sourceModule: mod === 'informes' ? 'informe' : mod === 'reposo' ? 'reposo' : 'recipe',
+        };
+        const currentBank = Array.isArray(patientBank) ? patientBank : [];
+        const updatedBank = [patientEntry, ...currentBank.filter(x => x && (x.patientName !== newRecord.patientName || x.date !== newRecord.date))];
+        setPatientBank(updatedBank);
+        try {
+          localStorage.setItem('digital_medic_patient_bank_v1', JSON.stringify(updatedBank));
+        } catch (_) {}
+        try {
+          syncEcosystemImmediate(updatedBank);
+        } catch (_) {}
+        fetch('/api/documents', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newRecord)
+        }).catch(() => {});
+      } catch (e) {
+        console.warn('Error saving patient in background:', e);
+      }
+
+      setSavedDocumentRecord(newRecord);
+
+      // Force automatic PDF download to local device
+      try {
+        handleDownloadRealPdf(newRecord);
+      } catch (pdfErr) {
+        console.warn('Auto download PDF error:', pdfErr);
+      }
+
+      // Clean patient phone for WhatsApp
+      const rawDigits = (patientPhone || '').replace(/\D/g, '');
+      let cleanPhone = '';
+      if (rawDigits.startsWith('58') && rawDigits.length >= 11) {
+        cleanPhone = rawDigits;
+      } else if (rawDigits.startsWith('0414') || rawDigits.startsWith('0424') || rawDigits.startsWith('0412') || rawDigits.startsWith('0416') || rawDigits.startsWith('0426')) {
+        cleanPhone = '58' + rawDigits.slice(1);
+      } else if (rawDigits.length === 10 && (rawDigits.startsWith('414') || rawDigits.startsWith('424') || rawDigits.startsWith('412') || rawDigits.startsWith('416') || rawDigits.startsWith('426'))) {
+        cleanPhone = '58' + rawDigits;
+      } else if (rawDigits.length >= 8) {
+        cleanPhone = rawDigits;
+      }
+
+      if (cleanPhone && cleanPhone.length >= 8) {
+        const msg = 
+          `Estimado(a) *${patientName}*,\n\n` +
+          `Le saluda el/la *Dr(a). ${config.doctorName}* (${config.specialty || 'Médico Especialista'}).\n\n` +
+          `📄 *${docTitle.toUpperCase()} OFICIAL*\n\n` +
+          `📎 *INSTRUCCIÓN:* Se ha descargado automáticamente en su dispositivo el archivo PDF oficial (*${pdfFileName}*) firmado y sellado digitalmente. Por favor adjunte o presente el archivo PDF descargado para su validez legal en farmacias y centros de salud.\n\n` +
+          `📋 *PRESCRIPCIÓN / INDICACIÓN MÉDICA:*\n${contentBody.length > 550 ? contentBody.slice(0, 520) + '...' : contentBody}\n\n` +
+          `*M.P.P.S:* ${config.mpps || '00.000'} | *C.I:* ${config.ci || 'V-00.000.000'}\n` +
+          (config.phone ? `*Consultorio / Contacto:* ${config.phone}\n` : '') +
+          (config.institution ? `*Centro:* ${config.institution}\n` : '') +
+          `\n_Por favor cumpla su tratamiento tal como se indica. ¡Le deseamos una pronta y satisfactoria recuperación! ✨_`;
+
+        const waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`;
+        const link = document.createElement('a');
+        link.href = waUrl;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        document.body.appendChild(link);
+        link.click();
+        setTimeout(() => {
+          if (document.body.contains(link)) document.body.removeChild(link);
+        }, 150);
+        showToast(`✓ ¡${docTitle} descargado en su dispositivo y enviado a WhatsApp! 🚀`);
+      } else {
+        // Phone is missing: open SaveAndShareSuccessModal for phone input
+        setIsSaveSuccessModalOpen(true);
+        showToast('💡 Ingrese el número de WhatsApp del paciente para enviarlo.');
+      }
+    } catch (err) {
+      console.error('[Instant WhatsApp Error]:', err);
+      setIsSaveSuccessModalOpen(true);
+    }
   };
 
   // Direct print trigger with Patient Name and Date as document.title for PDF filename
@@ -2427,6 +2745,7 @@ export default function App() {
             showToast('✓ Base de datos reiniciada limpia');
           }}
           onUpdateDoctor={handleUpdateDoctor}
+          onLoginAsDoctor={handleLoginAsDoctor}
           onAddNewDoctor={async (newDoctor) => {
             let nextList: DoctorConfig[] = [];
             setColleagueProfiles((prev) => {
@@ -2565,8 +2884,8 @@ export default function App() {
 
             {/* Right: Ir al Inicio (when in sub-modules) & Cerrar Sesión Button */}
             <div className="flex items-center gap-2 shrink-0">
-              {/* Botón de Instalación como App en PC con su Logo */}
-              <PWAInstallButton />
+              {/* Botón de Instalación como App en PC con su Logo SOLO en pantalla de Inicio */}
+              {activeModule === 'inicio' && <PWAInstallButton />}
 
               {activeModule !== 'inicio' && (
                 <button
@@ -2666,7 +2985,7 @@ export default function App() {
               </div>
 
               {/* Fast Direct Module Switcher Buttons */}
-              <div className="flex items-center gap-1 overflow-x-auto max-w-full pb-0.5 sm:pb-0">
+              <div className="flex flex-wrap items-center gap-1.5 max-w-full">
                 <button
                   onClick={() => handleNavigate('recipe-4en1')}
                   className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition-all cursor-pointer ${
@@ -2674,7 +2993,7 @@ export default function App() {
                       ? 'bg-blue-600 text-white shadow-xs'
                       : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
                   }`}
-                  title="Ir a Récipes"
+                  title="Ir a Récipes Médicos"
                 >
                   💊 Récipes
                 </button>
@@ -2736,19 +3055,6 @@ export default function App() {
                     <span>🎨 Estudio de Diseño {config.isAdmin ? '(ADMIN)' : '(VIP)'}</span>
                   </button>
                 )}
-
-                <button
-                  onClick={() => handleNavigate('suscripcion')}
-                  className={`px-2.5 py-1 rounded-lg font-black text-[11px] transition-all cursor-pointer flex items-center gap-1 shrink-0 ${
-                    activeModule === 'suscripcion'
-                      ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-xs ring-1 ring-emerald-400'
-                      : 'bg-gradient-to-r from-emerald-50 to-teal-50 hover:from-emerald-100 hover:to-teal-100 text-emerald-950 border border-emerald-300/80 shadow-2xs'
-                  }`}
-                  title="Planes de Suscripción, Pagos Móvil, Zinli y Tasa Binance P2P"
-                >
-                  <CreditCard className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>💳 Pagos y Binance</span>
-                </button>
 
                 {/* Botón Rojo: Dejar en Blanco el Formato Activo */}
                 {activeModule !== 'diseno' && activeModule !== 'suscripcion' && (
@@ -2812,8 +3118,34 @@ export default function App() {
             </div>
           )}
 
-          {/* Module 1: Estudio de Diseño (Protected by 2534) */}
-          {activeModule === 'diseno' && (
+          {/* Module 1: Estudio de Diseño (Protected by 2534 & VIP Plan) */}
+          {activeModule === 'diseno' && !isAuthorizedForDesigner && (
+            <div className="w-full max-w-xl mx-auto my-8 p-6 sm:p-8 bg-slate-900 border border-slate-700/80 rounded-3xl text-center space-y-4 shadow-2xl text-slate-100">
+              <div className="w-16 h-16 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center mx-auto shadow-md">
+                <Crown className="w-8 h-8" />
+              </div>
+              <h3 className="text-xl font-black text-white">Estudio de Diseño Exclusivo para Médicos VIP</h3>
+              <p className="text-xs text-slate-300 leading-relaxed max-w-md mx-auto">
+                Su consultorio cuenta con membrete y sello médico reglamentario activo. El <strong>Estudio de Diseño Personalizado</strong> (dobles logos, marcas de agua, tintas y tipografías exclusivas) está reservado para el <strong>Plan VIP</strong> o para médicos autorizados directamente por el Administrador.
+              </p>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-2 pt-2">
+                <button
+                  onClick={() => setActiveModule('suscripcion')}
+                  className="w-full sm:w-auto px-5 py-2.5 bg-gradient-to-r from-amber-500 to-indigo-600 hover:from-amber-400 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-md transition-all cursor-pointer hover:scale-105"
+                >
+                  <span>⭐ Mejorar a Plan VIP</span>
+                </button>
+                <button
+                  onClick={() => setActiveModule('recipe-4en1')}
+                  className="w-full sm:w-auto px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl transition-colors cursor-pointer"
+                >
+                  <span>Volver a Récipes</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {activeModule === 'diseno' && isAuthorizedForDesigner && (
             <div className="w-full max-w-[1240px] flex flex-col lg:flex-row items-start justify-center gap-6">
               
               {/* Document Live Preview based on user selection in Studio */}
@@ -2887,11 +3219,7 @@ export default function App() {
                     isLiveEditing={true}
                     onPrint={handleTriggerPrint}
                     onSavePatientOnly={() => handleSavePatientOnly('recipe-master')}
-                    onDownloadPdfAndShare={() => handleDownloadPdfAndOpenShare('recipe-master')}
-                    onSaveAndShare={(shouldDownload?: boolean) => {
-                      if (shouldDownload) handleDownloadPdfAndOpenShare('recipe-master');
-                      else handleSavePatientOnly('recipe-master');
-                    }}
+                    onSaveAndShare={() => handleSavePatientOnly('recipe-master')}
                     onOpenSignatureModal={() => setIsSignatureModalOpen(true)}
                     onClearRecipeToBlank={() => handleClearRecipeToBlank(0)}
                   />
@@ -2908,11 +3236,7 @@ export default function App() {
                     onSelectActiveRecipe={setActiveRecipeIndex}
                     onPrint={handleTriggerPrint}
                     onSavePatientOnly={() => handleSavePatientOnly('recipe-4en1')}
-                    onDownloadPdfAndShare={() => handleDownloadPdfAndOpenShare('recipe-4en1')}
-                    onSaveAndShare={(shouldDownload?: boolean) => {
-                      if (shouldDownload) handleDownloadPdfAndOpenShare('recipe-4en1');
-                      else handleSavePatientOnly('recipe-4en1');
-                    }}
+                    onSaveAndShare={() => handleSavePatientOnly('recipe-4en1')}
                     onClearRecipeToBlank={() => handleClearRecipeToBlank(activeRecipeIndex)}
                   />
                 )}
@@ -2923,10 +3247,7 @@ export default function App() {
                     indications={indications}
                     onChangeIndications={(upd) => setIndications((prev) => ({ ...prev, ...upd }))}
                     onPrint={handleTriggerPrint}
-                    onSaveAndShare={(shouldDownload?: boolean) => {
-                      if (shouldDownload) handleDownloadPdfAndOpenShare('indicaciones');
-                      else handleSavePatientOnly('indicaciones');
-                    }}
+                    onSaveAndShare={() => handleSavePatientOnly('indicaciones')}
                     onUpdateConfig={updateCurrentConfig}
                     recipes={recipes}
                     activeRecipeIndex={activeRecipeIndex}
@@ -2939,10 +3260,7 @@ export default function App() {
                     certificate={restCert}
                     onChangeCertificate={(upd) => setRestCert((prev) => ({ ...prev, ...upd }))}
                     onPrint={handleTriggerPrint}
-                    onSaveAndShare={(shouldDownload?: boolean) => {
-                      if (shouldDownload) handleDownloadPdfAndOpenShare('reposo');
-                      else handleSavePatientOnly('reposo');
-                    }}
+                    onSaveAndShare={() => handleSavePatientOnly('reposo')}
                     onUpdateConfig={updateCurrentConfig}
                   />
                 )}
@@ -2953,10 +3271,7 @@ export default function App() {
                     currentReport={currentReport}
                     onChangeReport={(upd) => setCurrentReport((prev) => ({ ...prev, ...upd }))}
                     onPrint={handleTriggerPrint}
-                    onSaveAndShare={(shouldDownload?: boolean) => {
-                      if (shouldDownload) handleDownloadPdfAndOpenShare('informes');
-                      else handleSavePatientOnly('informes');
-                    }}
+                    onSaveAndShare={() => handleSavePatientOnly('informes')}
                     onUpdateConfig={updateCurrentConfig}
                   />
                 )}
@@ -2998,37 +3313,38 @@ export default function App() {
               onSelectActiveRecipe={setActiveRecipeIndex}
               onUpdateConfig={updateCurrentConfig}
               onPrint={handleTriggerPrint}
+              onDownloadPdf={() => handleDownloadRealPdf(null)}
+              onOpenEmailModal={() => handleOpenEmailDirectly('recipe-4en1')}
               onSavePatientOnly={() => handleSavePatientOnly('recipe-4en1')}
-              onDownloadPdfAndShare={() => handleDownloadPdfAndOpenShare('recipe-4en1')}
-              onSaveAndShare={(shouldDownload?: boolean) => {
-                if (shouldDownload) handleDownloadPdfAndOpenShare('recipe-4en1');
-                else handleSavePatientOnly('recipe-4en1');
-              }}
+              onSaveAndShare={() => handleSavePatientOnly('recipe-4en1')}
               onOpenPreview={() => setIsUniversalPreviewOpen(true)}
               onBackToHome={() => handleNavigate('inicio')}
               onClearRecipeToBlank={() => handleClearRecipeToBlank(activeRecipeIndex)}
+              onSwitchToNormalRecipe={() => setActiveModule('recipe-master')}
             />
           )}
 
-          {/* Module 3: Récipe Individual Master */}
+          {/* Module 3: Récipe Individual Master (renderizado en hoja carta con cuadrantes) */}
           {activeModule === 'recipe-master' && (
-            <div className="w-full flex justify-center">
-              <MasterRecipeView
-                config={config}
-                recipe={recipes[activeRecipeIndex]}
-                onChangeRecipe={(upd) => handleUpdateRecipe(activeRecipeIndex, upd)}
-                onUpdateConfig={updateCurrentConfig}
-                isLiveEditing={false}
-                onPrint={handleTriggerPrint}
-                onSavePatientOnly={() => handleSavePatientOnly('recipe-master')}
-                onDownloadPdfAndShare={() => handleDownloadPdfAndOpenShare('recipe-master')}
-                onSaveAndShare={(shouldDownload?: boolean) => {
-                  if (shouldDownload) handleDownloadPdfAndOpenShare('recipe-master');
-                  else handleSavePatientOnly('recipe-master');
-                }}
-                onClearRecipeToBlank={() => handleClearRecipeToBlank(activeRecipeIndex)}
-              />
-            </div>
+            <FourInOneRecipeView
+              config={config}
+              recipes={recipes}
+              onChangeRecipeItem={handleUpdateRecipe}
+              onSyncPatientToAll={handleSyncPatientToAllRecipes}
+              onCopyRecipe1ToAll={handleCopyRecipe1ToAll}
+              activeRecipeIndex={activeRecipeIndex}
+              onSelectActiveRecipe={setActiveRecipeIndex}
+              onUpdateConfig={updateCurrentConfig}
+              onPrint={handleTriggerPrint}
+              onDownloadPdf={() => handleDownloadRealPdf(null)}
+              onOpenEmailModal={() => handleOpenEmailDirectly('recipe-4en1')}
+              onSavePatientOnly={() => handleSavePatientOnly('recipe-4en1')}
+              onSaveAndShare={() => handleSavePatientOnly('recipe-4en1')}
+              onOpenPreview={() => setIsUniversalPreviewOpen(true)}
+              onBackToHome={() => handleNavigate('inicio')}
+              onClearRecipeToBlank={() => handleClearRecipeToBlank(activeRecipeIndex)}
+              onSwitchToNormalRecipe={undefined}
+            />
           )}
 
           {/* Module 4: Historias Clínicas */}
@@ -3056,10 +3372,7 @@ export default function App() {
               onNewRecord={handleNewRecord}
               onTransferToRecipe={handleTransferPatientToRecipe}
               onPrint={handleTriggerPrint}
-              onSaveAndShare={(shouldDownload?: boolean) => {
-                if (shouldDownload) handleDownloadPdfAndOpenShare('historias');
-                else handleSavePatientOnly('historias');
-              }}
+              onSaveAndShare={() => handleSavePatientOnly('historias')}
               onBackToHome={() => handleNavigate('inicio')}
             />
           )}
@@ -3069,13 +3382,18 @@ export default function App() {
             <ReportsModule
               config={config}
               currentReport={currentReport}
-              onChangeReport={(upd) => setCurrentReport((prev) => ({ ...prev, ...upd }))}
-              onPrint={handleTriggerPrint}
-              onSaveAndShare={(shouldDownload?: boolean) => {
-                if (shouldDownload) handleDownloadPdfAndOpenShare('informes');
-                else handleSavePatientOnly('informes');
+              onChangeReport={(upd) => {
+                hasUserEditedStateRef.current = true;
+                setCurrentReport((prev) => ({ ...prev, ...upd }));
               }}
-              onOpenPreview={() => setIsUniversalPreviewOpen(true)}
+              onPrint={handleTriggerPrint}
+              onDownloadPdf={() => handleDownloadRealPdf(null)}
+              onOpenEmailModal={() => handleOpenEmailDirectly('informes')}
+              onSaveAndShare={() => handleSavePatientOnly('informes')}
+              onOpenPreview={() => {
+                setPreviewInitialModule('informes');
+                setIsUniversalPreviewOpen(true);
+              }}
               onUpdateConfig={updateCurrentConfig}
               onBackToHome={() => handleNavigate('inicio')}
             />
@@ -3086,13 +3404,18 @@ export default function App() {
             <IndicationsModule
               config={config}
               indications={indications}
-              onChangeIndications={(upd) => setIndications((prev) => ({ ...prev, ...upd }))}
-              onPrint={handleTriggerPrint}
-              onSaveAndShare={(shouldDownload?: boolean) => {
-                if (shouldDownload) handleDownloadPdfAndOpenShare('indicaciones');
-                else handleSavePatientOnly('indicaciones');
+              onChangeIndications={(upd) => {
+                hasUserEditedStateRef.current = true;
+                setIndications((prev) => ({ ...prev, ...upd }));
               }}
-              onOpenPreview={() => setIsUniversalPreviewOpen(true)}
+              onPrint={handleTriggerPrint}
+              onDownloadPdf={() => handleDownloadRealPdf(null)}
+              onOpenEmailModal={() => handleOpenEmailDirectly('indicaciones')}
+              onSaveAndShare={() => handleSavePatientOnly('indicaciones')}
+              onOpenPreview={() => {
+                setPreviewInitialModule('indicaciones');
+                setIsUniversalPreviewOpen(true);
+              }}
               onUpdateConfig={updateCurrentConfig}
               onBackToHome={() => handleNavigate('inicio')}
               recipes={recipes}
@@ -3105,13 +3428,18 @@ export default function App() {
             <MedicalRestModule
               config={config}
               certificate={restCert}
-              onChangeCertificate={(upd) => setRestCert((prev) => ({ ...prev, ...upd }))}
-              onPrint={handleTriggerPrint}
-              onSaveAndShare={(shouldDownload?: boolean) => {
-                if (shouldDownload) handleDownloadPdfAndOpenShare('reposo');
-                else handleSavePatientOnly('reposo');
+              onChangeCertificate={(upd) => {
+                hasUserEditedStateRef.current = true;
+                setRestCert((prev) => ({ ...prev, ...upd }));
               }}
-              onOpenPreview={() => setIsUniversalPreviewOpen(true)}
+              onPrint={handleTriggerPrint}
+              onDownloadPdf={() => handleDownloadRealPdf(null)}
+              onOpenEmailModal={() => handleOpenEmailDirectly('reposo')}
+              onSaveAndShare={() => handleSavePatientOnly('reposo')}
+              onOpenPreview={() => {
+                setPreviewInitialModule('reposo');
+                setIsUniversalPreviewOpen(true);
+              }}
               onUpdateConfig={updateCurrentConfig}
               onBackToHome={() => handleNavigate('inicio')}
             />
@@ -3546,6 +3874,7 @@ export default function App() {
           showToast('✓ Base de datos reiniciada limpia');
         }}
         onUpdateDoctor={handleUpdateDoctor}
+        onLoginAsDoctor={handleLoginAsDoctor}
         onAddNewDoctor={async (newDoctor) => {
           let nextList: DoctorConfig[] = [];
           setColleagueProfiles((prev) => {

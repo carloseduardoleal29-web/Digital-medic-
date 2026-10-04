@@ -8,9 +8,9 @@ export interface DoctorConfig {
   collegeNumber: string;
   phone: string;
   email: string;
-  socialHandle: string;
-  socialHandle2: string;
-  institution: string;
+  socialHandle?: string;
+  socialHandle2?: string;
+  institution?: string;
   institutionDetails: string;
   headerStyle: 'clasico' | 'moderno' | 'minimalista' | 'institucional';
   headerLayout: 'logo-izq' | 'logo-der' | 'ambos-logos' | 'sin-logos';
@@ -40,9 +40,9 @@ export interface DoctorConfig {
   footerNotesText: string;
   footerDisclaimer: string;
   signatureTitle: string;
-  showMedicalSymbols: boolean;
-  medicalSymbolType: 'esculapio' | 'cruz' | 'corazon' | 'institucional';
-  medicalSymbolColor: string;
+  showMedicalSymbols?: boolean;
+  medicalSymbolType?: 'esculapio' | 'cruz' | 'corazon' | 'institucional';
+  medicalSymbolColor?: string;
   folioPrefix: string;
   folioNumber: number;
   isPaidClient: boolean;
@@ -68,8 +68,8 @@ export interface DoctorConfig {
   footerNotesColor?: string;
   disclaimerSize?: string;
   disclaimerColor?: string;
-  signatureSize?: string;
-  stampSize?: string;
+  signatureSize?: string | number;
+  stampSize?: string | number;
   signatureTitleSize?: string;
   signatureTitleColor?: string;
   institutionColor?: string;
@@ -103,6 +103,7 @@ export interface DoctorConfig {
   trialDaysTotal?: number;
   trialStartDate?: string;
   trialEndDate?: string;
+  registrationDate?: string;
   patientBarSize?: string;
   colorPalettePreset?: string;
 }

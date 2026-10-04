@@ -55,7 +55,7 @@ export function getStoredDoctorSessionId(): string | null {
     }
   } catch (e) {}
 
-  // Auto-connect to master doctor session so all devices stay in sync
+  // Auto-conectar con la sesión médica por defecto para que los módulos abran inmediatamente en cualquier dispositivo
   try {
     localStorage.setItem(SESSION_STORAGE_KEY, DEFAULT_MASTER_SESSION_ID);
   } catch (e) {}

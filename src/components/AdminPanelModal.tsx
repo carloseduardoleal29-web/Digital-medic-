@@ -55,6 +55,7 @@ interface AdminPanelModalProps {
   onResetAllData?: () => void;
   onUpdateDoctor?: (updatedDoctor: DoctorConfig) => void;
   onAddNewDoctor?: (newDoctor: DoctorConfig) => void;
+  onLoginAsDoctor?: (doctor: DoctorConfig) => void;
 }
 
 export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
@@ -65,7 +66,8 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
   onDeleteDoctor,
   onResetAllData,
   onUpdateDoctor,
-  onAddNewDoctor
+  onAddNewDoctor,
+  onLoginAsDoctor
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [versionFilter, setVersionFilter] = useState<'todos' | 'pendiente' | 'activo' | 'prueba' | 'basico' | 'diseno-pro' | 'clinica-full'>('todos');
@@ -639,14 +641,32 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                                 </button>
                               )}
 
-                              {/* Edit Recipe Design */}
+                              {/* Edit Logo, Sello y Firma */}
                               <button
+                                type="button"
                                 onClick={() => setEditingRecipeDoctor(doc)}
-                                className="p-1.5 bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/40 rounded-xl text-xs font-bold transition-all cursor-pointer"
-                                title="Personalizar récipe"
+                                className="px-2.5 py-1.5 bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/40 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 hover:scale-105"
+                                title="Editar Logo, Sello, Firma y Membrete de este médico"
                               >
-                                <Palette className="w-3.5 h-3.5" />
+                                <Palette className="w-3.5 h-3.5 text-amber-300" />
+                                <span>Logo, Sello y Firma</span>
                               </button>
+
+                              {/* Entrar a la App como este Médico */}
+                              {onLoginAsDoctor && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    onLoginAsDoctor(doc);
+                                    onClose();
+                                  }}
+                                  className="px-2.5 py-1.5 bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-300 border border-emerald-500/40 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 hover:scale-105"
+                                  title="Ingresar a la app con la sesión activa de este médico para prescribir o entrar a su Estudio de Diseño"
+                                >
+                                  <Zap className="w-3.5 h-3.5 text-emerald-400" />
+                                  <span>Entrar como Médico</span>
+                                </button>
+                              )}
 
                               {/* WhatsApp Copy Credentials */}
                               <button
@@ -845,6 +865,14 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
           onSaveNewDoctor={(newDoc) => {
             if (onAddNewDoctor) onAddNewDoctor(newDoc);
             else if (onUpdateDoctor) onUpdateDoctor(newDoc);
+          }}
+          onEditDoctorDesign={(doc) => {
+            setIsCreateDoctorOpen(false);
+            setEditingRecipeDoctor(doc);
+          }}
+          onLoginAsDoctor={(doc) => {
+            setIsCreateDoctorOpen(false);
+            if (onLoginAsDoctor) onLoginAsDoctor(doc);
           }}
         />
       )}
