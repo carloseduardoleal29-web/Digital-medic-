@@ -306,9 +306,9 @@ export default function App() {
     const isMaster = doctor.isAdmin || doctor.id === 'doc-admin-master' || (doctor.email && doctor.email.toLowerCase().includes('carloseduardoleal29'));
     const finalDoc = isMaster ? {
       ...doctor,
-      specialty: doctor.specialty || 'Médico Cirujano',
-      profileName: 'Dr. Carlos E. Leal S.',
-      doctorName: 'Dr. Carlos E. Leal S.',
+      specialty: doctor.specialty || 'Especialista en Anestesiología y Reanimación',
+      profileName: doctor.profileName || doctor.doctorName || 'Dr. Carlos E. Leal S.',
+      doctorName: doctor.doctorName || 'Dr. Carlos E. Leal S.',
       isAdmin: true,
       isPaidClient: true,
       isVip: true,
@@ -339,24 +339,32 @@ export default function App() {
     const existingDoc = colleagueProfiles.find((p) => p.id === finalDoc.id || (p.email && finalDoc.email && p.email.toLowerCase() === finalDoc.email.toLowerCase()));
     const cloudDoc = initialEcosystem?.doctorConfig;
 
+    const pickStr = (pref?: string, alt1?: string, alt2?: string, fallback: string = '') => {
+      if (pref !== undefined) return pref;
+      if (alt1 !== undefined) return alt1;
+      if (alt2 !== undefined) return alt2;
+      return fallback;
+    };
+
     const mergedDoc: DoctorConfig = {
       ...DEFAULT_DOCTOR_CONFIG,
       ...(existingDoc || {}),
       ...(cloudDoc || {}),
       ...finalDoc,
-      specialty: finalDoc.specialty || cloudDoc?.specialty || existingDoc?.specialty || 'Médico Cirujano',
-      mpps: finalDoc.mpps || cloudDoc?.mpps || existingDoc?.mpps || '',
-      ci: finalDoc.ci || cloudDoc?.ci || existingDoc?.ci || '',
-      collegeNumber: finalDoc.collegeNumber || cloudDoc?.collegeNumber || existingDoc?.collegeNumber || '',
-      phone: finalDoc.phone || cloudDoc?.phone || existingDoc?.phone || '',
-      firmaImg: finalDoc.firmaImg || cloudDoc?.firmaImg || existingDoc?.firmaImg || '',
-      selloImg: finalDoc.selloImg || cloudDoc?.selloImg || existingDoc?.selloImg || '',
-      selloFirma: finalDoc.selloFirma || cloudDoc?.selloFirma || existingDoc?.selloFirma || '',
-      logoIzq: finalDoc.logoIzq || cloudDoc?.logoIzq || existingDoc?.logoIzq || '',
-      logoDer: finalDoc.logoDer || cloudDoc?.logoDer || existingDoc?.logoDer || '',
-      marcaAgua: finalDoc.marcaAgua || cloudDoc?.marcaAgua || existingDoc?.marcaAgua,
-      institution: finalDoc.institution || cloudDoc?.institution || existingDoc?.institution || '',
-      institutionDetails: finalDoc.institutionDetails || cloudDoc?.institutionDetails || existingDoc?.institutionDetails || '',
+      doctorName: pickStr(finalDoc.doctorName, cloudDoc?.doctorName, existingDoc?.doctorName, ''),
+      specialty: pickStr(finalDoc.specialty, cloudDoc?.specialty, existingDoc?.specialty, ''),
+      mpps: pickStr(finalDoc.mpps, cloudDoc?.mpps, existingDoc?.mpps, ''),
+      ci: pickStr(finalDoc.ci, cloudDoc?.ci, existingDoc?.ci, ''),
+      collegeNumber: pickStr(finalDoc.collegeNumber, cloudDoc?.collegeNumber, existingDoc?.collegeNumber, ''),
+      phone: pickStr(finalDoc.phone, cloudDoc?.phone, existingDoc?.phone, ''),
+      email: pickStr(finalDoc.email, cloudDoc?.email, existingDoc?.email, ''),
+      institution: pickStr(finalDoc.institution, cloudDoc?.institution, existingDoc?.institution, ''),
+      institutionDetails: pickStr(finalDoc.institutionDetails, cloudDoc?.institutionDetails, existingDoc?.institutionDetails, ''),
+      firmaImg: pickStr(finalDoc.firmaImg, cloudDoc?.firmaImg, existingDoc?.firmaImg, ''),
+      selloImg: pickStr(finalDoc.selloImg, cloudDoc?.selloImg, existingDoc?.selloImg, ''),
+      selloFirma: pickStr(finalDoc.selloFirma, cloudDoc?.selloFirma, existingDoc?.selloFirma, ''),
+      logoIzq: pickStr(finalDoc.logoIzq, cloudDoc?.logoIzq, existingDoc?.logoIzq, ''),
+      logoDer: pickStr(finalDoc.logoDer, cloudDoc?.logoDer, existingDoc?.logoDer, ''),
       headerStyle: cloudDoc?.headerStyle || existingDoc?.headerStyle || finalDoc.headerStyle || 'clasico',
       headerLayout: cloudDoc?.headerLayout || existingDoc?.headerLayout || finalDoc.headerLayout || 'ambos-logos',
       primaryDocColor: cloudDoc?.primaryDocColor || existingDoc?.primaryDocColor || finalDoc.primaryDocColor || '#2563eb',
@@ -745,6 +753,26 @@ export default function App() {
     if (ident === 'doc-admin-master' || ident === 'admin@digitalmedic.com' || ident === 'admin') {
       ident = 'carloseduardoleal29@gmail.com';
     }
+
+    // CRITICAL PROTECTION: If user has actively edited state on this device, push local state UP to cloud instead of wiping local edits!
+    if (hasUserEditedStateRef.current) {
+      await saveEcosystemToCloud({
+        identifier: ident,
+        email: config.email,
+        ci: config.ci,
+        doctorConfig: config,
+        colleagueProfiles,
+        patientBank,
+        recipes,
+        report: currentReport,
+        indications,
+        rest: restCert,
+        records,
+      });
+      await saveSingleDoctorToCloud(config);
+      return true;
+    }
+
     isSyncingFromCloudRef.current = true; // Set IMMEDIATELY to prevent concurrent auto-saves during fetch
     try {
       const cloudEco = await fetchEcosystemFromCloud(ident);
@@ -795,31 +823,33 @@ export default function App() {
           return p;
         });
 
-        setColleagueProfiles(sanitized);
+        if (!hasUserEditedStateRef.current) {
+          setColleagueProfiles(sanitized);
 
-        if (cloudEco.recipes && Array.isArray(cloudEco.recipes) && cloudEco.recipes.length > 0) {
-          setRecipes(cloudEco.recipes);
-        }
+          if (cloudEco.recipes && Array.isArray(cloudEco.recipes) && cloudEco.recipes.length > 0) {
+            setRecipes(cloudEco.recipes);
+          }
 
-        if (cloudEco.patientBank && Array.isArray(cloudEco.patientBank) && cloudEco.patientBank.length > 0) {
-          setPatientBank(cloudEco.patientBank);
-          localStorage.setItem('digital_medic_patient_bank_v1', JSON.stringify(cloudEco.patientBank));
-        }
+          if (cloudEco.patientBank && Array.isArray(cloudEco.patientBank) && cloudEco.patientBank.length > 0) {
+            setPatientBank(cloudEco.patientBank);
+            localStorage.setItem('digital_medic_patient_bank_v1', JSON.stringify(cloudEco.patientBank));
+          }
 
-        if (cloudEco.report) {
-          setCurrentReport(cloudEco.report);
-        }
-        if (cloudEco.indications) {
-          setIndications(cloudEco.indications);
-        }
-        if (cloudEco.rest) {
-          setRestCert(cloudEco.rest);
-        }
-        if (cloudEco.records && Array.isArray(cloudEco.records) && cloudEco.records.length > 0) {
-          setRecords(cloudEco.records);
-        }
+          if (cloudEco.report) {
+            setCurrentReport(cloudEco.report);
+          }
+          if (cloudEco.indications) {
+            setIndications(cloudEco.indications);
+          }
+          if (cloudEco.rest) {
+            setRestCert(cloudEco.rest);
+          }
+          if (cloudEco.records && Array.isArray(cloudEco.records) && cloudEco.records.length > 0) {
+            setRecords(cloudEco.records);
+          }
 
-        applyEcosystemToLocalStorage(cloudEco);
+          applyEcosystemToLocalStorage(cloudEco);
+        }
 
         loadedEcosystemUserRef.current = ident; // Mark as successfully loaded!
         setTimeout(() => {
@@ -1359,10 +1389,14 @@ export default function App() {
   // Save recipe with automatic real-time synchronization to Indications Sheet
   const handleUpdateRecipe = (index: number, updated: Partial<RecipeItem>) => {
     hasUserEditedStateRef.current = true;
+    let nextRecipes: RecipeItem[] = [];
     setRecipes((prev) => {
-      const next = [...prev];
-      next[index] = { ...next[index], ...updated };
-      return next;
+      nextRecipes = [...prev];
+      nextRecipes[index] = { ...nextRecipes[index], ...updated };
+      try {
+        localStorage.setItem('digital_medic_recipes_v2', JSON.stringify(nextRecipes));
+      } catch (e) {}
+      return nextRecipes;
     });
 
     // Auto-sync patient details to indications if patient details changed
@@ -2947,125 +2981,132 @@ export default function App() {
             : 'bg-slate-100'
         }`}>
 
-          {/* Submodule Return Bar / Breadcrumb Navigation (Visible in all submodules) */}
+          {/* Submodule Return Bar / Breadcrumb & Module Navigation (Visible in all submodules) */}
           {activeModule !== 'inicio' && !isPreviewMode && (
-            <div className="w-full max-w-[880px] mb-3.5 bg-white border border-blue-200/90 rounded-2xl p-2.5 sm:p-3 shadow-md flex flex-wrap items-center justify-between gap-2.5 text-xs no-print animate-in fade-in slide-in-from-top-2 duration-150">
+            <div className="w-full max-w-[880px] mb-3 bg-white border border-slate-200/90 rounded-2xl p-2.5 shadow-sm space-y-2 no-print animate-in fade-in slide-in-from-top-2 duration-150">
               
-              {/* Return to Main Page Button & Breadcrumb */}
-              <div className="flex items-center gap-2.5 flex-wrap">
-                <button
-                  onClick={() => handleNavigate('inicio')}
-                  className="px-3.5 py-1.5 sm:px-4 sm:py-2 bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-800 hover:from-blue-800 hover:to-indigo-800 text-white font-black text-xs sm:text-sm rounded-xl shadow-md hover:shadow-lg flex items-center gap-2 transition-all transform hover:scale-[1.02] active:scale-95 border border-blue-400/40 cursor-pointer"
-                  title="Regresar a la pantalla principal de módulos"
-                >
-                  <ArrowLeft className="w-4 h-4 text-cyan-300" />
-                  <span>Volver al Inicio</span>
-                </button>
-
-                <div className="flex items-center gap-1.5 text-slate-500 font-bold text-xs">
-                  <button 
-                    onClick={() => handleNavigate('inicio')}
-                    className="hover:text-blue-600 transition-colors flex items-center gap-1 text-slate-600 cursor-pointer"
-                  >
-                    <Home className="w-3.5 h-3.5 text-blue-500" />
-                    <span>Inicio</span>
-                  </button>
-                  <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-                  <span className="text-slate-900 font-black flex items-center gap-1.5 bg-blue-50 text-blue-700 px-2.5 py-0.5 rounded-lg border border-blue-200/80">
-                    {activeModule === 'recipe-4en1' && '💊 Récipes Médicos'}
-                    {activeModule === 'recipe-master' && '📄 Récipe Individual'}
-                    {activeModule === 'informes' && '📋 Informe Médico'}
-                    {activeModule === 'reposo' && '⏱️ Constancia / Reposo'}
-                    {activeModule === 'historias' && '📁 Historia Clínica'}
-                    {activeModule === 'indicaciones' && '🕐 Indicaciones'}
-                    {activeModule === 'diseno' && '🎨 Estudio de Diseño'}
-                    {activeModule === 'suscripcion' && '💳 Suscripción'}
-                  </span>
-                </div>
-              </div>
-
-              {/* Fast Direct Module Switcher Buttons */}
-              <div className="flex flex-wrap items-center gap-1.5 max-w-full">
-                <button
-                  onClick={() => handleNavigate('recipe-4en1')}
-                  className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition-all cursor-pointer ${
-                    activeModule === 'recipe-4en1' || activeModule === 'recipe-master'
-                      ? 'bg-blue-600 text-white shadow-xs'
-                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                  }`}
-                  title="Ir a Récipes Médicos"
-                >
-                  💊 Récipes
-                </button>
-                <button
-                  onClick={() => handleNavigate('informes')}
-                  className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition-all cursor-pointer ${
-                    activeModule === 'informes'
-                      ? 'bg-teal-600 text-white shadow-xs'
-                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                  }`}
-                  title="Ir a Informe Médico"
-                >
-                  📋 Informes
-                </button>
-                <button
-                  onClick={() => handleNavigate('reposo')}
-                  className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition-all cursor-pointer ${
-                    activeModule === 'reposo'
-                      ? 'bg-amber-600 text-white shadow-xs'
-                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                  }`}
-                  title="Ir a Constancia / Reposo"
-                >
-                  ⏱️ Reposo
-                </button>
-                <button
-                  onClick={() => handleNavigate('historias')}
-                  className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition-all cursor-pointer ${
-                    activeModule === 'historias'
-                      ? 'bg-purple-600 text-white shadow-xs'
-                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                  }`}
-                  title="Ir a Historias Clínicas"
-                >
-                  📁 Historias
-                </button>
-                <button
-                  onClick={() => handleNavigate('indicaciones')}
-                  className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition-all cursor-pointer ${
-                    activeModule === 'indicaciones'
-                      ? 'bg-indigo-600 text-white shadow-xs'
-                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                  }`}
-                  title="Ir a Hoja de Indicaciones"
-                >
-                  🕐 Indicaciones
-                </button>
-                {isAuthorizedForDesigner && (
+              {/* Top Row: Navigation Breadcrumb & Clear Button */}
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-2">
                   <button
-                    onClick={() => handleNavigate('diseno')}
-                    className={`px-2.5 py-1 rounded-lg font-black text-[11px] transition-all cursor-pointer flex items-center gap-1 shrink-0 ${
-                      activeModule === 'diseno'
-                        ? 'bg-gradient-to-r from-amber-500 to-indigo-600 text-white shadow-xs ring-1 ring-amber-400'
-                        : 'bg-gradient-to-r from-amber-50 to-indigo-50 hover:from-amber-100 hover:to-indigo-100 text-indigo-950 border border-amber-300/80 shadow-2xs'
-                    }`}
-                    title="Estudio de Diseño PRO (Exclusivo Administrador y VIP)"
+                    onClick={() => handleNavigate('inicio')}
+                    className="px-3 py-1.5 bg-gradient-to-r from-blue-700 to-indigo-700 hover:from-blue-800 hover:to-indigo-800 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition-all transform hover:scale-[1.02] active:scale-95 cursor-pointer border border-blue-400/30 shrink-0"
+                    title="Regresar a la pantalla principal de módulos"
                   >
-                    <Palette className="w-3.5 h-3.5 text-amber-600" />
-                    <span>🎨 Estudio de Diseño {config.isAdmin ? '(ADMIN)' : '(VIP)'}</span>
+                    <ArrowLeft className="w-3.5 h-3.5 text-cyan-300" />
+                    <span>Volver al Inicio</span>
                   </button>
-                )}
 
-                {/* Botón Rojo: Dejar en Blanco el Formato Activo */}
+                  <div className="hidden sm:flex items-center gap-1 text-slate-500 font-bold text-xs">
+                    <button 
+                      onClick={() => handleNavigate('inicio')}
+                      className="hover:text-blue-600 transition-colors flex items-center gap-1 text-slate-600 cursor-pointer"
+                    >
+                      <Home className="w-3.5 h-3.5 text-blue-500" />
+                      <span>Inicio</span>
+                    </button>
+                    <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                    <span className="text-slate-900 font-extrabold flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-0.5 rounded-lg border border-blue-200/80">
+                      {activeModule === 'recipe-4en1' && '💊 Récipes Médicos'}
+                      {activeModule === 'recipe-master' && '📄 Récipe Individual'}
+                      {activeModule === 'informes' && '📋 Informe Médico'}
+                      {activeModule === 'reposo' && '⏱️ Constancia / Reposo'}
+                      {activeModule === 'historias' && '📁 Historia Clínica'}
+                      {activeModule === 'indicaciones' && '🕐 Indicaciones'}
+                      {activeModule === 'diseno' && '🎨 Estudio de Diseño'}
+                      {activeModule === 'suscripcion' && '💳 Suscripción'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Right: Dejar en Blanco */}
                 {activeModule !== 'diseno' && activeModule !== 'suscripcion' && (
                   <button
                     type="button"
                     onClick={handleClearActiveModuleToBlank}
-                    className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg text-[11px] flex items-center gap-1.5 shadow-sm transition-all hover:scale-105 active:scale-95 cursor-pointer border border-rose-500 shrink-0 ml-1"
-                    title="Dejar en blanco este formato para un nuevo paciente (limpia nombre, cédula y campos grabados)"
+                    className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-xs transition-all hover:scale-105 active:scale-95 cursor-pointer border border-rose-500 shrink-0"
+                    title="Dejar en blanco este formato para un nuevo paciente"
                   >
                     <Trash2 className="w-3.5 h-3.5 text-white" />
                     <span>Dejar en Blanco</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Bottom Row: Proportional, Legible & Touch-Friendly Direct Module Tabs */}
+              <div className="flex items-center gap-1.5 overflow-x-auto max-w-full py-1 px-1 bg-slate-100/90 rounded-xl border border-slate-200/80 scrollbar-none">
+                <button
+                  onClick={() => handleNavigate('recipe-4en1')}
+                  className={`px-3 py-1.5 rounded-lg font-black text-xs transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
+                    activeModule === 'recipe-4en1' || activeModule === 'recipe-master'
+                      ? 'bg-blue-600 text-white shadow-xs ring-1 ring-blue-300'
+                      : 'bg-white hover:bg-blue-50 text-slate-800 border border-slate-200/90'
+                  }`}
+                  title="Ir a Récipes Médicos"
+                >
+                  <span>💊 Récipes</span>
+                </button>
+
+                <button
+                  onClick={() => handleNavigate('indicaciones')}
+                  className={`px-3 py-1.5 rounded-lg font-black text-xs transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
+                    activeModule === 'indicaciones'
+                      ? 'bg-indigo-600 text-white shadow-xs ring-1 ring-indigo-300'
+                      : 'bg-white hover:bg-indigo-50 text-slate-800 border border-slate-200/90'
+                  }`}
+                  title="Ir a Hoja de Indicaciones"
+                >
+                  <span>🕐 Indicaciones</span>
+                </button>
+
+                <button
+                  onClick={() => handleNavigate('informes')}
+                  className={`px-3 py-1.5 rounded-lg font-black text-xs transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
+                    activeModule === 'informes'
+                      ? 'bg-teal-600 text-white shadow-xs ring-1 ring-teal-300'
+                      : 'bg-white hover:bg-teal-50 text-slate-800 border border-slate-200/90'
+                  }`}
+                  title="Ir a Informe Médico"
+                >
+                  <span>📋 Informe Médico</span>
+                </button>
+
+                <button
+                  onClick={() => handleNavigate('reposo')}
+                  className={`px-3 py-1.5 rounded-lg font-black text-xs transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
+                    activeModule === 'reposo'
+                      ? 'bg-amber-600 text-white shadow-xs ring-1 ring-amber-300'
+                      : 'bg-white hover:bg-amber-50 text-slate-800 border border-slate-200/90'
+                  }`}
+                  title="Ir a Constancia / Reposo Médico"
+                >
+                  <span>⏱️ Constancias / Reposo</span>
+                </button>
+
+                <button
+                  onClick={() => handleNavigate('historias')}
+                  className={`px-3 py-1.5 rounded-lg font-black text-xs transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
+                    activeModule === 'historias'
+                      ? 'bg-purple-600 text-white shadow-xs ring-1 ring-purple-300'
+                      : 'bg-white hover:bg-purple-50 text-slate-800 border border-slate-200/90'
+                  }`}
+                  title="Ir a Historias Clínicas"
+                >
+                  <span>📁 Historias</span>
+                </button>
+
+                {isAuthorizedForDesigner && (
+                  <button
+                    onClick={() => handleNavigate('diseno')}
+                    className={`px-3 py-1.5 rounded-lg font-black text-xs transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
+                      activeModule === 'diseno'
+                        ? 'bg-gradient-to-r from-amber-500 to-indigo-600 text-white shadow-xs ring-1 ring-amber-300'
+                        : 'bg-gradient-to-r from-amber-50 to-indigo-50 hover:from-amber-100 hover:to-indigo-100 text-indigo-950 border border-amber-300/80'
+                    }`}
+                    title="Estudio de Diseño PRO (Exclusivo Administrador y VIP)"
+                  >
+                    <Palette className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Estudio de Diseño {config.isAdmin ? '(ADMIN)' : '(VIP)'}</span>
                   </button>
                 )}
               </div>

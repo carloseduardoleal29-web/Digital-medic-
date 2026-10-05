@@ -28,11 +28,16 @@ export function sanitizeToAsciiFilename(filename: string, defaultName: string = 
  * todos los inputs, textareas y selects mantengan sus valores editados.
  */
 function prepareClonedElement(clonedElement: HTMLElement) {
-  // Ajustar transformaciones y sombras para que no alteren las proporciones del canvas
+  // Reset offsets and positioning for html2canvas iframe
   clonedElement.style.transform = 'none';
   clonedElement.style.zoom = '1';
   clonedElement.style.margin = '0 auto';
   clonedElement.style.boxShadow = 'none';
+  clonedElement.style.position = 'relative';
+  clonedElement.style.top = '0px';
+  clonedElement.style.left = '0px';
+  clonedElement.style.opacity = '1';
+  clonedElement.style.visibility = 'visible';
 
   // Ocultar botones o elementos de interfaz marcados como no-print
   clonedElement.querySelectorAll('.no-print').forEach((el: any) => {
@@ -52,6 +57,21 @@ function prepareClonedElement(clonedElement: HTMLElement) {
     }
     ta.style.overflow = 'hidden';
     ta.style.resize = 'none';
+  });
+
+  // Convert raw SVG data URLs into base64 data URLs to prevent html2canvas blank taint errors
+  clonedElement.querySelectorAll('img').forEach((img: HTMLImageElement) => {
+    img.style.maxHeight = 'none';
+    img.style.visibility = 'visible';
+    img.style.opacity = '1';
+
+    if (img.src && img.src.startsWith('data:image/svg+xml;utf8,')) {
+      try {
+        const svgContent = img.src.replace('data:image/svg+xml;utf8,', '');
+        const base64Svg = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgContent)));
+        img.src = base64Svg;
+      } catch (e) {}
+    }
   });
 
   // Estandarizar documentos de hoja carta a 816 x 1056 px (8.5 x 11 pulgadas exactas a 96 DPI)
@@ -93,10 +113,14 @@ export async function generatePDFBlob(
     const canvas = await html2canvas(element, {
       scale: 2, // 2x para nitidez cristalina en impresión
       useCORS: true,
-      allowTaint: true,
+      allowTaint: false,
+      scrollX: 0,
+      scrollY: 0,
+      windowWidth: element.scrollWidth || 1024,
+      windowHeight: element.scrollHeight || 1400,
       backgroundColor: '#ffffff',
       logging: false,
-      imageTimeout: 0,
+      imageTimeout: 15000,
       onclone: (_clonedDoc, clonedElement) => {
         prepareClonedElement(clonedElement);
       },
@@ -169,10 +193,14 @@ export async function exportElementAsPDF(
     const canvas = await html2canvas(target, {
       scale: 2,
       useCORS: true,
-      allowTaint: true,
+      allowTaint: false,
+      scrollX: 0,
+      scrollY: 0,
+      windowWidth: target.scrollWidth || 1024,
+      windowHeight: target.scrollHeight || 1400,
       backgroundColor: '#ffffff',
       logging: false,
-      imageTimeout: 0,
+      imageTimeout: 15000,
       onclone: (_clonedDoc, clonedElement) => {
         prepareClonedElement(clonedElement);
       },

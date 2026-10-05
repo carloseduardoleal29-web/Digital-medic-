@@ -3,6 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#1e3a8a" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="DigitalMedic" />
     <meta name="description" content="Plataforma médica digitalizada para edición en tiempo real de récipes, informes médicos, historias clínicas e indicaciones." />
     <meta property="og:title" content="Digital Médic - Formatos Médicos Digitales" />
     <meta property="og:description" content="Plataforma médica digitalizada para edición en tiempo real de récipes, informes médicos, historias clínicas e indicaciones." />
@@ -10,23 +15,6 @@
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>Digital Médic - Formatos Médicos Digitales</title>
-    <script>
-      // Clear old PWA service worker caches to guarantee immediate sync across phone & PC
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(function(registrations) {
-          for (var registration of registrations) {
-            registration.unregister();
-          }
-        });
-      }
-      if ('caches' in window) {
-        caches.keys().then(function(names) {
-          for (var name of names) {
-            caches.delete(name);
-          }
-        });
-      }
-    </script>
   </head>
   <body>
     <div id="root"></div>

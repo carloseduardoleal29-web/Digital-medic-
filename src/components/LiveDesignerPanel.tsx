@@ -30,9 +30,25 @@ import {
   MEDICAL_SHIELD_SVG, 
   HOSPITAL_EMBLEM_SVG, 
   STETHOSCOPE_HEART_SVG,
+  MEDICINE_EMBLEM_ESCULAPIO_SVG,
+  OBSTETRICS_PREGNANCY_SVG,
+  ANESTHESIOLOGY_LARYNGOSCOPE_SVG,
+  PEDIATRICS_BABY_FOOTPRINT_SVG,
+  SURGERY_SCALPEL_SVG,
+  NEUROLOGY_BRAIN_SVG,
+  TRAUMATOLOGY_BONE_SPINE_SVG,
+  PULMONOLOGY_LUNGS_SVG,
+  OPHTHALMOLOGY_EYE_SVG,
+  DERMATOLOGY_SKIN_SVG,
+  PSYCHOLOGY_PSI_SVG,
+  DENTAL_EMBLEM_SVG,
+  CARDIOLOGY_PULSE_SVG,
+  SWISS_CROSS_SVG,
+  RX_PRESCRIPTION_SVG,
   createDoctorStampSVG,
   DoctorStampStyle
 } from '../data/defaultAssets';
+import { BasicLogoSelectorModal } from './BasicLogoSelectorModal';
 import { removeDarkBackgroundAndEnhanceInk } from '../utils/imageCleanup';
 
 interface LiveDesignerPanelProps {
@@ -76,6 +92,7 @@ export const LiveDesignerPanel: React.FC<LiveDesignerPanelProps> = ({
 
   const [activeSection, setActiveSection] = useState<'colores' | 'letras' | 'recipes' | 'logos' | 'marcaAgua' | 'firma' | 'perfil'>('colores');
   const [saveToast, setSaveToast] = useState(false);
+  const [logoModalSide, setLogoModalSide] = useState<'logoIzq' | 'logoDer' | null>(null);
 
   const handleFileUpload = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -633,12 +650,12 @@ export const LiveDesignerPanel: React.FC<LiveDesignerPanelProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-slate-50 border border-slate-300 rounded-xl">
               <div>
                 <label className="block text-black font-bold mb-1">
-                  Tamaño de Logos: <span className="text-blue-900 font-mono font-black">{config.logoSize}px</span>
+                  Tamaño de Logos (32px - 140px): <span className="text-blue-900 font-mono font-black">{config.logoSize}px</span>
                 </label>
                 <input
                   type="range"
                   min="32"
-                  max="90"
+                  max="140"
                   value={config.logoSize}
                   onChange={(e) => onUpdateConfig({ logoSize: parseInt(e.target.value) })}
                   className="w-full accent-blue-600 cursor-pointer"
@@ -677,10 +694,10 @@ export const LiveDesignerPanel: React.FC<LiveDesignerPanelProps> = ({
                   <img 
                     src={config.logoIzq} 
                     alt="Logo Izq" 
-                    className="w-12 h-12 object-contain rounded-lg border border-slate-300 p-0.5 bg-slate-50 shrink-0" 
+                    className="w-14 h-14 object-contain rounded-lg border border-slate-300 p-0.5 bg-slate-50 shrink-0" 
                   />
                 ) : (
-                  <div className="w-12 h-12 bg-slate-100 rounded-lg border border-dashed border-slate-300 flex items-center justify-center text-[10px] text-black font-bold shrink-0">
+                  <div className="w-14 h-14 bg-slate-100 rounded-lg border border-dashed border-slate-300 flex items-center justify-center text-[10px] text-black font-bold shrink-0">
                     Sin logo
                   </div>
                 )}
@@ -693,39 +710,39 @@ export const LiveDesignerPanel: React.FC<LiveDesignerPanelProps> = ({
                     onChange={(e) => handleFileUpload(e, 'logoIzq')}
                     className="hidden"
                   />
-                  <button
-                    onClick={() => leftLogoInputRef.current?.click()}
-                    className="w-full py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-950 border border-blue-300 rounded-lg flex items-center justify-center gap-1.5 font-black transition-colors cursor-pointer"
-                  >
-                    <Upload className="w-3.5 h-3.5" /> Subir Logo Personalizado
-                  </button>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                    <button
+                      onClick={() => leftLogoInputRef.current?.click()}
+                      className="py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-950 border border-blue-300 rounded-lg flex items-center justify-center gap-1 font-black text-xs transition-colors cursor-pointer"
+                    >
+                      <Upload className="w-3.5 h-3.5" /> Subir Logo Personal
+                    </button>
+
+                    <button
+                      onClick={() => setLogoModalSide('logoIzq')}
+                      className="py-1.5 bg-gradient-to-r from-amber-500 to-indigo-600 hover:from-amber-600 hover:to-indigo-700 text-white rounded-lg flex items-center justify-center gap-1 font-black text-xs shadow-xs transition-colors cursor-pointer"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-amber-200" /> Galería por Especialidad
+                    </button>
+                  </div>
 
                   <div className="flex flex-wrap gap-1 text-[10px]">
-                    <span className="text-black font-bold self-center">Presets:</span>
-                    <button
-                      onClick={() => onUpdateConfig({ logoIzq: CADUCEUS_SVG })}
-                      className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 rounded text-black font-bold border border-slate-300"
-                    >
-                      Caduceo
-                    </button>
-                    <button
-                      onClick={() => onUpdateConfig({ logoIzq: MEDICAL_SHIELD_SVG })}
-                      className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 rounded text-black font-bold border border-slate-300"
-                    >
-                      Cruz
-                    </button>
-                    <button
-                      onClick={() => onUpdateConfig({ logoIzq: HOSPITAL_EMBLEM_SVG })}
-                      className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 rounded text-black font-bold border border-slate-300"
-                    >
-                      Clínica
-                    </button>
-                    <button
-                      onClick={() => onUpdateConfig({ logoIzq: STETHOSCOPE_HEART_SVG })}
-                      className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 rounded text-black font-bold border border-slate-300"
-                    >
-                      Corazón
-                    </button>
+                    <span className="text-black font-bold self-center">Especialidades:</span>
+                    <button onClick={() => onUpdateConfig({ logoIzq: CADUCEUS_SVG })} className="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 rounded text-black font-bold border border-slate-300">Caduceo</button>
+                    <button onClick={() => onUpdateConfig({ logoIzq: MEDICINE_EMBLEM_ESCULAPIO_SVG })} className="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 rounded text-black font-bold border border-slate-300">Esculapio</button>
+                    <button onClick={() => onUpdateConfig({ logoIzq: ANESTHESIOLOGY_LARYNGOSCOPE_SVG })} className="px-1.5 py-0.5 bg-sky-100 hover:bg-sky-200 text-sky-900 rounded font-bold border border-sky-300">Anestesia</button>
+                    <button onClick={() => onUpdateConfig({ logoIzq: OBSTETRICS_PREGNANCY_SVG })} className="px-1.5 py-0.5 bg-pink-100 hover:bg-pink-200 text-pink-900 rounded font-bold border border-pink-300">Obstetricia</button>
+                    <button onClick={() => onUpdateConfig({ logoIzq: PEDIATRICS_BABY_FOOTPRINT_SVG })} className="px-1.5 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded font-bold border border-amber-300">Pediatría</button>
+                    <button onClick={() => onUpdateConfig({ logoIzq: SURGERY_SCALPEL_SVG })} className="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 rounded text-black font-bold border border-slate-300">Cirugía</button>
+                    <button onClick={() => onUpdateConfig({ logoIzq: CARDIOLOGY_PULSE_SVG })} className="px-1.5 py-0.5 bg-rose-100 hover:bg-rose-200 text-rose-900 rounded font-bold border border-rose-300">Cardio</button>
+                    <button onClick={() => onUpdateConfig({ logoIzq: TRAUMATOLOGY_BONE_SPINE_SVG })} className="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 rounded text-black font-bold border border-slate-300">Traumato</button>
+                    <button onClick={() => onUpdateConfig({ logoIzq: PULMONOLOGY_LUNGS_SVG })} className="px-1.5 py-0.5 bg-blue-100 hover:bg-blue-200 text-blue-900 rounded font-bold border border-blue-300">Neumo</button>
+                    <button onClick={() => onUpdateConfig({ logoIzq: NEUROLOGY_BRAIN_SVG })} className="px-1.5 py-0.5 bg-purple-100 hover:bg-purple-200 text-purple-900 rounded font-bold border border-purple-300">Neuro</button>
+                    <button onClick={() => onUpdateConfig({ logoIzq: DENTAL_EMBLEM_SVG })} className="px-1.5 py-0.5 bg-teal-100 hover:bg-teal-200 text-teal-900 rounded font-bold border border-teal-300">Odonto</button>
+                    <button onClick={() => onUpdateConfig({ logoIzq: OPHTHALMOLOGY_EYE_SVG })} className="px-1.5 py-0.5 bg-indigo-100 hover:bg-indigo-200 text-indigo-900 rounded font-bold border border-indigo-300">Oftalmo</button>
+                    <button onClick={() => onUpdateConfig({ logoIzq: DERMATOLOGY_SKIN_SVG })} className="px-1.5 py-0.5 bg-orange-100 hover:bg-orange-200 text-orange-900 rounded font-bold border border-orange-300">Dermato</button>
+                    <button onClick={() => onUpdateConfig({ logoIzq: PSYCHOLOGY_PSI_SVG })} className="px-1.5 py-0.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-900 rounded font-bold border border-emerald-300">Psico</button>
+                    <button onClick={() => onUpdateConfig({ logoIzq: MEDICAL_SHIELD_SVG })} className="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 rounded text-black font-bold border border-slate-300">Cruz</button>
                   </div>
                 </div>
               </div>
@@ -750,10 +767,10 @@ export const LiveDesignerPanel: React.FC<LiveDesignerPanelProps> = ({
                   <img 
                     src={config.logoDer} 
                     alt="Logo Der" 
-                    className="w-12 h-12 object-contain rounded-lg border border-slate-300 p-0.5 bg-slate-50 shrink-0" 
+                    className="w-14 h-14 object-contain rounded-lg border border-slate-300 p-0.5 bg-slate-50 shrink-0" 
                   />
                 ) : (
-                  <div className="w-12 h-12 bg-slate-100 rounded-lg border border-dashed border-slate-300 flex items-center justify-center text-[10px] text-black font-bold shrink-0">
+                  <div className="w-14 h-14 bg-slate-100 rounded-lg border border-dashed border-slate-300 flex items-center justify-center text-[10px] text-black font-bold shrink-0">
                     Sin logo
                   </div>
                 )}
@@ -766,39 +783,39 @@ export const LiveDesignerPanel: React.FC<LiveDesignerPanelProps> = ({
                     onChange={(e) => handleFileUpload(e, 'logoDer')}
                     className="hidden"
                   />
-                  <button
-                    onClick={() => rightLogoInputRef.current?.click()}
-                    className="w-full py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-950 border border-blue-300 rounded-lg flex items-center justify-center gap-1.5 font-black transition-colors cursor-pointer"
-                  >
-                    <Upload className="w-3.5 h-3.5" /> Subir Logo Personalizado
-                  </button>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                    <button
+                      onClick={() => rightLogoInputRef.current?.click()}
+                      className="py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-950 border border-blue-300 rounded-lg flex items-center justify-center gap-1 font-black text-xs transition-colors cursor-pointer"
+                    >
+                      <Upload className="w-3.5 h-3.5" /> Subir Logo Personal
+                    </button>
+
+                    <button
+                      onClick={() => setLogoModalSide('logoDer')}
+                      className="py-1.5 bg-gradient-to-r from-amber-500 to-indigo-600 hover:from-amber-600 hover:to-indigo-700 text-white rounded-lg flex items-center justify-center gap-1 font-black text-xs shadow-xs transition-colors cursor-pointer"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-amber-200" /> Galería por Especialidad
+                    </button>
+                  </div>
 
                   <div className="flex flex-wrap gap-1 text-[10px]">
-                    <span className="text-black font-bold self-center">Presets:</span>
-                    <button
-                      onClick={() => onUpdateConfig({ logoDer: MEDICAL_SHIELD_SVG })}
-                      className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 rounded text-black font-bold border border-slate-300"
-                    >
-                      Cruz
-                    </button>
-                    <button
-                      onClick={() => onUpdateConfig({ logoDer: CADUCEUS_SVG })}
-                      className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 rounded text-black font-bold border border-slate-300"
-                    >
-                      Caduceo
-                    </button>
-                    <button
-                      onClick={() => onUpdateConfig({ logoDer: HOSPITAL_EMBLEM_SVG })}
-                      className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 rounded text-black font-bold border border-slate-300"
-                    >
-                      Clínica
-                    </button>
-                    <button
-                      onClick={() => onUpdateConfig({ logoDer: STETHOSCOPE_HEART_SVG })}
-                      className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 rounded text-black font-bold border border-slate-300"
-                    >
-                      Corazón
-                    </button>
+                    <span className="text-black font-bold self-center">Especialidades:</span>
+                    <button onClick={() => onUpdateConfig({ logoDer: MEDICAL_SHIELD_SVG })} className="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 rounded text-black font-bold border border-slate-300">Cruz</button>
+                    <button onClick={() => onUpdateConfig({ logoDer: CADUCEUS_SVG })} className="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 rounded text-black font-bold border border-slate-300">Caduceo</button>
+                    <button onClick={() => onUpdateConfig({ logoDer: MEDICINE_EMBLEM_ESCULAPIO_SVG })} className="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 rounded text-black font-bold border border-slate-300">Esculapio</button>
+                    <button onClick={() => onUpdateConfig({ logoDer: ANESTHESIOLOGY_LARYNGOSCOPE_SVG })} className="px-1.5 py-0.5 bg-sky-100 hover:bg-sky-200 text-sky-900 rounded font-bold border border-sky-300">Anestesia</button>
+                    <button onClick={() => onUpdateConfig({ logoDer: OBSTETRICS_PREGNANCY_SVG })} className="px-1.5 py-0.5 bg-pink-100 hover:bg-pink-200 text-pink-900 rounded font-bold border border-pink-300">Obstetricia</button>
+                    <button onClick={() => onUpdateConfig({ logoDer: PEDIATRICS_BABY_FOOTPRINT_SVG })} className="px-1.5 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded font-bold border border-amber-300">Pediatría</button>
+                    <button onClick={() => onUpdateConfig({ logoDer: SURGERY_SCALPEL_SVG })} className="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 rounded text-black font-bold border border-slate-300">Cirugía</button>
+                    <button onClick={() => onUpdateConfig({ logoDer: CARDIOLOGY_PULSE_SVG })} className="px-1.5 py-0.5 bg-rose-100 hover:bg-rose-200 text-rose-900 rounded font-bold border border-rose-300">Cardio</button>
+                    <button onClick={() => onUpdateConfig({ logoDer: TRAUMATOLOGY_BONE_SPINE_SVG })} className="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 rounded text-black font-bold border border-slate-300">Traumato</button>
+                    <button onClick={() => onUpdateConfig({ logoDer: PULMONOLOGY_LUNGS_SVG })} className="px-1.5 py-0.5 bg-blue-100 hover:bg-blue-200 text-blue-900 rounded font-bold border border-blue-300">Neumo</button>
+                    <button onClick={() => onUpdateConfig({ logoDer: NEUROLOGY_BRAIN_SVG })} className="px-1.5 py-0.5 bg-purple-100 hover:bg-purple-200 text-purple-900 rounded font-bold border border-purple-300">Neuro</button>
+                    <button onClick={() => onUpdateConfig({ logoDer: DENTAL_EMBLEM_SVG })} className="px-1.5 py-0.5 bg-teal-100 hover:bg-teal-200 text-teal-900 rounded font-bold border border-teal-300">Odonto</button>
+                    <button onClick={() => onUpdateConfig({ logoDer: OPHTHALMOLOGY_EYE_SVG })} className="px-1.5 py-0.5 bg-indigo-100 hover:bg-indigo-200 text-indigo-900 rounded font-bold border border-indigo-300">Oftalmo</button>
+                    <button onClick={() => onUpdateConfig({ logoDer: DERMATOLOGY_SKIN_SVG })} className="px-1.5 py-0.5 bg-orange-100 hover:bg-orange-200 text-orange-900 rounded font-bold border border-orange-300">Dermato</button>
+                    <button onClick={() => onUpdateConfig({ logoDer: PSYCHOLOGY_PSI_SVG })} className="px-1.5 py-0.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-900 rounded font-bold border border-emerald-300">Psico</button>
                   </div>
                 </div>
               </div>
@@ -2553,6 +2570,18 @@ export const LiveDesignerPanel: React.FC<LiveDesignerPanelProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Basic Logo Selector Modal */}
+      {logoModalSide && (
+        <BasicLogoSelectorModal
+          isOpen={!!logoModalSide}
+          onClose={() => setLogoModalSide(null)}
+          side={logoModalSide}
+          currentLogo={logoModalSide === 'logoIzq' ? config.logoIzq : config.logoDer}
+          onSelectLogo={(side, dataUrl) => onUpdateConfig({ [side]: dataUrl })}
+          onRemoveLogo={(side) => onUpdateConfig({ [side]: '' })}
+        />
+      )}
 
     </div>
   );

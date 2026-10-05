@@ -145,9 +145,10 @@ export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
               alt="Logo Izquierdo"
               className={`${logoClasses} transition-transform group-hover:scale-105`}
               style={{
-                width: compact ? Math.max(30, config.logoSize * 0.7) + 'px' : config.logoSize + 'px',
-                height: compact ? Math.max(30, config.logoSize * 0.7) + 'px' : config.logoSize + 'px',
-                maxHeight: compact ? '40px' : '52px',
+                width: compact ? Math.max(32, (config.logoSize || 52) * 0.75) + 'px' : (config.logoSize || 52) + 'px',
+                height: compact ? Math.max(32, (config.logoSize || 52) * 0.75) + 'px' : (config.logoSize || 52) + 'px',
+                maxHeight: compact ? Math.max(48, (config.logoSize || 52) * 0.85) + 'px' : Math.max(80, (config.logoSize || 52) * 1.3) + 'px',
+                maxWidth: compact ? '80px' : '160px',
                 objectFit: 'contain',
                 borderColor: logoBorderColor,
               }}
@@ -182,7 +183,7 @@ export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
           <div
             contentEditable={editableInline}
             suppressContentEditableWarning
-            onBlur={(e) => onUpdateField?.('institution', e.currentTarget.innerText)}
+            onBlur={(e) => onUpdateField?.('institution', e.currentTarget.innerText.trim())}
             className={`font-bold uppercase tracking-wider transition-colors outline-none cursor-text ${
               compact ? 'mb-0.5' : 'mb-0.5'
             } ${editableInline ? 'hover:bg-blue-50/70 hover:ring-1 hover:ring-blue-300 rounded px-1' : ''}`}
@@ -333,13 +334,13 @@ export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
               </span>
             </>
           )}
-          {config.collegeNumber && (
+          {config.collegeNumber && config.collegeNumber.trim() !== '' && (
             <>
               <span className="opacity-40">·</span>
               <span
                 contentEditable={editableInline}
                 suppressContentEditableWarning
-                onBlur={(e) => onUpdateField?.('collegeNumber', e.currentTarget.innerText)}
+                onBlur={(e) => onUpdateField?.('collegeNumber', e.currentTarget.innerText.trim())}
                 className={`outline-none font-medium ${
                   editableInline ? 'hover:bg-blue-50/70 rounded px-0.5' : ''
                 }`}
@@ -355,7 +356,7 @@ export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
           <div 
             contentEditable={editableInline}
             suppressContentEditableWarning
-            onBlur={(e) => onUpdateField?.('institutionDetails', e.currentTarget.innerText)}
+            onBlur={(e) => onUpdateField?.('institutionDetails', e.currentTarget.innerText.trim())}
             className={`mt-1 italic leading-tight outline-none cursor-text ${
               editableInline ? 'hover:bg-blue-50/70 hover:ring-1 hover:ring-blue-300 rounded px-1' : ''
             }`}
@@ -439,9 +440,10 @@ export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
               alt="Logo Derecho"
               className={`${logoClasses} transition-transform group-hover:scale-105`}
               style={{
-                width: compact ? Math.max(30, config.logoSize * 0.7) + 'px' : config.logoSize + 'px',
-                height: compact ? Math.max(30, config.logoSize * 0.7) + 'px' : config.logoSize + 'px',
-                maxHeight: compact ? '40px' : '52px',
+                width: compact ? Math.max(32, (config.logoSize || 52) * 0.75) + 'px' : (config.logoSize || 52) + 'px',
+                height: compact ? Math.max(32, (config.logoSize || 52) * 0.75) + 'px' : (config.logoSize || 52) + 'px',
+                maxHeight: compact ? Math.max(48, (config.logoSize || 52) * 0.85) + 'px' : Math.max(80, (config.logoSize || 52) * 1.3) + 'px',
+                maxWidth: compact ? '80px' : '160px',
                 objectFit: 'contain',
                 borderColor: logoBorderColor,
               }}

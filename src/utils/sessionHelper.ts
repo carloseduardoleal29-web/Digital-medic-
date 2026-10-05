@@ -38,28 +38,23 @@ export function isApkOrStandaloneEnvironment(): boolean {
  * Obtiene el ID de la sesión médica activa:
  * Lee de localStorage (o sessionStorage como respaldo) para mantener la sesión
  * activa entre reaperturas de la app o recargas del navegador.
- * Si es la primera apertura en una PC o teléfono, auto-conecta con la cuenta del Dr. Carlos E. Leal
- * para que el cintillo, sello y récipes estén siempre 100% sincronizados.
+ * Si no hay sesión previa, retorna null para exigir inicio de sesión obligatorio con correo y clave.
  */
 export function getStoredDoctorSessionId(): string | null {
-  if (typeof window === 'undefined') return DEFAULT_MASTER_SESSION_ID;
+  if (typeof window === 'undefined') return null;
 
   try {
     const localStored = localStorage.getItem(SESSION_STORAGE_KEY);
-    if (localStored && localStored !== 'guest') return localStored;
+    if (localStored && localStored !== 'guest' && localStored.trim() !== '') return localStored;
 
     const sessionStored = sessionStorage.getItem(SESSION_STORAGE_KEY);
-    if (sessionStored && sessionStored !== 'guest') {
+    if (sessionStored && sessionStored !== 'guest' && sessionStored.trim() !== '') {
       localStorage.setItem(SESSION_STORAGE_KEY, sessionStored);
       return sessionStored;
     }
   } catch (e) {}
 
-  // Auto-conectar con la sesión médica por defecto para que los módulos abran inmediatamente en cualquier dispositivo
-  try {
-    localStorage.setItem(SESSION_STORAGE_KEY, DEFAULT_MASTER_SESSION_ID);
-  } catch (e) {}
-  return DEFAULT_MASTER_SESSION_ID;
+  return null;
 }
 
 /**

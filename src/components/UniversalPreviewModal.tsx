@@ -171,15 +171,14 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
         </div>
 
         {/* Switch between Documents */}
-        <div className="flex items-center bg-slate-800/90 rounded-xl p-1 border border-slate-700/80 gap-1 overflow-x-auto max-w-full">
+        <div className="flex items-center bg-slate-800/90 rounded-2xl p-1.5 border border-slate-700/80 gap-1.5 overflow-x-auto max-w-full shadow-inner">
           {[
-            { id: 'recipe-master', label: 'Récipe', icon: FileCheck2 },
-            { id: 'recipe-4en1', label: 'Récipes', icon: Grid2X2 },
-            { id: 'informes', label: 'Informe (1 Hoja)', icon: FileText },
-            { id: 'reposo', label: 'Reposo / Constancia', icon: ShieldCheck },
-            { id: 'indicaciones', label: 'Indicaciones', icon: ClipboardList },
+            { id: 'recipe-master', label: '💊 Récipe', icon: FileCheck2 },
+            { id: 'recipe-4en1', label: '📦 Récipes 4en1', icon: Grid2X2 },
+            { id: 'indicaciones', label: '🕐 Indicaciones', icon: ClipboardList },
+            { id: 'informes', label: '📋 Informe Médico', icon: FileText },
+            { id: 'reposo', label: '⏱️ Reposo / Constancia', icon: ShieldCheck },
           ].map((item) => {
-            const Icon = item.icon;
             const isSelected = selectedPreviewModule === item.id;
             return (
               <button
@@ -188,13 +187,12 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
                   setSelectedPreviewModule(item.id as ActiveModule);
                   onSelectModule?.(item.id as ActiveModule);
                 }}
-                className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-black flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
                   isSelected
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : 'text-slate-300 hover:text-white hover:bg-slate-700/60'
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md ring-2 ring-blue-400 scale-105'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700/80'
                 }`}
               >
-                <Icon className="w-3.5 h-3.5" />
                 <span>{item.label}</span>
               </button>
             );
@@ -339,7 +337,7 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
 
                       <div className="relative z-10">
                         <DocumentHeader config={config} compact={true} editableInline={false} />
-                        <div className="grid grid-cols-2 gap-1 py-1 px-2 bg-slate-50/80 border border-slate-200/90 rounded-lg text-[10px] my-1.5">
+                        <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 py-0.5 px-1.5 bg-slate-50/90 border border-slate-200/80 rounded-md text-[9px] my-1 leading-tight">
                           <div className="truncate">
                             <span className="font-bold text-slate-700">Pac: </span>
                             <span className="font-semibold text-slate-900">{rec?.patientName || '—'}</span>
@@ -348,13 +346,13 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
                             <span className="font-bold text-slate-700">C.I: </span>
                             <span className="font-semibold text-slate-900">{rec?.patientCI || '—'}</span>
                           </div>
-                          <div className="truncate">
+                          <div className="truncate col-span-1">
                             <span className="font-bold text-slate-700">Dx: </span>
-                            <span className="text-slate-800">{rec?.diagnosis || '—'}</span>
+                            <span className="text-slate-800 font-medium">{rec?.diagnosis || '—'}</span>
                           </div>
                           <div className="text-right">
                             <span className="font-bold text-slate-700">Fecha: </span>
-                            <span>{rec?.date || '—'}</span>
+                            <span className="text-slate-800">{rec?.date || '—'}</span>
                           </div>
                         </div>
                       </div>
