@@ -152,16 +152,22 @@ export const AdminDoctorRecipeEditorModal: React.FC<AdminDoctorRecipeEditorModal
   };
 
   const handleSave = () => {
-    // If the plan is pro or full, set isPaidClient = true
-    const isPaid = formData.subscriptionPlan === 'diseno-pro' || formData.subscriptionPlan === 'clinica-full';
-    const planName = 
-      formData.subscriptionPlan === 'clinica-full' ? 'Versión Full Clínica' :
-      formData.subscriptionPlan === 'diseno-pro' ? 'Versión Pro Diseño' : 'Versión Básica';
+    // If the plan is pro or full or elite, set isPaidClient = true
+    const isElite = Boolean(formData.isElite || formData.paidPlanName?.toLowerCase().includes('élite') || formData.paidPlanName?.toLowerCase().includes('elite'));
+    const isPaid = isElite || formData.isPaidClient || formData.subscriptionPlan === 'diseno-pro' || formData.subscriptionPlan === 'clinica-full';
+    const planName = isElite
+      ? (formData.paidPlanName || 'Plan Élite Autorizado')
+      : formData.paidPlanName
+      ? formData.paidPlanName
+      : formData.subscriptionPlan === 'clinica-full' ? 'Versión Full Clínica' :
+        formData.subscriptionPlan === 'diseno-pro' ? 'Versión Pro Diseño' : 'Versión Básica';
 
     const finalizedDoctor: DoctorConfig = {
       ...formData,
       isPaidClient: isPaid,
       paidPlanName: planName,
+      isElite: isElite || formData.isElite,
+      isVip: isElite || formData.isVip,
       paymentStatus: formData.paymentStatus || (isPaid ? 'activo' : 'prueba')
     };
 

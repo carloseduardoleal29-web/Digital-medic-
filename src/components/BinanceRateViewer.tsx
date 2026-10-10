@@ -182,17 +182,7 @@ export const BinanceRateViewer: React.FC<BinanceRateViewerProps> = ({
             <span>Ver en Binance P2P Oficial ↗</span>
           </a>
 
-          {onOpenEditPaymentConfig && (
-            <button
-              type="button"
-              onClick={onOpenEditPaymentConfig}
-              className="px-3 py-1.5 rounded-xl bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-400/50 text-indigo-200 font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-colors"
-              title="Abrir ventana para editar mis datos de cobro"
-            >
-              <CreditCard className="w-3.5 h-3.5 text-indigo-300" />
-              <span>Editar Mis Cobros</span>
-            </button>
-          )}
+
         </div>
       </div>
 

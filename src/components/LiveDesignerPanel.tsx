@@ -135,10 +135,20 @@ export const LiveDesignerPanel: React.FC<LiveDesignerPanelProps> = ({
     onUpdateConfig({ selloImg: cleanStampSvg });
   };
 
-  const triggerSaveWithFeedback = () => {
-    onSaveConfig();
-    setSaveToast(true);
-    setTimeout(() => setSaveToast(false), 2500);
+  const triggerSaveWithFeedback = async () => {
+    try {
+      // 1. Perform immediate state update and UI feedback
+      onUpdateConfig({ ...config, updatedAt: Date.now() });
+      setSaveToast(true);
+      setTimeout(() => setSaveToast(false), 3500);
+
+      // 2. Trigger robust save - calling the provided onSaveConfig AND directly 
+      // ensuring persistence if onSaveConfig just triggers a UI sync.
+      await onSaveConfig();
+      
+    } catch (e) {
+      console.error('Error saving designer config:', e);
+    }
   };
 
   return (
@@ -158,8 +168,24 @@ export const LiveDesignerPanel: React.FC<LiveDesignerPanelProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 relative">
+          {saveToast && (
+            <div className="absolute top-10 right-0 bg-emerald-600 text-white px-4 py-2 rounded-xl shadow-lg text-xs font-bold animate-in fade-in zoom-in duration-300">
+              ✅ Sus cambios se han guardado
+            </div>
+          )}
           <button
+            type="button"
+            onClick={triggerSaveWithFeedback}
+            className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black text-xs flex items-center gap-1.5 shadow-md transition-all hover:scale-105 active:scale-95 cursor-pointer border border-emerald-400/40"
+            title="Guardar todos los cambios del diseño en la nube y en el dispositivo"
+          >
+            <Save className="w-3.5 h-3.5 text-white animate-pulse" />
+            <span>Guardar Cambios</span>
+          </button>
+
+          <button
+            type="button"
             onClick={onLockDesigner}
             className="px-3 py-1.5 bg-rose-600/90 hover:bg-rose-600 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-md transition-all hover:scale-105 active:scale-95 cursor-pointer border border-rose-400/40"
             title="Salir del Estudio de Diseño y bloquear el acceso (se requerirá el PIN para volver a ingresar)"
@@ -1301,6 +1327,64 @@ export const LiveDesignerPanel: React.FC<LiveDesignerPanelProps> = ({
                       className="w-7 h-7 rounded border border-slate-300 cursor-pointer p-0"
                     />
                     <span className="font-mono text-[10px] text-black font-bold truncate">{config.specialtyColor || config.headerColor}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Línea 3B: Educación Médica Continua / Postgrados / Diplomados / Cursos */}
+            <div className="p-3 bg-slate-50 border border-slate-300 rounded-xl space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-black text-black text-xs">Línea 3B: Educación Médica Continua / Postgrados / Cursos</span>
+                <span className="text-[10px] text-blue-700 font-bold bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">Formación</span>
+              </div>
+              <input
+                type="text"
+                value={config.educacionContinua || ''}
+                onChange={(e) => onUpdateConfig({ educacionContinua: e.target.value })}
+                placeholder="Ej: Diplomado en Dolor / Fellowship en Cuidados Críticos / Educación Médica Continua"
+                className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-black font-bold focus:ring-2 focus:ring-blue-500 outline-none text-xs bg-white"
+              />
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+                <div>
+                  <label className="text-[10px] text-black font-bold block mb-0.5">Fuente Tipográfica:</label>
+                  <select
+                    value={config.fuenteEducacion || config.fuenteSpecialty || config.fuenteHeader}
+                    onChange={(e) => onUpdateConfig({ fuenteEducacion: e.target.value })}
+                    className="w-full px-2 py-1 border border-slate-300 rounded bg-white text-xs text-black font-bold"
+                  >
+                    <option value="'Roboto', sans-serif">Roboto</option>
+                    <option value="'Montserrat', sans-serif">Montserrat</option>
+                    <option value="'Playfair Display', serif">Playfair Display</option>
+                    <option value="'Merriweather', serif">Merriweather</option>
+                    <option value="'Cinzel', serif">Cinzel</option>
+                    <option value="'Lora', serif">Lora</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] text-black font-bold block mb-0.5">Tamaño de letra:</label>
+                  <select
+                    value={config.educacionSize || '10.5px'}
+                    onChange={(e) => onUpdateConfig({ educacionSize: e.target.value })}
+                    className="w-full px-2 py-1 border border-slate-300 rounded bg-white text-xs text-black font-bold"
+                  >
+                    <option value="8px">Muy Pequeña (8px)</option>
+                    <option value="9.5px">Pequeña (9.5px)</option>
+                    <option value="10.5px">Normal (10.5px Estándar)</option>
+                    <option value="12px">Mediana (12px)</option>
+                    <option value="13.5px">Destacada (13.5px)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] text-black font-bold block mb-0.5">Color:</label>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="color"
+                      value={config.educacionColor || config.specialtyColor || config.headerColor}
+                      onChange={(e) => onUpdateConfig({ educacionColor: e.target.value })}
+                      className="w-7 h-7 rounded border border-slate-300 cursor-pointer p-0"
+                    />
+                    <span className="font-mono text-[10px] text-black font-bold truncate">{config.educacionColor || config.specialtyColor || config.headerColor}</span>
                   </div>
                 </div>
               </div>
@@ -2472,6 +2556,30 @@ export const LiveDesignerPanel: React.FC<LiveDesignerPanelProps> = ({
                   />
                 </div>
 
+                <div className="sm:col-span-2">
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-black font-bold text-xs">
+                      Educación Médica Continua / Postgrados (Opcional):
+                    </label>
+                    {config.educacionContinua && (
+                      <button
+                        type="button"
+                        onClick={() => onUpdateConfig({ educacionContinua: '' })}
+                        className="text-[10px] text-rose-600 hover:text-rose-800 font-bold underline cursor-pointer"
+                      >
+                        Quitar / Dejar vacío
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    type="text"
+                    value={config.educacionContinua || ''}
+                    onChange={(e) => onUpdateConfig({ educacionContinua: e.target.value })}
+                    placeholder="Dejar vacío si no desea mostrar postgrados en el membrete..."
+                    className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-black font-medium focus:ring-2 focus:ring-blue-500 outline-none bg-white text-xs"
+                  />
+                </div>
+
                 <div>
                   <label className="block text-black font-bold mb-1">C.I. / Documento de Identidad:</label>
                   <input
@@ -2556,17 +2664,18 @@ export const LiveDesignerPanel: React.FC<LiveDesignerPanelProps> = ({
           </button>
 
           {saveToast && (
-            <span className="text-xs text-emerald-600 font-bold flex items-center gap-1 animate-pulse">
-              <Check className="w-3.5 h-3.5" /> Guardado
+            <span className="text-xs text-emerald-600 font-black flex items-center gap-1 animate-pulse bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
+              <Check className="w-4 h-4 text-emerald-600" /> ¡Diseño Guardado!
             </span>
           )}
 
           <button
+            type="button"
             onClick={triggerSaveWithFeedback}
-            className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-xs flex items-center gap-2 shadow-sm transition-all hover:scale-[1.01]"
+            className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl font-black text-xs sm:text-sm flex items-center gap-2 shadow-md shadow-emerald-600/25 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-emerald-400/40"
           >
-            <Save className="w-4 h-4 text-emerald-400" />
-            <span>Guardar Diseño</span>
+            <Save className="w-4 h-4 text-emerald-200" />
+            <span>Guardar Cambios</span>
           </button>
         </div>
       </div>

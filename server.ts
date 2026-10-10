@@ -2,8 +2,19 @@ import express from 'express';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import { initializeApp, getApps } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
+import { initializeApp, getApps } from 'firebase/app';
+import { 
+  getFirestore, 
+  doc, 
+  getDoc, 
+  setDoc, 
+  deleteDoc, 
+  collection, 
+  getDocs, 
+  query, 
+  where, 
+  limit 
+} from 'firebase/firestore';
 import nodemailer from 'nodemailer';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -32,7 +43,7 @@ if (!fs.existsSync(PDFS_DIR)) {
 // Serve PDFs statically
 app.use('/pdf', express.static(PDFS_DIR));
 
-// Initialize Firebase Firestore Admin SDK
+// Initialize Firebase Firestore SDK with API Key & Project Config
 let firestoreDb: any = null;
 let firestoreAvailable = true;
 
@@ -40,37 +51,67 @@ try {
   const configPath = path.join(__dirname, 'firebase-applet-config.json');
   if (fs.existsSync(configPath)) {
     const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-    if (!getApps().length) {
-      initializeApp({
-        projectId: config.projectId,
-      });
-    }
+    const serverApp = !getApps().length
+      ? initializeApp({
+          apiKey: config.apiKey,
+          authDomain: config.authDomain,
+          projectId: config.projectId,
+          storageBucket: config.storageBucket,
+          messagingSenderId: config.messagingSenderId,
+          appId: config.appId,
+        }, 'server-firestore-app')
+      : getApps()[0];
     const dbId = config.firestoreDatabaseId || '(default)';
-    firestoreDb = getFirestore(getApps()[0], dbId);
-    try {
-      firestoreDb.settings({ ignoreUndefinedProperties: true });
-    } catch (settingsErr) {
-      console.warn('[Firestore] settings() call failed, might already be initialized:', settingsErr);
-    }
-    console.log(`[Firestore] Connected successfully to database: ${dbId} (project: ${config.projectId})`);
+    firestoreDb = getFirestore(serverApp, dbId);
+    console.log(`[Firestore Web SDK] Connected successfully to cloud database: ${dbId} (project: ${config.projectId})`);
   }
 } catch (err) {
   firestoreAvailable = false;
-  console.warn('[Firestore] Failed to connect to Firestore, using fallback local storage:', err);
+  console.warn('[Firestore Web SDK] Failed to connect to Firestore:', err);
 }
 
 // Increase payload limit for medical logos, stamps, signatures
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Never cache HTML/applet in browser to prevent frozen or outdated versions & set CORS
+// PWA & Static Service Worker explicit endpoints with proper MIME types & scope
+app.get('/manifest.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Cache-Control', 'public, max-age=3600');
+  const manifestPath = path.join(__dirname, 'public', 'manifest.json');
+  if (fs.existsSync(manifestPath)) {
+    return res.sendFile(manifestPath);
+  }
+  res.status(404).send('Manifest not found');
+});
+
+app.get('/sw.js', (req, res) => {
+  res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+  res.setHeader('Service-Worker-Allowed', '/');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Cache-Control', 'no-cache');
+  const swPath = path.join(__dirname, 'public', 'sw.js');
+  if (fs.existsSync(swPath)) {
+    return res.sendFile(swPath);
+  }
+  res.status(404).send('Service worker not found');
+});
+
+// Set CORS and dynamic route cache headers
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-  res.setHeader('Pragma', 'no-cache');
-  res.setHeader('Expires', '0');
+
+  // Do not enforce aggressive no-store on static PWA assets
+  const isStaticAsset = req.path.match(/\.(png|jpg|jpeg|svg|ico|woff|woff2|ttf|js|css)$/i) || req.path === '/sw.js' || req.path === '/manifest.json';
+  if (!isStaticAsset && !req.path.startsWith('/pdf/')) {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  }
+
   if (req.method === 'OPTIONS') {
     return res.sendStatus(200);
   }
@@ -173,25 +214,32 @@ function readUserEcosystemLocal(identifier: string): any | null {
 
 // --- Firestore Sourced Async Operations ---
 
-function handleFirestoreAdminError(err: any, opName: string) {
-  const msg = err instanceof Error ? err.message : String(err);
-  console.warn(`[Firestore] ${opName} warning/error:`, msg);
-}
-
 async function readDoctors(): Promise<any[]> {
+  const localList = readDoctorsLocal();
   if (firestoreDb && firestoreAvailable) {
     try {
-      const snap = await firestoreDb.collection('doctors').get();
+      const snap = await getDocs(collection(firestoreDb, 'doctors'));
       if (!snap.empty) {
         const list: any[] = [];
-        snap.forEach((doc: any) => list.push(doc.data()));
-        return list;
+        snap.forEach((d: any) => list.push(d.data()));
+        const merged = [...list];
+        for (const loc of localList) {
+          const idx = merged.findIndex(m => m.id === loc.id || (m.email && loc.email && m.email.toLowerCase() === loc.email.toLowerCase()));
+          if (idx >= 0) {
+            if ((loc.updatedAt || 0) >= (merged[idx].updatedAt || 0)) {
+              merged[idx] = loc;
+            }
+          } else {
+            merged.push(loc);
+          }
+        }
+        return merged;
       }
     } catch (err) {
-      handleFirestoreAdminError(err, 'readDoctors');
+      console.warn('[Firestore Web SDK] readDoctors warning:', err);
     }
   }
-  return readDoctorsLocal();
+  return localList;
 }
 
 async function writeDoctors(doctors: any[]): Promise<boolean> {
@@ -203,16 +251,13 @@ async function writeDoctors(doctors: any[]): Promise<boolean> {
 
   if (firestoreDb && firestoreAvailable) {
     try {
-      const batch = firestoreDb.batch();
-      for (const doc of doctors) {
-        if (!doc || !doc.id) continue;
-        const ref = firestoreDb.collection('doctors').doc(doc.id);
-        batch.set(ref, { ...doc, updatedAt: Date.now() }, { merge: true });
+      for (const d of doctors) {
+        if (!d || !d.id) continue;
+        await setDoc(doc(firestoreDb, 'doctors', d.id), { ...d, updatedAt: Date.now() }, { merge: true });
       }
-      await batch.commit();
       return true;
     } catch (err) {
-      handleFirestoreAdminError(err, 'writeDoctors');
+      console.warn('[Firestore Web SDK] writeDoctors warning:', err);
     }
   }
   return true;
@@ -221,14 +266,14 @@ async function writeDoctors(doctors: any[]): Promise<boolean> {
 async function readDocuments(): Promise<any[]> {
   if (firestoreDb && firestoreAvailable) {
     try {
-      const snap = await firestoreDb.collection('documents').get();
+      const snap = await getDocs(collection(firestoreDb, 'documents'));
       if (!snap.empty) {
         const list: any[] = [];
-        snap.forEach((doc: any) => list.push(doc.data()));
+        snap.forEach((d: any) => list.push(d.data()));
         return list;
       }
     } catch (err) {
-      handleFirestoreAdminError(err, 'readDocuments');
+      console.warn('[Firestore Web SDK] readDocuments warning:', err);
     }
   }
   return readDocumentsLocal();
@@ -243,16 +288,13 @@ async function writeDocuments(docs: any[]): Promise<boolean> {
 
   if (firestoreDb && firestoreAvailable) {
     try {
-      const batch = firestoreDb.batch();
       for (const d of docs) {
         if (!d || !d.id) continue;
-        const ref = firestoreDb.collection('documents').doc(d.id);
-        batch.set(ref, { ...d, updatedAt: Date.now() }, { merge: true });
+        await setDoc(doc(firestoreDb, 'documents', d.id), { ...d, updatedAt: Date.now() }, { merge: true });
       }
-      await batch.commit();
       return true;
     } catch (err) {
-      handleFirestoreAdminError(err, 'writeDocuments');
+      console.warn('[Firestore Web SDK] writeDocuments warning:', err);
     }
   }
   return true;
@@ -265,31 +307,32 @@ async function readUserEcosystem(identifier: string): Promise<any | null> {
     resolvedIdent = 'carloseduardoleal29@gmail.com';
   }
   const rawKey = getEcosystemKey(resolvedIdent);
+  const localEco = readUserEcosystemLocal(resolvedIdent);
 
+  let firestoreEco: any = null;
   if (firestoreDb && firestoreAvailable) {
     try {
-      const docRef = firestoreDb.collection('ecosystems').doc(rawKey);
-      const snap = await docRef.get();
-      if (snap.exists) {
-        return snap.data();
-      }
-
-      // Query by email, ci or identifier field
-      const cleanIdent = resolvedIdent;
-      const querySnap = await firestoreDb.collection('ecosystems')
-        .where('email', '==', cleanIdent)
-        .limit(1)
-        .get();
-
-      if (!querySnap.empty) {
-        return querySnap.docs[0].data();
+      const snap = await getDoc(doc(firestoreDb, 'ecosystems', rawKey));
+      if (snap.exists()) {
+        firestoreEco = snap.data();
+      } else {
+        const q = query(collection(firestoreDb, 'ecosystems'), where('email', '==', resolvedIdent), limit(1));
+        const querySnap = await getDocs(q);
+        if (!querySnap.empty) {
+          firestoreEco = querySnap.docs[0].data();
+        }
       }
     } catch (err) {
-      handleFirestoreAdminError(err, 'readUserEcosystem');
+      console.warn('[Firestore Web SDK] readUserEcosystem warning:', err);
     }
   }
 
-  return readUserEcosystemLocal(resolvedIdent);
+  if (localEco && firestoreEco) {
+    const localTime = localEco.updatedAt || 0;
+    const firestoreTime = firestoreEco.updatedAt || 0;
+    return localTime >= firestoreTime ? localEco : firestoreEco;
+  }
+  return firestoreEco || localEco;
 }
 
 async function writeUserEcosystem(payload: any): Promise<any | null> {
@@ -306,33 +349,61 @@ async function writeUserEcosystem(payload: any): Promise<any | null> {
     const existingDoc = existingEco?.doctorConfig;
     const incomingDoc = payload.doctorConfig;
 
-    const mergedDoctorConfig = incomingDoc ? {
-      ...(existingDoc || {}),
-      ...incomingDoc,
-      updatedAt: Date.now(),
-    } : existingDoc;
+    let mergedDoctorConfig = existingDoc;
+    if (incomingDoc) {
+      mergedDoctorConfig = {
+        ...(existingDoc || {}),
+        ...incomingDoc,
+        updatedAt: Date.now(),
+      };
+    }
+
+    // Handle patient bank: if provided in payload, save it; otherwise preserve existing
+    let mergedPatientBank = existingEco?.patientBank || [];
+    if (payload.patientBank && Array.isArray(payload.patientBank)) {
+      mergedPatientBank = payload.patientBank;
+    }
+
+    // Merge recipes non-destructively
+    let mergedRecipes = payload.recipes || existingEco?.recipes || [];
+    if (existingEco?.recipes && Array.isArray(existingEco.recipes) && existingEco.recipes.some((r: any) => r.patientName || r.rp)) {
+      if (!payload.recipes || !payload.recipes.some((r: any) => r.patientName || r.rp)) {
+        mergedRecipes = existingEco.recipes;
+      }
+    }
 
     const dataToSave = {
       ...(existingEco || {}),
       ...payload,
       ...(mergedDoctorConfig ? { doctorConfig: mergedDoctorConfig } : {}),
+      patientBank: mergedPatientBank,
+      recipes: mergedRecipes,
       identifier: ident,
       updatedAt: Date.now(),
     };
 
-    // Save to local disk backup
+    // Save to local disk backup FIRST - guaranteed persistence with zero 1MB size limit
     try {
       const targetFile = path.join(ECOSYSTEMS_DIR, `${rawKey}.json`);
       fs.writeFileSync(targetFile, JSON.stringify(dataToSave, null, 2), 'utf-8');
-    } catch (_) {}
+    } catch (diskErr) {
+      console.error('Error writing user ecosystem to disk:', diskErr);
+    }
 
-    // Save to Firestore if available
+    // Save to Firestore with payload safety check (preventing 1MB document rejection)
     if (firestoreDb && firestoreAvailable) {
       try {
-        const docRef = firestoreDb.collection('ecosystems').doc(rawKey);
-        await docRef.set(dataToSave, { merge: true });
+        let firestorePayload = { ...dataToSave };
+        if (firestorePayload.colleagueProfiles && Array.isArray(firestorePayload.colleagueProfiles)) {
+          firestorePayload.colleagueProfiles = firestorePayload.colleagueProfiles.map((p: any) => {
+            const { selloImg, firmaImg, ...rest } = p;
+            return rest;
+          });
+        }
+        await setDoc(doc(firestoreDb, 'ecosystems', rawKey), firestorePayload, { merge: true });
+        console.log(`[Firestore Web SDK] Ecosystem for ${rawKey} saved to Firestore successfully!`);
       } catch (err) {
-        handleFirestoreAdminError(err, 'writeUserEcosystem');
+        console.error('[Firestore Web SDK] writeUserEcosystem error:', err);
       }
     }
 
@@ -457,35 +528,8 @@ app.post('/api/auth/login', async (req, res) => {
         doctors.find((d: any) => (d.email && d.email.toLowerCase().includes('carloseduardoleal29')) || d.id === 'doc-admin-master');
 
       const resolvedAdminDoc = {
-        id: 'doc-admin-master',
-        profileName: adminDoc?.profileName || 'Dr. Carlos E. Leal S.',
-        doctorName: adminDoc?.doctorName || 'Dr. Carlos E. Leal S.',
-        specialty: adminDoc?.specialty || 'Especialista en Anestesiología y Reanimación',
-        mpps: adminDoc?.mpps || '94.228',
-        ci: adminDoc?.ci || '15.489.288',
-        collegeNumber: adminDoc?.collegeNumber || '12.450',
-        phone: adminDoc?.phone || '+584243291438',
-        institution: adminDoc?.institution || 'Centro Médico Quirúrgico',
-        institutionDetails: adminDoc?.institutionDetails || 'Consultorio 4B',
-        firmaImg: adminDoc?.firmaImg || '',
-        selloImg: adminDoc?.selloImg || '',
-        selloFirma: adminDoc?.selloFirma || '',
-        logoIzq: adminDoc?.logoIzq,
-        logoDer: adminDoc?.logoDer,
-        marcaAgua: adminDoc?.marcaAgua,
-        headerStyle: adminDoc?.headerStyle || 'clasico',
-        headerLayout: adminDoc?.headerLayout || 'ambos-logos',
-        primaryDocColor: adminDoc?.primaryDocColor || '#2563eb',
-        headerColor: adminDoc?.headerColor || '#1e3a8a',
-        fuenteHeader: adminDoc?.fuenteHeader,
-        fuenteNombre: adminDoc?.fuenteNombre,
-        nombreSize: adminDoc?.nombreSize,
-        nombreColor: adminDoc?.nombreColor,
-        tonePapel: adminDoc?.tonePapel,
-        rxTitleColor: adminDoc?.rxTitleColor,
-        borderStyle: adminDoc?.borderStyle,
-        docCornerRadius: adminDoc?.docCornerRadius,
         ...(adminDoc || {}),
+        id: adminDoc?.id || 'doc-admin-master',
         email: 'carloseduardoleal29@gmail.com',
         password: masterPass,
         isAdmin: true,
@@ -493,6 +537,7 @@ app.post('/api/auth/login', async (req, res) => {
         isVip: true,
         paidPlanName: 'Acceso Master Administrador',
         paymentStatus: 'activo',
+        updatedAt: adminDoc?.updatedAt || Date.now(),
       };
 
       return res.json({
@@ -583,13 +628,12 @@ app.post('/api/ecosystem/save', async (req, res) => {
 async function readPaymentConfig() {
   if (firestoreDb && firestoreAvailable) {
     try {
-      const docRef = firestoreDb.collection('settings').doc('payment_config');
-      const snap = await docRef.get();
-      if (snap.exists) {
+      const snap = await getDoc(doc(firestoreDb, 'settings', 'payment_config'));
+      if (snap.exists()) {
         return snap.data();
       }
     } catch (err) {
-      console.warn('[Firestore] Error reading payment config, falling back to disk:', err);
+      console.warn('[Firestore Web SDK] Error reading payment config, falling back to disk:', err);
     }
   }
 
@@ -635,11 +679,10 @@ async function writePaymentConfig(config: any) {
 
   if (firestoreDb && firestoreAvailable) {
     try {
-      const docRef = firestoreDb.collection('settings').doc('payment_config');
-      await docRef.set(config, { merge: true });
+      await setDoc(doc(firestoreDb, 'settings', 'payment_config'), config, { merge: true });
       return true;
     } catch (err) {
-      console.error('[Firestore] Error writing payment config:', err);
+      console.error('[Firestore Web SDK] Error writing payment config:', err);
     }
   }
   return true;
@@ -980,10 +1023,10 @@ app.delete('/api/doctors/:id', async (req, res) => {
   // Explicitly delete from Firestore to prevent deleted doctor from syncing back
   if (firestoreDb && firestoreAvailable) {
     try {
-      await firestoreDb.collection('doctors').doc(id).delete();
-      console.log(`[Firestore] Deleted doctor with ID ${id} from database`);
+      await deleteDoc(doc(firestoreDb, 'doctors', id));
+      console.log(`[Firestore Web SDK] Deleted doctor with ID ${id} from cloud database`);
     } catch (err) {
-      console.error('[Firestore] Error deleting doctor:', err);
+      console.error('[Firestore Web SDK] Error deleting doctor:', err);
     }
   }
 

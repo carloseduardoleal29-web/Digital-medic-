@@ -27,6 +27,7 @@ import {
   HelpCircle,
   CreditCard,
   Smartphone,
+  Monitor,
   Copy,
   Image as ImageIcon,
   Send,
@@ -84,6 +85,8 @@ interface DoctorOnboardingWizardProps {
   initialStep?: number;
   initialViewMode?: 'wizard' | 'login';
   initialAgreedPaymentLogin?: boolean;
+  isDesktopMode?: boolean;
+  onToggleDesktopMode?: () => void;
 }
 
 const COMMON_SPECIALTIES = [
@@ -205,7 +208,9 @@ export const DoctorOnboardingWizard: React.FC<DoctorOnboardingWizardProps> = ({
   onOpenAdminPanel,
   initialStep = 0,
   initialViewMode = 'login',
-  initialAgreedPaymentLogin = false
+  initialAgreedPaymentLogin = false,
+  isDesktopMode = false,
+  onToggleDesktopMode
 }) => {
   // Current view: 'wizard' (registration) or 'login' (existing doctor by CI)
   const [viewMode, setViewMode] = useState<'wizard' | 'login'>(initialViewMode);
@@ -556,14 +561,19 @@ export const DoctorOnboardingWizard: React.FC<DoctorOnboardingWizardProps> = ({
     const trialOrPaidConfig = selectedPlanType === 'prueba-14'
       ? createTrialConfig(14)
       : {
-          paymentStatus: 'activo' as const,
-          isPaidClient: true,
+          paymentStatus: 'pendiente' as const,
+          isPaidClient: false,
           subscriptionPlan: selectedPaidPlan,
-          paidPlanName: selectedPaidPlan === 'anual' 
+          requestedPlan: selectedPaidPlan === 'anual' 
             ? 'Plan Anual Master ($95)' 
             : selectedPaidPlan === 'trimestral' 
             ? 'Plan Trimestral Pro ($28)' 
             : 'Plan Mensual Pro ($10)',
+          paidPlanName: selectedPaidPlan === 'anual' 
+            ? 'Plan Anual Master (Pendiente Verificación)' 
+            : selectedPaidPlan === 'trimestral' 
+            ? 'Plan Trimestral Pro (Pendiente Verificación)' 
+            : 'Plan Mensual Pro (Pendiente Verificación)',
         };
 
     const newDocId = `doc-${Date.now()}`;
@@ -677,6 +687,11 @@ export const DoctorOnboardingWizard: React.FC<DoctorOnboardingWizardProps> = ({
       if (found) {
         return {
           ...found,
+          profileName: found.profileName || found.doctorName || 'Dr. Carlos E. Leal S.',
+          doctorName: found.doctorName || 'Dr. Carlos E. Leal S.',
+          collegeNumber: found.collegeNumber !== undefined ? found.collegeNumber : '',
+          institution: found.institution !== undefined ? found.institution : '',
+          institutionDetails: found.institutionDetails !== undefined ? found.institutionDetails : '',
           isAdmin: true,
           isPaidClient: true,
           paymentStatus: 'activo',
@@ -685,18 +700,19 @@ export const DoctorOnboardingWizard: React.FC<DoctorOnboardingWizardProps> = ({
 
       return {
         id: 'doc-admin-master',
-        profileName: 'Administrador Master',
-        doctorName: 'Administrador Master',
-        specialty: '',
-        mpps: '00000',
-        ci: 'V-00000000',
-        collegeNumber: 'CMD-00000',
-        phone: '+58 414-0000000',
-        email: inputEmail || 'admin@digitalmedic.com',
+        profileName: 'Dr. Carlos E. Leal S.',
+        doctorName: 'Dr. Carlos E. Leal S.',
+        specialty: 'Especialista en Anestesiología y Reanimación',
+        mpps: '94.228',
+        ci: '15.489.288',
+        collegeNumber: '',
+        phone: '+584243291438',
+        email: inputEmail || 'carloseduardoleal29@gmail.com',
         password: '2534',
         socialHandle: '',
-        institution: 'Digital Médic Studio Central',
-        institutionDetails: 'Sede Principal de Administración',
+        socialHandle2: '',
+        institution: '',
+        institutionDetails: '',
         paymentStatus: 'activo',
         isPaidClient: true,
         paidPlanName: 'Acceso Master Administrador',
@@ -728,10 +744,10 @@ export const DoctorOnboardingWizard: React.FC<DoctorOnboardingWizardProps> = ({
         rxTitle: 'Rp.',
         rxTitleColor: '#2563eb',
         bodyFontSize: '13.5px',
-        footerNotesText: 'Digital Médic · Panel de Administrador Master',
-        footerDisclaimer: 'Documento emitido en modo Administrador del Sistema.',
+        footerNotesText: '',
+        footerDisclaimer: 'Válido por 30 días a partir de su fecha de emisión.',
         signatureTitle: 'Firma del médico (a)',
-        folioPrefix: 'ADM-',
+        folioPrefix: 'REC-',
         folioNumber: 1,
         registrationDate: new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date())
       };
@@ -756,8 +772,8 @@ export const DoctorOnboardingWizard: React.FC<DoctorOnboardingWizardProps> = ({
           sessionStorage.setItem('digital_medic_vip', 'true');
           sessionStorage.setItem('digital_medic_unlocked_2534', 'true');
           sessionStorage.setItem('digital_medic_master_admin', 'true');
-          loggedInDoctor.profileName = loggedInDoctor.profileName || 'Administrador Master';
-          loggedInDoctor.doctorName = loggedInDoctor.doctorName || 'Administrador Master';
+          loggedInDoctor.profileName = loggedInDoctor.profileName || 'Dr. Carlos E. Leal S.';
+          loggedInDoctor.doctorName = loggedInDoctor.doctorName || 'Dr. Carlos E. Leal S.';
           loggedInDoctor.isAdmin = true;
           loggedInDoctor.isPaidClient = true;
           loggedInDoctor.isVip = true;
@@ -962,8 +978,33 @@ export const DoctorOnboardingWizard: React.FC<DoctorOnboardingWizardProps> = ({
           </div>
         </div>
 
-        {/* Top actions: login switch (secret click on logo opens admin panel for developer) */}
+        {/* Top actions: desktop switcher & login switch */}
         <div className="flex items-center gap-2">
+          {onToggleDesktopMode && (
+            <button
+              type="button"
+              onClick={onToggleDesktopMode}
+              className={`px-2.5 py-1.5 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-xs border ${
+                isDesktopMode
+                  ? 'bg-blue-600 text-white border-blue-400'
+                  : 'bg-slate-800/90 text-slate-300 hover:text-white border-slate-700 hover:border-slate-600'
+              }`}
+              title={isDesktopMode ? 'Cambiar a Vista Móvil Adaptada' : 'Cambiar a Sitio de Escritorio (PC)'}
+            >
+              {isDesktopMode ? (
+                <>
+                  <Smartphone className="w-3.5 h-3.5 text-cyan-300" />
+                  <span className="hidden xs:inline">📱 Móvil</span>
+                </>
+              ) : (
+                <>
+                  <Monitor className="w-3.5 h-3.5 text-blue-400" />
+                  <span className="hidden xs:inline">🖥️ Escritorio</span>
+                </>
+              )}
+            </button>
+          )}
+
           {viewMode === 'wizard' ? (
             <button
               onClick={() => { setViewMode('login'); setErrorMsg(null); }}

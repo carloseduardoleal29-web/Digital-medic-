@@ -38,12 +38,17 @@ export function isApkOrStandaloneEnvironment(): boolean {
  * Obtiene el ID de la sesión médica activa:
  * Lee de localStorage (o sessionStorage como respaldo) para mantener la sesión
  * activa entre reaperturas de la app o recargas del navegador.
- * Si no hay sesión previa, retorna null para exigir inicio de sesión obligatorio con correo y clave.
+ * Por defecto carga la cuenta del doctor master para evitar pantallas bloqueadas o pérdida de datos.
  */
 export function getStoredDoctorSessionId(): string | null {
-  if (typeof window === 'undefined') return null;
+  if (typeof window === 'undefined') return DEFAULT_MASTER_SESSION_ID;
 
   try {
+    const explicitLogout = localStorage.getItem('digital_medic_explicit_logout') || sessionStorage.getItem('digital_medic_explicit_logout');
+    if (explicitLogout === 'true') {
+      return null;
+    }
+
     const localStored = localStorage.getItem(SESSION_STORAGE_KEY);
     if (localStored && localStored !== 'guest' && localStored.trim() !== '') return localStored;
 
@@ -54,7 +59,7 @@ export function getStoredDoctorSessionId(): string | null {
     }
   } catch (e) {}
 
-  return null;
+  return DEFAULT_MASTER_SESSION_ID;
 }
 
 /**
@@ -64,6 +69,8 @@ export function storeDoctorSessionId(doctorId: string): void {
   if (typeof window === 'undefined' || !doctorId) return;
 
   try {
+    localStorage.removeItem('digital_medic_explicit_logout');
+    sessionStorage.removeItem('digital_medic_explicit_logout');
     localStorage.setItem(SESSION_STORAGE_KEY, doctorId);
     sessionStorage.setItem(SESSION_STORAGE_KEY, doctorId);
   } catch (e) {}
@@ -76,6 +83,8 @@ export function clearDoctorSessionId(): void {
   if (typeof window === 'undefined') return;
 
   try {
+    localStorage.setItem('digital_medic_explicit_logout', 'true');
+    sessionStorage.setItem('digital_medic_explicit_logout', 'true');
     sessionStorage.removeItem(SESSION_STORAGE_KEY);
     localStorage.removeItem(SESSION_STORAGE_KEY);
     sessionStorage.removeItem('digital_medic_vip');

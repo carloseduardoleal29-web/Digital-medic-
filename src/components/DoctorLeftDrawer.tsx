@@ -26,7 +26,9 @@ import {
   Sparkles,
   Play,
   Crown,
-  Cloud
+  Cloud,
+  Monitor,
+  Smartphone
 } from 'lucide-react';
 import { DoctorConfig, ActiveModule } from '../types';
 import { DIGITAL_MEDIC_OFFICIAL_LOGO_SVG, getMedicalSymbolSVG, CARLOS_LEAL_DEVELOPER_BADGE_SVG } from '../data/defaultAssets';
@@ -63,6 +65,8 @@ interface DoctorLeftDrawerProps {
   onOpenDesignStudio?: () => void;
   onOpenAdminPanel?: () => void;
   onOpenEditPaymentConfig?: () => void;
+  isDesktopMode?: boolean;
+  onToggleDesktopMode?: () => void;
 }
 
 export const DoctorLeftDrawer: React.FC<DoctorLeftDrawerProps> = ({
@@ -76,7 +80,9 @@ export const DoctorLeftDrawer: React.FC<DoctorLeftDrawerProps> = ({
   onOpenPlans,
   onOpenDesignStudio,
   onOpenAdminPanel,
-  onOpenEditPaymentConfig
+  onOpenEditPaymentConfig,
+  isDesktopMode = false,
+  onToggleDesktopMode
 }) => {
   const [isEditing, setIsEditing] = useState(false);
 
@@ -115,6 +121,7 @@ export const DoctorLeftDrawer: React.FC<DoctorLeftDrawerProps> = ({
     email: config.email || '',
     institution: config.institution || '',
     institutionDetails: config.institutionDetails || '',
+    educacionContinua: config.educacionContinua || '',
     socialHandle: config.socialHandle || '',
     enforcePureBlackText: config.enforcePureBlackText || false,
   });
@@ -134,6 +141,7 @@ export const DoctorLeftDrawer: React.FC<DoctorLeftDrawerProps> = ({
       email: config.email || '',
       institution: config.institution || '',
       institutionDetails: config.institutionDetails || '',
+      educacionContinua: config.educacionContinua || '',
       socialHandle: config.socialHandle || '',
       enforcePureBlackText: config.enforcePureBlackText || false,
     });
@@ -244,6 +252,11 @@ export const DoctorLeftDrawer: React.FC<DoctorLeftDrawerProps> = ({
                 <p className="text-xs font-bold text-blue-700 mt-0.5">
                   {config.specialty || 'Especialista Médico'}
                 </p>
+                {config.educacionContinua && (
+                  <p className="text-[11px] font-semibold text-slate-700 mt-0.5">
+                    🎓 {config.educacionContinua}
+                  </p>
+                )}
                 <div className="flex flex-wrap gap-1.5 mt-2">
                   <span className="px-2 py-0.5 bg-blue-100/80 text-blue-900 rounded-md text-[10px] font-bold">
                     MPPS: {config.mpps || 'N/A'}
@@ -387,6 +400,31 @@ export const DoctorLeftDrawer: React.FC<DoctorLeftDrawerProps> = ({
                   placeholder="Ej: Especialista en Cardiología"
                   required
                   className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[11px] font-bold text-slate-600">
+                    Educación Médica Continua / Postgrados (Opcional):
+                  </label>
+                  {formData.educacionContinua && (
+                    <button
+                      type="button"
+                      onClick={() => setFormData((prev) => ({ ...prev, educacionContinua: '' }))}
+                      className="text-[10px] text-rose-500 hover:text-rose-700 font-bold underline cursor-pointer"
+                    >
+                      Quitar / Dejar vacío
+                    </button>
+                  )}
+                </div>
+                <input
+                  type="text"
+                  name="educacionContinua"
+                  value={formData.educacionContinua}
+                  onChange={handleChange}
+                  placeholder="Dejar vacío si no desea mostrar postgrados..."
+                  className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-blue-500"
                 />
               </div>
 
@@ -683,7 +721,7 @@ export const DoctorLeftDrawer: React.FC<DoctorLeftDrawerProps> = ({
                       <span>Inicio</span>
                     </button>
                     <button
-                      onClick={() => { onClose(); onNavigate('recipe-4en1'); }}
+                      onClick={() => { onClose(); onNavigate('recipe-master'); }}
                       className="p-2.5 bg-slate-50 hover:bg-blue-50 hover:text-blue-700 rounded-xl font-bold text-slate-700 text-left border border-slate-200/80 transition-all flex items-center gap-2"
                     >
                       <Grid2X2 className="w-4 h-4 text-blue-600 shrink-0" />
@@ -738,6 +776,31 @@ export const DoctorLeftDrawer: React.FC<DoctorLeftDrawerProps> = ({
         {/* Drawer Footer Actions & Developer Branding */}
         <div className="p-4 bg-slate-900 border-t border-slate-800 space-y-2.5 shrink-0">
           
+          {/* Botón de Alternar Modo Escritorio / Modo Móvil */}
+          {onToggleDesktopMode && (
+            <button
+              type="button"
+              onClick={onToggleDesktopMode}
+              className={`w-full py-2.5 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm border ${
+                isDesktopMode
+                  ? 'bg-gradient-to-r from-blue-700 to-indigo-700 text-white border-blue-400'
+                  : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
+              }`}
+            >
+              {isDesktopMode ? (
+                <>
+                  <Smartphone className="w-4 h-4 text-cyan-300" />
+                  <span>📱 Cambiar a Vista Móvil Adaptada</span>
+                </>
+              ) : (
+                <>
+                  <Monitor className="w-4 h-4 text-blue-400" />
+                  <span>🖥️ Cambiar a Sitio de Escritorio (PC)</span>
+                </>
+              )}
+            </button>
+          )}
+
           {/* C.E. LEAL Studio Developer Branding Badge */}
           <CeLealStudioLogo variant="badge" className="w-full justify-center" />
 

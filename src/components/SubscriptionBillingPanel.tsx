@@ -292,10 +292,6 @@ export const SubscriptionBillingPanel: React.FC<SubscriptionBillingPanelProps> =
           {(Object.keys(plans) as Array<'mensual' | 'trimestral' | 'anual'>).map((key) => {
             const plan = plans[key];
             const isSelected = selectedPlan === key;
-            const planBs = (plan.priceUsd * payConfig.tasaBinanceUsd).toLocaleString('es-VE', {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2
-            });
 
             return (
               <div
@@ -368,159 +364,6 @@ export const SubscriptionBillingPanel: React.FC<SubscriptionBillingPanelProps> =
             );
           })}
         </div>
-
-        {/* DETAILED PERKS & BENEFITS OF SELECTED PLAN */}
-        <div className="mt-4 p-5 sm:p-6 bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 border border-blue-500/30 rounded-3xl text-white shadow-xl relative overflow-hidden space-y-4">
-          <div className="absolute top-0 right-0 w-80 h-40 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
-
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-blue-500/20 pb-3">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-blue-500/20 text-cyan-300 border border-blue-400/40 flex items-center justify-center shrink-0">
-                <Sparkles className="w-5 h-5" />
-              </div>
-              <div>
-                <span className="text-[10px] font-black uppercase tracking-wider text-cyan-300">
-                  Bondades y Beneficios Oficiales
-                </span>
-                <h3 className="text-base sm:text-lg font-black text-white">
-                  ¿Qué incluye tu {currentPlanObj.name}?
-                </h3>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setShowComparisonMatrix(!showComparisonMatrix)}
-              className="px-3 py-1.5 rounded-xl bg-blue-500/20 hover:bg-blue-500/30 border border-blue-400/40 text-cyan-200 text-xs font-bold transition-all flex items-center gap-1.5 self-start sm:self-auto cursor-pointer"
-            >
-              <FileCheck className="w-3.5 h-3.5 text-cyan-300" />
-              <span>{showComparisonMatrix ? 'Ocultar Comparativa' : 'Ver Comparativa de Todos los Planes'}</span>
-            </button>
-          </div>
-
-          <div className="p-3 bg-blue-950/60 rounded-2xl border border-blue-800/40 text-xs text-blue-200 leading-relaxed">
-            <strong className="text-white">🎯 Recomendación Médica:</strong> {currentPlanObj.target}
-          </div>
-
-          {/* 4 Bondades Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {currentPlanObj.bondades.map((b, bIdx) => (
-              <div key={bIdx} className="p-3.5 rounded-2xl bg-slate-900/80 border border-slate-700/60 flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center gap-2 text-cyan-300 font-bold text-xs mb-1">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                    <span>{b.title}</span>
-                  </div>
-                  <p className="text-[11px] text-slate-300 leading-relaxed">
-                    {b.desc}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Special VIP Callout for Plan Anual */}
-          {selectedPlan === 'anual' && (
-            <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/20 via-purple-500/20 to-blue-500/20 border border-amber-400/40 text-amber-200 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-in fade-in">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 font-black text-amber-300 text-sm">
-                  <Star className="w-4 h-4 text-amber-400" />
-                  <span>Incluye Estudio de Diseño PRO para siempre con este plan</span>
-                </div>
-                <p className="text-[11.5px] text-amber-100/90 leading-relaxed">
-                  Personalización ilimitada con membretes vectoriales, sellos notariales (ovalados y redondos), firmas caligráficas y soporte directo con el equipo técnico oficial.
-                </p>
-              </div>
-              <span className="shrink-0 px-3 py-1 bg-amber-400 text-slate-950 font-black text-[10px] rounded-full uppercase tracking-wider">
-                VIP DESBLOQUEADO
-              </span>
-            </div>
-          )}
-
-          {/* Side-by-Side Comparison Matrix (Collapsible) */}
-          {showComparisonMatrix && (
-            <div className="pt-4 border-t border-blue-500/20 space-y-3 animate-in fade-in duration-200">
-              <h4 className="text-xs font-black text-slate-300 uppercase tracking-wider">
-                📊 Tabla Comparativa de Beneficios por Plan:
-              </h4>
-
-              <div className="overflow-x-auto rounded-2xl border border-slate-700/80 bg-slate-950/70">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-900 border-b border-slate-700 text-slate-300">
-                    <tr>
-                      <th className="p-3 font-bold text-slate-200">Funcionalidad / Beneficio</th>
-                      <th className="p-3 font-bold text-center text-blue-300">Plan Mensual ($10)</th>
-                      <th className="p-3 font-bold text-center text-cyan-300">Plan Trimestral ($28)</th>
-                      <th className="p-3 font-bold text-center text-amber-300">Plan Anual VIP ($95)</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800 text-slate-300 text-[11px]">
-                    <tr>
-                      <td className="p-2.5 font-medium">💊 Récipes 4 en 1 y Máster Ilimitados</td>
-                      <td className="p-2.5 text-center text-emerald-400 font-bold">✓ Ilimitado</td>
-                      <td className="p-2.5 text-center text-emerald-400 font-bold">✓ Ilimitado</td>
-                      <td className="p-2.5 text-center text-emerald-400 font-bold">✓ Ilimitado</td>
-                    </tr>
-                    <tr>
-                      <td className="p-2.5 font-medium">📋 Informes Médicos y Reposos Oficiales</td>
-                      <td className="p-2.5 text-center text-emerald-400 font-bold">✓ Incluido</td>
-                      <td className="p-2.5 text-center text-emerald-400 font-bold">✓ Incluido</td>
-                      <td className="p-2.5 text-center text-emerald-400 font-bold">✓ Incluido</td>
-                    </tr>
-                    <tr>
-                      <td className="p-2.5 font-medium">📁 Historias Clínicas y Expedientes</td>
-                      <td className="p-2.5 text-center text-emerald-400 font-bold">✓ Incluido</td>
-                      <td className="p-2.5 text-center text-emerald-400 font-bold">✓ Incluido</td>
-                      <td className="p-2.5 text-center text-emerald-400 font-bold">✓ Incluido</td>
-                    </tr>
-                    <tr>
-                      <td className="p-2.5 font-medium">📱 Envío a WhatsApp en un clic y PDF</td>
-                      <td className="p-2.5 text-center text-emerald-400 font-bold">✓ Incluido</td>
-                      <td className="p-2.5 text-center text-emerald-400 font-bold">✓ Incluido</td>
-                      <td className="p-2.5 text-center text-emerald-400 font-bold">✓ Incluido</td>
-                    </tr>
-                    <tr>
-                      <td className="p-2.5 font-medium">☁️ Sincronización y Respaldo Nube</td>
-                      <td className="p-2.5 text-center text-slate-400">Básico</td>
-                      <td className="p-2.5 text-center text-cyan-300 font-bold">✓ Avanzado</td>
-                      <td className="p-2.5 text-center text-amber-300 font-bold">✓ Completo VIP</td>
-                    </tr>
-                    <tr>
-                      <td className="p-2.5 font-medium">🎨 Estudio de Diseño PRO (Membretes y Sellos)</td>
-                      <td className="p-2.5 text-center text-slate-500">Opcional (PIN)</td>
-                      <td className="p-2.5 text-center text-slate-500">Opcional (PIN)</td>
-                      <td className="p-2.5 text-center text-amber-300 font-black">👑 100% Incluido</td>
-                    </tr>
-                    <tr>
-                      <td className="p-2.5 font-medium">⭐ Soporte Técnico y Asistencia</td>
-                      <td className="p-2.5 text-center text-slate-300">Estándar</td>
-                      <td className="p-2.5 text-center text-cyan-300 font-bold">Prioritario</td>
-                      <td className="p-2.5 text-center text-amber-300 font-black">Línea Directa Dev</td>
-                    </tr>
-                    <tr>
-                      <td className="p-2.5 font-medium">💵 Costo Mensual Equivalente</td>
-                      <td className="p-2.5 text-center text-slate-300">$10 / mes</td>
-                      <td className="p-2.5 text-center text-cyan-300 font-bold">$9.3 / mes (-10%)</td>
-                      <td className="p-2.5 text-center text-amber-300 font-black">$7.9 / mes (2 meses gratis)</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* Developer Branding Stamp */}
-          <div className="pt-3 border-t border-blue-500/20 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400">
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] text-slate-300">
-                Soporte y Activación Oficial por <strong className="text-white">Digital Médic Soporte</strong> · C.E. LEAL studio
-              </span>
-            </div>
-            <span className="text-[11px] text-cyan-300 font-medium">
-              Activaciones inmediatas tras confirmación
-            </span>
-          </div>
-        </div>
       </div>
 
       {/* Visualizador de Tasa Binance del Día (Venezuela) y Conversor */}
@@ -534,7 +377,6 @@ export const SubscriptionBillingPanel: React.FC<SubscriptionBillingPanelProps> =
             tasaUltimaActualizacion: new Date().toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' })
           }));
         }}
-        onOpenEditPaymentConfig={isDoctorAdmin ? () => setIsEditPaymentModalOpen(true) : undefined}
       />
 
       {/* STEP 2: Payment Methods Panel */}
@@ -548,18 +390,6 @@ export const SubscriptionBillingPanel: React.FC<SubscriptionBillingPanelProps> =
               Selecciona tu Método de Pago Preferido (Solo 3 Métodos)
             </h2>
           </div>
-
-          {isDoctorAdmin && (
-            <button
-              type="button"
-              onClick={() => setIsEditPaymentModalOpen(true)}
-              className="py-1.5 px-3 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold text-xs flex items-center gap-1.5 transition-all shadow-xs cursor-pointer hover:scale-105 active:scale-95"
-              title="Editar mis cuentas bancarias, Binance y Zinli"
-            >
-              <CreditCard className="w-3.5 h-3.5 text-amber-600" />
-              <span>⚙️ Editar Mis Datos de Cobro (Admin)</span>
-            </button>
-          )}
         </div>
 
         {/* Method Switcher Tabs */}
@@ -1175,6 +1005,7 @@ export const SubscriptionBillingPanel: React.FC<SubscriptionBillingPanelProps> =
                   </div>
 
                   {/* Botón Destacado para Abrir Editor Completo de Cuentas */}
+                  {isDoctorAdmin && (
                   <button
                     type="button"
                     onClick={() => setIsEditPaymentModalOpen(true)}
@@ -1183,6 +1014,7 @@ export const SubscriptionBillingPanel: React.FC<SubscriptionBillingPanelProps> =
                     <CreditCard className="w-4 h-4 text-slate-950" />
                     <span>⚙️ Abrir Editor Completo de Cuentas y Tasa Binance</span>
                   </button>
+                  )}
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {/* Tasa Binance */}

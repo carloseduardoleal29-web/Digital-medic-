@@ -155,6 +155,9 @@ export const DrugBankFloatingBar: React.FC<DrugBankFloatingBarProps> = ({
     setShowAddCustom(false);
   };
 
+  // Collapsible state so Drug Bank doesn't clutter patient data entry
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
   // Quick suggestion tags
   const quickSearchPills = [
     { label: 'aspi', drug: 'Aspirina 100mg' },
@@ -166,71 +169,86 @@ export const DrugBankFloatingBar: React.FC<DrugBankFloatingBarProps> = ({
   ];
 
   return (
-    <div className="w-full bg-white border border-blue-200 rounded-2xl p-3.5 shadow-sm text-xs mb-4 no-print transition-all">
+    <div className="w-full bg-white border border-blue-200 rounded-2xl p-3 sm:p-3.5 shadow-sm text-xs mb-4 no-print transition-all">
       
-      {/* Top Title & Instant Search Zone */}
+      {/* Top Title & Collapsible Header Zone */}
       <div className="flex flex-col gap-2.5">
         
-        {/* Main Row: Header + Fast Search Bar + Destination Selector */}
+        {/* Main Row: Header + Collapsible Toggle + Fast Search Bar + Destination Selector */}
         <div className="flex flex-wrap items-center justify-between gap-2.5">
           
-          {/* Bank Badge */}
-          <div className="flex items-center gap-1.5 font-bold text-slate-800 shrink-0">
-            <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-200 shadow-2xs">
-              <Pill className="w-4 h-4" />
-            </div>
+          {/* Bank Badge with Toggle Collapsed Button */}
+          <div className="flex items-center gap-2 font-bold text-slate-800 shrink-0">
+            <button
+              type="button"
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              className="p-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 transition-all flex items-center gap-1 cursor-pointer"
+              title={isCollapsed ? "Desplegar banco de fármacos para colocar medicamentos" : "Ocultar banco de fármacos para colocar datos del paciente"}
+            >
+              <Pill className="w-4 h-4 text-blue-600" />
+              <span className="text-[11px] font-black">{isCollapsed ? '▼ Desplegar Fármacos' : '▲ Ocultar'}</span>
+            </button>
+
             <div>
-              <div className="flex items-center gap-1 leading-tight">
+              <div className="flex items-center gap-1.5 leading-tight">
                 <span className="font-extrabold text-slate-900 text-[13px]">Banco de Fármacos</span>
-                <span className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-800 font-bold rounded-full">
-                  Fármaco y Presentación
+                <span className="text-[10px] px-2 py-0.5 bg-blue-100 text-blue-800 font-bold rounded-full">
+                  Fármacos & Presentaciones
                 </span>
               </div>
-              <p className="text-[10px] text-slate-500 font-normal">
+              <p className="text-[10px] text-slate-500 font-normal hidden sm:block">
                 {isIndicationsMode 
                   ? 'Inserte el fármaco directamente a las indicaciones' 
-                  : 'Inserte al récipe con 1 clic (la descripción va en indicaciones)'}
+                  : 'Desplegable solo al prescribir medicamentos'}
               </p>
             </div>
           </div>
 
-          {/* Destination Selector (when 4-in-1 or multiple recipes) */}
-          {recipesCount > 1 && !isIndicationsMode && (
-            <div className="flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded-xl border border-slate-200 shrink-0">
-              <span className="text-[11px] font-bold text-slate-600">Destino:</span>
-              <select
-                value={targetIndex}
-                onChange={(e) => setTargetIndex(parseInt(e.target.value))}
-                className="bg-white border border-slate-300 rounded-lg px-2 py-0.5 font-bold text-slate-800 text-xs focus:ring-1 focus:ring-blue-500 outline-none"
-              >
-                {Array.from({ length: recipesCount }).map((_, idx) => (
-                  <option key={idx} value={idx}>
-                    Récipe #{idx + 1}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Destination Selector (when 4-in-1 or multiple recipes) */}
+            {recipesCount > 1 && !isIndicationsMode && (
+              <div className="flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded-xl border border-slate-200 shrink-0">
+                <span className="text-[11px] font-bold text-slate-600">Destino:</span>
+                <select
+                  value={targetIndex}
+                  onChange={(e) => setTargetIndex(parseInt(e.target.value))}
+                  className="bg-white border border-slate-300 rounded-lg px-2 py-0.5 font-bold text-slate-800 text-xs focus:ring-1 focus:ring-blue-500 outline-none"
+                >
+                  {Array.from({ length: recipesCount }).map((_, idx) => (
+                    <option key={idx} value={idx}>
+                      Récipe #{idx + 1}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
-          {/* Action: Add Custom Drug Button */}
-          <button
-            onClick={() => {
-              setShowAddCustom(!showAddCustom);
-              if (!showAddCustom && fastSearchQuery) {
-                setCustomDrugName(fastSearchQuery);
-              }
-            }}
-            className={`px-3 py-1.5 rounded-xl font-semibold flex items-center gap-1.5 border transition-all text-xs shrink-0 ${
-              showAddCustom
-                ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
-                : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-300'
-            }`}
-            title="Registrar nuevo medicamento en el sistema"
-          >
-            <BookmarkPlus className="w-3.5 h-3.5 text-blue-600" />
-            <span>+ Nuevo Fármaco al Sistema</span>
-          </button>
+            {/* PROMINENT ACTION: Add Custom Drug Button (Si no aparece en la lista) */}
+            <button
+              type="button"
+              onClick={() => {
+                if (isCollapsed) setIsCollapsed(false);
+                setShowAddCustom(!showAddCustom);
+                if (!showAddCustom && fastSearchQuery) {
+                  setCustomDrugName(fastSearchQuery);
+                }
+              }}
+              className={`px-3.5 py-1.5 rounded-full font-black flex items-center gap-1.5 border transition-all text-xs shrink-0 cursor-pointer shadow-xs ${
+                showAddCustom
+                  ? 'bg-emerald-700 text-white border-emerald-800 shadow-sm ring-2 ring-emerald-300'
+                  : 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-500 hover:scale-105 active:scale-95'
+              }`}
+              title="Agregar fármaco personalizado si no aparece en el listado"
+            >
+              <Plus className="w-4 h-4 text-white" />
+              <span>+ Agregar Fármaco (si no aparece en la lista)</span>
+            </button>
+          </div>
         </div>
+
+        {/* IF COLLAPSED: SHOW MINIMAL QUICK BAR OR CLICK TO EXPAND */}
+        {!isCollapsed && (
+          <div className="space-y-2.5 pt-1 animate-in fade-in duration-150">
 
         {/* PROMINENT LIVE SEARCH BAR (Búsqueda Rápida Instantánea) */}
         <div ref={searchContainerRef} className="relative w-full">
@@ -494,6 +512,8 @@ export const DrugBankFloatingBar: React.FC<DrugBankFloatingBarProps> = ({
             <span>Insertar al Récipe</span>
           </button>
         </div>
+          </div>
+        )}
 
       </div>
 

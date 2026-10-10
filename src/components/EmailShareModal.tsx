@@ -54,7 +54,7 @@ export const EmailShareModal: React.FC<EmailShareModalProps> = ({
         setIsUploading(true);
         // Find visible active sheet container
         const targetElement = document.querySelector<HTMLElement>(
-          '.print-container, .report-sheet-container, .recipe-single-container, .indications-container, .rest-container, .recipe-4en1-container, .clinical-history-container'
+          '#dual-recipe-print-container, #recipe-single-print-container, #indications-print-container, .dual-recipe-container, .dual-recipe-sheet, .print-container, .report-sheet-container, .recipe-single-container, .indications-container, .rest-container, .recipe-4en1-container, .clinical-history-container'
         );
         const blob = await generatePDFBlob(targetElement);
         if (!blob) {
@@ -167,7 +167,7 @@ export const EmailShareModal: React.FC<EmailShareModalProps> = ({
 
       // Find visible active sheet container
       const targetElement = document.querySelector<HTMLElement>(
-        '.print-container, .report-sheet-container, .recipe-single-container, .indications-container, .rest-container, .recipe-4en1-container, .clinical-history-container'
+        '#dual-recipe-print-container, #recipe-single-print-container, #indications-print-container, .dual-recipe-container, .dual-recipe-sheet, .print-container, .report-sheet-container, .recipe-single-container, .indications-container, .rest-container, .recipe-4en1-container, .clinical-history-container'
       );
       const blob = await generatePDFBlob(targetElement);
       if (!blob) {

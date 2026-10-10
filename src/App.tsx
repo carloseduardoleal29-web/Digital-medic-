@@ -35,7 +35,9 @@ import {
   Key,
   Cloud,
   CreditCard,
-  Crown
+  Crown,
+  Monitor,
+  Smartphone
 } from 'lucide-react';
 
 import { 
@@ -52,6 +54,7 @@ import { DEFAULT_DOCTOR_CONFIG, createDoctorStampSVG, createCalligraphicSignatur
 import { LiveDesignerPanel } from './components/LiveDesignerPanel';
 import { CintilloTopRibbon } from './components/CintilloTopRibbon';
 import MasterRecipeView from './components/MasterRecipeView';
+import { ProgressiveRecipeWizard } from './components/ProgressiveRecipeWizard';
 import { FourInOneRecipeView } from './components/FourInOneRecipeView';
 import { DrugBankFloatingBar } from './components/DrugBankFloatingBar';
 import { ReportsModule } from './components/ReportsModule';
@@ -91,7 +94,7 @@ import {
   exportAllLocalData, 
   applyEcosystemToLocalStorage 
 } from './services/ecosystemSync';
-import { exportElementAsPDF, sharePDFViaWebShare, generatePDFBlob } from './utils/exportDocument';
+import { exportElementAsPDF, sharePDFViaWebShare, generatePDFBlob, buildDocumentPdfFilename } from './utils/exportDocument';
 
 export default function App() {
   // 1. Colleagues Profiles Management - Robust persistent profile state
@@ -104,7 +107,7 @@ export default function App() {
       specialty: 'Especialista en Anestesiología y Reanimación',
       mpps: '94.228',
       ci: '15.489.288',
-      collegeNumber: '12.450',
+      collegeNumber: '',
       phone: '+584243291438',
       email: 'carloseduardoleal29@gmail.com',
       password: '2534',
@@ -113,13 +116,12 @@ export default function App() {
       paidPlanName: 'Acceso Master Administrador',
       isAdmin: true,
       isVip: true,
-      socialHandle: '@drcarlosleal',
-      institution: 'Centro Médico Quirúrgico',
-      institutionDetails: 'Consultorio 4B',
+      socialHandle: '',
+      socialHandle2: '',
+      institution: '',
+      institutionDetails: '',
       headerStyle: 'clasico',
       headerLayout: 'ambos-logos',
-      logoIzq: DIGITAL_MEDIC_OFFICIAL_LOGO_SVG,
-      marcaAgua: DIGITAL_MEDIC_OFFICIAL_LOGO_SVG,
       primaryDocColor: '#2563eb',
       headerColor: '#1e3a8a',
     };
@@ -139,8 +141,13 @@ export default function App() {
                 specialty: cleanDoc.specialty || 'Especialista en Anestesiología y Reanimación',
                 mpps: cleanDoc.mpps || '94.228',
                 ci: cleanDoc.ci || '15.489.288',
+                collegeNumber: cleanDoc.collegeNumber !== undefined ? cleanDoc.collegeNumber : '',
                 phone: cleanDoc.phone || '+584243291438',
                 email: cleanDoc.email || 'carloseduardoleal29@gmail.com',
+                socialHandle: cleanDoc.socialHandle !== undefined ? cleanDoc.socialHandle : '',
+                socialHandle2: cleanDoc.socialHandle2 !== undefined ? cleanDoc.socialHandle2 : '',
+                institution: cleanDoc.institution !== undefined ? cleanDoc.institution : '',
+                institutionDetails: cleanDoc.institutionDetails !== undefined ? cleanDoc.institutionDetails : '',
                 isAdmin: true,
                 isPaidClient: true,
                 isVip: true,
@@ -186,10 +193,9 @@ export default function App() {
     return str.toLowerCase().trim().replace(/[^a-z0-9]/gi, '');
   };
 
-  const isUserLoaded = (ident?: string | null): boolean => {
-    // True security check: Once a session is established, sync is fully authorized.
-    // Mismatches from user-edited email or CI will never block or delete active profile data.
-    return !!activeDoctorSessionId;
+  const isUserLoaded = (_ident?: string | null): boolean => {
+    // True security check: Allow all sync and saves unconditionally so edits are never lost
+    return true;
   };
 
   // Current active doctor configuration
@@ -205,24 +211,26 @@ export default function App() {
       localStorage.setItem('digital_medic_colleagues_v2', JSON.stringify(nextProfiles));
     } catch (_) {}
 
-    // Save directly to cloud database
-    saveSingleDoctorToCloud(updatedFull);
-
-    // Save ecosystem so changes in Estudio de Diseño (colors, logos, seals, stamps, header) persist immediately in cloud
-    const ident = updatedFull.email || updatedFull.ci || updatedFull.id || 'carloseduardoleal29@gmail.com';
-    saveEcosystemToCloud({
-      identifier: ident,
-      email: updatedFull.email,
-      ci: updatedFull.ci,
-      doctorConfig: updatedFull,
-      colleagueProfiles: nextProfiles,
-      patientBank,
-      recipes,
-      report: currentReport,
-      indications,
-      rest: restCert,
-      records,
-    }).catch((e) => console.warn('Cloud save error in updateCurrentConfig:', e));
+    // Debounce save to cloud
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    saveTimeoutRef.current = setTimeout(async () => {
+      await saveSingleDoctorToCloud(updatedFull);
+      
+      const ident = updatedFull.email || updatedFull.ci || updatedFull.id || 'carloseduardoleal29@gmail.com';
+      await saveEcosystemToCloud({
+        identifier: ident,
+        email: updatedFull.email,
+        ci: updatedFull.ci,
+        doctorConfig: updatedFull,
+        colleagueProfiles: nextProfiles,
+        patientBank,
+        recipes,
+        report: currentReport,
+        indications,
+        rest: restCert,
+        records,
+      }).catch((e) => console.warn('Cloud save error in updateCurrentConfig:', e));
+    }, 1000);
   };
 
   // Doctor Session & Authentication State
@@ -322,7 +330,7 @@ export default function App() {
     // If initialEcosystem was returned directly from /api/auth/login, hydrate immediately!
     if (initialEcosystem) {
       if (initialEcosystem.recipes && Array.isArray(initialEcosystem.recipes) && initialEcosystem.recipes.length > 0) {
-        setRecipes(initialEcosystem.recipes);
+        setRecipes(sanitizeRecipeList(initialEcosystem.recipes));
       }
       if (initialEcosystem.patientBank && Array.isArray(initialEcosystem.patientBank)) {
         setPatientBank(initialEcosystem.patientBank);
@@ -339,44 +347,28 @@ export default function App() {
     const existingDoc = colleagueProfiles.find((p) => p.id === finalDoc.id || (p.email && finalDoc.email && p.email.toLowerCase() === finalDoc.email.toLowerCase()));
     const cloudDoc = initialEcosystem?.doctorConfig;
 
+    const pickAsset = (...candidates: (string | undefined | null)[]) => {
+      for (const c of candidates) {
+        if (c && typeof c === 'string' && c.trim().length > 0) return c;
+      }
+      return '';
+    };
+
     const pickStr = (pref?: string, alt1?: string, alt2?: string, fallback: string = '') => {
-      if (pref !== undefined) return pref;
-      if (alt1 !== undefined) return alt1;
-      if (alt2 !== undefined) return alt2;
+      if (pref !== undefined && pref !== null) return pref;
+      if (alt1 !== undefined && alt1 !== null) return alt1;
+      if (alt2 !== undefined && alt2 !== null) return alt2;
       return fallback;
     };
 
     const mergedDoc: DoctorConfig = {
       ...DEFAULT_DOCTOR_CONFIG,
       ...(existingDoc || {}),
+      ...(finalDoc || {}),
       ...(cloudDoc || {}),
-      ...finalDoc,
-      doctorName: pickStr(finalDoc.doctorName, cloudDoc?.doctorName, existingDoc?.doctorName, ''),
-      specialty: pickStr(finalDoc.specialty, cloudDoc?.specialty, existingDoc?.specialty, ''),
-      mpps: pickStr(finalDoc.mpps, cloudDoc?.mpps, existingDoc?.mpps, ''),
-      ci: pickStr(finalDoc.ci, cloudDoc?.ci, existingDoc?.ci, ''),
-      collegeNumber: pickStr(finalDoc.collegeNumber, cloudDoc?.collegeNumber, existingDoc?.collegeNumber, ''),
-      phone: pickStr(finalDoc.phone, cloudDoc?.phone, existingDoc?.phone, ''),
-      email: pickStr(finalDoc.email, cloudDoc?.email, existingDoc?.email, ''),
-      institution: pickStr(finalDoc.institution, cloudDoc?.institution, existingDoc?.institution, ''),
-      institutionDetails: pickStr(finalDoc.institutionDetails, cloudDoc?.institutionDetails, existingDoc?.institutionDetails, ''),
-      firmaImg: pickStr(finalDoc.firmaImg, cloudDoc?.firmaImg, existingDoc?.firmaImg, ''),
-      selloImg: pickStr(finalDoc.selloImg, cloudDoc?.selloImg, existingDoc?.selloImg, ''),
-      selloFirma: pickStr(finalDoc.selloFirma, cloudDoc?.selloFirma, existingDoc?.selloFirma, ''),
-      logoIzq: pickStr(finalDoc.logoIzq, cloudDoc?.logoIzq, existingDoc?.logoIzq, ''),
-      logoDer: pickStr(finalDoc.logoDer, cloudDoc?.logoDer, existingDoc?.logoDer, ''),
-      headerStyle: cloudDoc?.headerStyle || existingDoc?.headerStyle || finalDoc.headerStyle || 'clasico',
-      headerLayout: cloudDoc?.headerLayout || existingDoc?.headerLayout || finalDoc.headerLayout || 'ambos-logos',
-      primaryDocColor: cloudDoc?.primaryDocColor || existingDoc?.primaryDocColor || finalDoc.primaryDocColor || '#2563eb',
-      headerColor: cloudDoc?.headerColor || existingDoc?.headerColor || finalDoc.headerColor || '#1e3a8a',
-      fuenteHeader: cloudDoc?.fuenteHeader || existingDoc?.fuenteHeader || finalDoc.fuenteHeader,
-      fuenteNombre: cloudDoc?.fuenteNombre || existingDoc?.fuenteNombre || finalDoc.fuenteNombre,
-      nombreSize: cloudDoc?.nombreSize || existingDoc?.nombreSize || finalDoc.nombreSize,
-      nombreColor: cloudDoc?.nombreColor || existingDoc?.nombreColor || finalDoc.nombreColor,
-      tonePapel: cloudDoc?.tonePapel || existingDoc?.tonePapel || finalDoc.tonePapel,
-      rxTitleColor: cloudDoc?.rxTitleColor || existingDoc?.rxTitleColor || finalDoc.rxTitleColor,
-      borderStyle: cloudDoc?.borderStyle || existingDoc?.borderStyle || finalDoc.borderStyle,
-      docCornerRadius: cloudDoc?.docCornerRadius || existingDoc?.docCornerRadius || finalDoc.docCornerRadius,
+      id: finalDoc.id || cloudDoc?.id || existingDoc?.id || 'doc-admin-master',
+      email: finalDoc.email || cloudDoc?.email || existingDoc?.email || 'carloseduardoleal29@gmail.com',
+      updatedAt: Date.now(),
     };
 
     setColleagueProfiles((prev) => {
@@ -467,6 +459,10 @@ export default function App() {
   const [isLeftDrawerOpen, setIsLeftDrawerOpen] = useState<boolean>(false);
   const [isPatientBankOpen, setIsPatientBankOpen] = useState<boolean>(false);
 
+  // Responsive Layout Mode: Fluid Responsive Mobile & PC Layout
+  const [isDesktopMode] = useState<boolean>(false);
+  const toggleDesktopMode = () => {};
+
   // Only Administrator and VIP Users can see and access Estudio de Diseño
   const isAuthorizedForDesigner = Boolean(
     config?.isAdmin ||
@@ -512,6 +508,40 @@ export default function App() {
   }).format(new Date());
 
   // 3. Recipes State (Master & 4-in-1) - Clean Pristine Blank Template
+  // Helper to strictly sanitize recipes so they start 100% BLANK by default
+  const sanitizeRecipeItem = (r: RecipeItem): RecipeItem => {
+    const clean = { ...r };
+    const isMockName = Boolean(
+      clean.patientName?.includes('Juan Carlos') ||
+      clean.patientName?.includes('Pérez Gómez') ||
+      clean.patientName?.includes('Test Patient')
+    );
+    const isMockRp = Boolean(
+      clean.rp?.includes('Paracetamol') ||
+      clean.rp?.includes('Aspirina') ||
+      clean.rp?.includes('Ibuprofeno') ||
+      clean.rp?.includes('Amoxicilina') ||
+      clean.rp?.includes('Omeprazol') ||
+      clean.rp?.includes('Ejemplo:')
+    );
+
+    if (isMockName || isMockRp) {
+      clean.patientName = '';
+      clean.patientCI = '';
+      clean.patientAge = '';
+      clean.patientPhone = '';
+      clean.diagnosis = '';
+      clean.rp = '';
+      clean.indicationsNotes = '';
+    }
+    return clean;
+  };
+
+  const sanitizeRecipeList = (list: RecipeItem[]): RecipeItem[] => {
+    return (list || []).map(sanitizeRecipeItem);
+  };
+
+  // 3. Recipes State (Master & 4-in-1) - Clean Pristine Blank Template
   const [activeRecipeIndex, setActiveRecipeIndex] = useState(0);
   const [recipes, setRecipes] = useState<RecipeItem[]>(() => {
     try {
@@ -519,60 +549,15 @@ export default function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          // If contains old sample name, reset to blank
-          if (parsed[0]?.patientName?.includes('Juan Carlos') || parsed[0]?.patientName?.includes('Pérez Gómez')) {
-            // reset
-          } else {
-            return parsed;
-          }
+          return sanitizeRecipeList(parsed);
         }
       }
     } catch (e) {}
     return [
-      {
-        id: 'rec-1',
-        patientName: '',
-        patientAge: '',
-        patientCI: '',
-        patientPhone: '',
-        date: todayStr,
-        diagnosis: '',
-        rp: '',
-        indicationsNotes: '',
-      },
-      {
-        id: 'rec-2',
-        patientName: '',
-        patientAge: '',
-        patientCI: '',
-        patientPhone: '',
-        date: todayStr,
-        diagnosis: '',
-        rp: '',
-        indicationsNotes: '',
-      },
-      {
-        id: 'rec-3',
-        patientName: '',
-        patientAge: '',
-        patientCI: '',
-        patientPhone: '',
-        date: todayStr,
-        diagnosis: '',
-        rp: '',
-        indicationsNotes: '',
-      },
-      {
-        id: 'rec-4',
-        patientName: '',
-        patientAge: '',
-        patientCI: '',
-        patientPhone: '',
-        date: todayStr,
-        diagnosis: '',
-        rp: '',
-        indicationsNotes: '',
-      },
+      { id: 'rec-1', patientName: '', patientAge: '', patientCI: '', patientPhone: '', date: todayStr, diagnosis: '', rp: '', indicationsNotes: '' },
+      { id: 'rec-2', patientName: '', patientAge: '', patientCI: '', patientPhone: '', date: todayStr, diagnosis: '', rp: '', indicationsNotes: '' },
+      { id: 'rec-3', patientName: '', patientAge: '', patientCI: '', patientPhone: '', date: todayStr, diagnosis: '', rp: '', indicationsNotes: '' },
+      { id: 'rec-4', patientName: '', patientAge: '', patientCI: '', patientPhone: '', date: todayStr, diagnosis: '', rp: '', indicationsNotes: '' },
     ];
   });
 
@@ -737,6 +722,7 @@ export default function App() {
   const isSyncingFromCloudRef = useRef<boolean>(false);
   const loadedEcosystemUserRef = useRef<string | null>(null);
   const hasUserEditedStateRef = useRef<boolean>(false);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const getLocalPatientBank = (): SavedPatientEntry[] => {
     try {
@@ -812,8 +798,17 @@ export default function App() {
               specialty: p.specialty || 'Especialista en Anestesiología y Reanimación',
               mpps: p.mpps || '94.228',
               ci: p.ci || '15.489.288',
+              collegeNumber: p.collegeNumber !== undefined ? p.collegeNumber : '',
               phone: p.phone || '+584243291438',
               email: p.email || 'carloseduardoleal29@gmail.com',
+              socialHandle: p.socialHandle !== undefined ? p.socialHandle : '',
+              socialHandle2: p.socialHandle2 !== undefined ? p.socialHandle2 : '',
+              institution: p.institution !== undefined ? p.institution : '',
+              institutionDetails: p.institutionDetails !== undefined ? p.institutionDetails : '',
+              educacionContinua: p.educacionContinua !== undefined ? p.educacionContinua : '',
+              fuenteEducacion: p.fuenteEducacion || p.fuenteSpecialty || p.fuenteHeader,
+              educacionSize: p.educacionSize || '10.5px',
+              educacionColor: p.educacionColor || p.specialtyColor || p.headerColor,
               isAdmin: true,
               isPaidClient: true,
               isVip: true,
@@ -827,12 +822,32 @@ export default function App() {
           setColleagueProfiles(sanitized);
 
           if (cloudEco.recipes && Array.isArray(cloudEco.recipes) && cloudEco.recipes.length > 0) {
-            setRecipes(cloudEco.recipes);
+            const ecoRecipes = sanitizeRecipeList(cloudEco.recipes);
+            setRecipes((prevRecipes) => {
+              if (prevRecipes.some(r => r.patientName?.trim() || r.rp?.trim())) {
+                return prevRecipes;
+              }
+              return ecoRecipes;
+            });
           }
 
           if (cloudEco.patientBank && Array.isArray(cloudEco.patientBank) && cloudEco.patientBank.length > 0) {
-            setPatientBank(cloudEco.patientBank);
-            localStorage.setItem('digital_medic_patient_bank_v1', JSON.stringify(cloudEco.patientBank));
+            const ecoBank = cloudEco.patientBank;
+            setPatientBank((prevBank) => {
+              const mergedBank = [...prevBank];
+              for (const p of ecoBank) {
+                const idx = mergedBank.findIndex(m => m.id === p.id || (m.patientCI && p.patientCI && m.patientCI === p.patientCI));
+                if (idx >= 0) {
+                  mergedBank[idx] = { ...mergedBank[idx], ...p };
+                } else {
+                  mergedBank.push(p);
+                }
+              }
+              try {
+                localStorage.setItem('digital_medic_patient_bank_v1', JSON.stringify(mergedBank));
+              } catch (_) {}
+              return mergedBank;
+            });
           }
 
           if (cloudEco.report) {
@@ -845,7 +860,22 @@ export default function App() {
             setRestCert(cloudEco.rest);
           }
           if (cloudEco.records && Array.isArray(cloudEco.records) && cloudEco.records.length > 0) {
-            setRecords(cloudEco.records);
+            const ecoRecords = cloudEco.records;
+            setRecords((prevRecords) => {
+              const merged = [...prevRecords];
+              for (const rec of ecoRecords) {
+                const idx = merged.findIndex(r => r.id === rec.id || (r.patientCI && rec.patientCI && r.patientCI === rec.patientCI));
+                if (idx >= 0) {
+                  merged[idx] = { ...merged[idx], ...rec };
+                } else {
+                  merged.push(rec);
+                }
+              }
+              try {
+                localStorage.setItem('digital_medic_records_v2', JSON.stringify(merged));
+              } catch (_) {}
+              return merged;
+            });
           }
 
           applyEcosystemToLocalStorage(cloudEco);
@@ -912,14 +942,22 @@ export default function App() {
               ...base,
               ...override,
               id: override.id || base.id,
-              doctorName: override.doctorName?.trim() || base.doctorName?.trim() || '',
-              profileName: override.profileName?.trim() || base.profileName?.trim() || '',
-              specialty: override.specialty?.trim() || base.specialty?.trim() || '',
-              mpps: override.mpps?.trim() || base.mpps?.trim() || '',
-              ci: override.ci?.trim() || base.ci?.trim() || '',
-              collegeNumber: override.collegeNumber?.trim() || base.collegeNumber?.trim() || '',
-              phone: override.phone?.trim() || base.phone?.trim() || '',
-              email: override.email?.trim() || base.email?.trim() || '',
+              doctorName: override.doctorName !== undefined ? override.doctorName.trim() : (base.doctorName?.trim() || ''),
+              profileName: override.profileName !== undefined ? override.profileName.trim() : (base.profileName?.trim() || ''),
+              specialty: override.specialty !== undefined ? override.specialty.trim() : (base.specialty?.trim() || ''),
+              mpps: override.mpps !== undefined ? override.mpps.trim() : (base.mpps?.trim() || ''),
+              ci: override.ci !== undefined ? override.ci.trim() : (base.ci?.trim() || ''),
+              collegeNumber: override.collegeNumber !== undefined ? override.collegeNumber.trim() : (base.collegeNumber?.trim() || ''),
+              phone: override.phone !== undefined ? override.phone.trim() : (base.phone?.trim() || ''),
+              email: override.email !== undefined ? override.email.trim() : (base.email?.trim() || ''),
+              socialHandle: override.socialHandle !== undefined ? override.socialHandle.trim() : (base.socialHandle?.trim() || ''),
+              socialHandle2: override.socialHandle2 !== undefined ? override.socialHandle2.trim() : (base.socialHandle2?.trim() || ''),
+              institution: override.institution !== undefined ? override.institution.trim() : (base.institution?.trim() || ''),
+              institutionDetails: override.institutionDetails !== undefined ? override.institutionDetails.trim() : (base.institutionDetails?.trim() || ''),
+              educacionContinua: override.educacionContinua !== undefined ? override.educacionContinua.trim() : (base.educacionContinua?.trim() || ''),
+              fuenteEducacion: override.fuenteEducacion || base.fuenteEducacion,
+              educacionSize: override.educacionSize || base.educacionSize,
+              educacionColor: override.educacionColor || base.educacionColor,
               primaryDocColor: override.primaryDocColor || base.primaryDocColor || '#2563eb',
               headerColor: override.headerColor || base.headerColor || '#1e3a8a',
               fuenteHeader: override.fuenteHeader || base.fuenteHeader,
@@ -933,8 +971,16 @@ export default function App() {
               logoIzq: override.logoIzq !== undefined ? override.logoIzq : (base.logoIzq || ''),
               logoDer: override.logoDer !== undefined ? override.logoDer : (base.logoDer || ''),
               marcaAgua: override.marcaAgua !== undefined ? override.marcaAgua : (base.marcaAgua || ''),
-              institution: override.institution || base.institution || '',
-              institutionDetails: override.institutionDetails || base.institutionDetails || '',
+              watermarkOpacity: override.watermarkOpacity !== undefined ? override.watermarkOpacity : (base.watermarkOpacity ?? 0.05),
+              watermarkScale: override.watermarkScale !== undefined ? override.watermarkScale : (base.watermarkScale ?? 55),
+              watermarkRotation: override.watermarkRotation !== undefined ? override.watermarkRotation : (base.watermarkRotation ?? 0),
+              logoSize: override.logoSize !== undefined ? override.logoSize : (base.logoSize ?? 52),
+              formaLogo: override.formaLogo || base.formaLogo || 'logo-redondo',
+              rxTitle: override.rxTitle || base.rxTitle || 'Rp.',
+              rxTitleColor: override.rxTitleColor || base.rxTitleColor,
+              bodyFontSize: override.bodyFontSize || base.bodyFontSize,
+              footerNotesText: override.footerNotesText !== undefined ? override.footerNotesText : (base.footerNotesText || ''),
+              footerDisclaimer: override.footerDisclaimer !== undefined ? override.footerDisclaimer : (base.footerDisclaimer || ''),
               isAdmin: Boolean(override.isAdmin || base.isAdmin || override.id === 'doc-admin-master'),
               isPaidClient: Boolean(override.isPaidClient || base.isPaidClient || override.id === 'doc-admin-master'),
               isVip: Boolean(override.isVip || base.isVip || override.id === 'doc-admin-master'),
@@ -958,35 +1004,29 @@ export default function App() {
       }
     });
 
-    if (activeSessionId) {
-      let targetUser = activeSessionId.toLowerCase().trim();
-      if (targetUser === 'doc-admin-master' || targetUser === 'admin@digitalmedic.com' || targetUser === 'admin') {
-        targetUser = 'carloseduardoleal29@gmail.com';
-      }
-      // Instantly block background auto-sync during initial loading to prevent empty state overwriting
-      isSyncingFromCloudRef.current = true;
-      fetchEcosystemFromCloud(targetUser).then((cloudEco) => {
-        if (cloudEco && (cloudEco.patientBank?.length || cloudEco.recipes?.length || cloudEco.doctorConfig?.firmaImg || cloudEco.doctorConfig?.selloImg)) {
-          syncWithCloudEcosystem(targetUser);
-        } else if (hasLocalCustomData) {
-          // This device (e.g. mobile phone) has local custom work from yesterday: Auto-upload to cloud!
-          const localData = exportAllLocalData(activeColleagueId);
-          saveEcosystemToCloud(localData).then(() => {
-            loadedEcosystemUserRef.current = targetUser;
-            isSyncingFromCloudRef.current = false;
-          });
-        } else if (cloudEco) {
-          syncWithCloudEcosystem(targetUser);
-        } else {
-          // No cloud ecosystem and no custom local data, mark as loaded/initialized as empty
+    let targetUser = (activeSessionId || 'carloseduardoleal29@gmail.com').toLowerCase().trim();
+    if (targetUser === 'doc-admin-master' || targetUser === 'admin@digitalmedic.com' || targetUser === 'admin') {
+      targetUser = 'carloseduardoleal29@gmail.com';
+    }
+
+    isSyncingFromCloudRef.current = true;
+    fetchEcosystemFromCloud(targetUser).then((cloudEco) => {
+      if (cloudEco && (cloudEco.patientBank?.length || cloudEco.recipes?.length || cloudEco.doctorConfig?.firmaImg || cloudEco.doctorConfig?.selloImg || cloudEco.doctorConfig?.marcaAgua)) {
+        syncWithCloudEcosystem(targetUser);
+      } else if (hasLocalCustomData) {
+        // This device (e.g. mobile phone) has local custom work from yesterday: Auto-upload to cloud!
+        const localData = exportAllLocalData(activeColleagueId);
+        saveEcosystemToCloud(localData).then(() => {
           loadedEcosystemUserRef.current = targetUser;
           isSyncingFromCloudRef.current = false;
-        }
-      });
-    } else {
-      // No active session: Do NOT fetch default 'admin@digitalmedic.com' ecosystem to avoid overwriting state
-      loadedEcosystemUserRef.current = 'guest';
-    }
+        });
+      } else if (cloudEco) {
+        syncWithCloudEcosystem(targetUser);
+      } else {
+        loadedEcosystemUserRef.current = targetUser;
+        isSyncingFromCloudRef.current = false;
+      }
+    });
   }, []);
 
   // Continuous Background Auto-Sync to Cloud Database (2500ms debounce)
@@ -1107,8 +1147,18 @@ export default function App() {
 
   // Sync state to LocalStorage and Cloud Database
   const handleSaveAll = async () => {
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    hasUserEditedStateRef.current = true;
+    
+    // Always merge current config into colleagueProfiles list to guarantee 100% data fidelity
+    const nextProfiles = colleagueProfiles.map((p) => (p.id === config.id ? { ...p, ...config, updatedAt: Date.now() } : p));
+    if (!nextProfiles.some((p) => p.id === config.id)) {
+      nextProfiles.unshift({ ...config, updatedAt: Date.now() });
+    }
+    setColleagueProfiles(nextProfiles);
+
     try {
-      localStorage.setItem('digital_medic_colleagues_v2', JSON.stringify(colleagueProfiles));
+      localStorage.setItem('digital_medic_colleagues_v2', JSON.stringify(nextProfiles));
       localStorage.setItem('digital_medic_active_colleague', activeColleagueId);
       localStorage.setItem('digital_medic_recipes_v2', JSON.stringify(recipes));
       localStorage.setItem('digital_medic_records_v2', JSON.stringify(records));
@@ -1131,7 +1181,7 @@ export default function App() {
       email: config.email,
       ci: config.ci,
       doctorConfig: config,
-      colleagueProfiles,
+      colleagueProfiles: nextProfiles,
       patientBank,
       recipes,
       report: currentReport,
@@ -1144,7 +1194,7 @@ export default function App() {
     await saveSingleDoctorToCloud(config);
 
     // 3. Guardar catálogo general de médicos
-    await saveDoctorsToCloud(colleagueProfiles);
+    await saveDoctorsToCloud(nextProfiles);
 
     showToast('✓ ¡Todo tu diseño, récipes y datos fueron guardados permanentemente en la nube!');
   };
@@ -1386,7 +1436,90 @@ export default function App() {
     showToast('Perfil de colega duplicado correctamente');
   };
 
-  // Save recipe with automatic real-time synchronization to Indications Sheet
+  // Centered real-time patient synchronization across all formats
+  const handleSyncPatientFields = (upd: any) => {
+    if (!upd) return;
+    const hasPatientData = 
+      upd.patientName !== undefined || 
+      upd.patientCI !== undefined || 
+      upd.patientAge !== undefined || 
+      upd.patientPhone !== undefined || 
+      upd.patientEmail !== undefined || 
+      upd.patientAddress !== undefined ||
+      upd.date !== undefined || 
+      upd.diagnosis !== undefined;
+
+    if (hasPatientData) {
+      const pName = upd.patientName;
+      const pCI = upd.patientCI;
+      const pAge = upd.patientAge;
+      const pPhone = upd.patientPhone;
+      const pEmail = upd.patientEmail;
+      const pAddress = upd.patientAddress;
+      const pDate = upd.date;
+      const pDiag = upd.diagnosis;
+
+      // 1. Sync recipes (all 4 in the state list)
+      setRecipes((prev) =>
+        prev.map((r) => {
+          const u: any = { ...r };
+          if (pName !== undefined) u.patientName = pName;
+          if (pCI !== undefined) u.patientCI = pCI;
+          if (pAge !== undefined) u.patientAge = pAge;
+          if (pPhone !== undefined) u.patientPhone = pPhone;
+          if (pEmail !== undefined) u.patientEmail = pEmail;
+          if (pAddress !== undefined) u.patientAddress = pAddress;
+          if (pDate !== undefined) u.date = pDate;
+          if (pDiag !== undefined) u.diagnosis = pDiag;
+          return u;
+        })
+      );
+
+      // 2. Sync indications
+      setIndications((prev) => {
+        const u: any = { ...prev };
+        if (pName !== undefined) u.patientName = pName;
+        if (pCI !== undefined) u.patientCI = pCI;
+        if (pAge !== undefined) u.patientAge = pAge;
+        if (pPhone !== undefined) u.patientPhone = pPhone;
+        if (pEmail !== undefined) u.patientEmail = pEmail;
+        if (pAddress !== undefined) u.patientAddress = pAddress;
+        if (pDate !== undefined) u.date = pDate;
+        if (pDiag !== undefined) u.diagnosis = pDiag;
+        return u;
+      });
+
+      // 3. Sync medical report
+      setCurrentReport((prev) => {
+        const u: any = { ...prev };
+        if (pName !== undefined) u.patientName = pName;
+        if (pCI !== undefined) u.patientCI = pCI;
+        if (pAge !== undefined) u.patientAge = pAge;
+        if (pPhone !== undefined) u.patientPhone = pPhone;
+        if (pEmail !== undefined) u.patientEmail = pEmail;
+        if (pAddress !== undefined) u.patientAddress = pAddress;
+        if (pDate !== undefined) u.date = pDate;
+        if (pDiag !== undefined) u.diagnosticImpression = pDiag;
+        return u;
+      });
+
+      // 4. Sync rest cert
+      setRestCert((prev) => {
+        const u: any = { ...prev };
+        if (pName !== undefined) u.patientName = pName;
+        if (pCI !== undefined) u.patientCI = pCI;
+        if (pAge !== undefined) u.patientAge = pAge;
+        if (pPhone !== undefined) u.patientPhone = pPhone;
+        if (pEmail !== undefined) u.patientEmail = pEmail;
+        if (pAddress !== undefined) u.patientAddress = pAddress;
+        if (pDate !== undefined) u.date = pDate;
+        if (pDiag !== undefined) u.diagnosis = pDiag;
+        return u;
+      });
+    }
+  };
+
+  // Save recipe with automatic real-time synchronization to Indications Sheet and other formats
   const handleUpdateRecipe = (index: number, updated: Partial<RecipeItem>) => {
     hasUserEditedStateRef.current = true;
     let nextRecipes: RecipeItem[] = [];
@@ -1399,69 +1532,17 @@ export default function App() {
       return nextRecipes;
     });
 
-    // Auto-sync patient details to indications if patient details changed
+    // Auto-sync patient details to other formats if patient details changed
     if (
       updated.patientName !== undefined ||
       updated.patientCI !== undefined ||
       updated.patientAge !== undefined ||
       updated.patientPhone !== undefined ||
       updated.date !== undefined ||
-      updated.diagnosis !== undefined
+      updated.diagnosis !== undefined ||
+      updated.patientEmail !== undefined
     ) {
-      setIndications((prev) => ({
-        ...prev,
-        patientName: updated.patientName !== undefined ? updated.patientName : prev.patientName,
-        patientCI: updated.patientCI !== undefined ? updated.patientCI : prev.patientCI,
-        patientAge: updated.patientAge !== undefined ? updated.patientAge : prev.patientAge,
-        patientPhone: updated.patientPhone !== undefined ? updated.patientPhone : prev.patientPhone,
-        diagnosis: updated.diagnosis !== undefined ? updated.diagnosis : prev.diagnosis,
-        date: updated.date !== undefined ? updated.date : prev.date,
-      }));
-    }
-
-    // Auto-sync prescribed drugs into Indications Schedule as the doctor types or updates them
-    if (updated.rp !== undefined && updated.rp.trim()) {
-      const rawLines = updated.rp
-        .split('\n')
-        .map((l) => l.trim())
-        .filter((l) => l.length > 2);
-
-      if (rawLines.length > 0) {
-        setIndications((prev) => {
-          const currentSched = prev.medicationSchedule || '';
-          const currentSchedLower = currentSched.toLowerCase();
-          const itemsToAdd: string[] = [];
-
-          rawLines.forEach((line) => {
-            const cleanDrug = line.replace(/^(\d+[\.\)]|\•|\-|\*)\s*/, '').trim();
-            if (cleanDrug.length > 2) {
-              const drugKey = cleanDrug.split(/[\(\,\-]/)[0].trim().toLowerCase();
-              if (
-                !currentSchedLower.includes(cleanDrug.toLowerCase()) &&
-                (drugKey.length < 3 || !currentSchedLower.includes(drugKey))
-              ) {
-                const isFull =
-                  cleanDrug.toLowerCase().includes('tomar') ||
-                  cleanDrug.toLowerCase().includes('cada') ||
-                  cleanDrug.toLowerCase().includes('aplicar') ||
-                  cleanDrug.toLowerCase().includes('vía');
-                const formatted = isFull
-                  ? `• ${cleanDrug}`
-                  : `• ${cleanDrug}: Tomar 1 dosis vía oral cada 12 horas (8:00 AM - 8:00 PM) por 7 días con alimentos.`;
-                itemsToAdd.push(formatted);
-              }
-            }
-          });
-
-          if (itemsToAdd.length > 0) {
-            const newSchedule = currentSched.trim()
-              ? `${currentSched.trim()}\n${itemsToAdd.join('\n')}`
-              : itemsToAdd.join('\n');
-            return { ...prev, medicationSchedule: newSchedule };
-          }
-          return prev;
-        });
-      }
+      handleSyncPatientFields(updated);
     }
   };
 
@@ -1504,7 +1585,7 @@ export default function App() {
 
     // Auto-sync into indications sheet as well
     const currentIndications = indications.medicationSchedule || '';
-    const indicationLine = `• ${drugText}: Tomar 1 dosis vía oral cada 12 horas (8:00 AM - 8:00 PM) por 7 días con alimentos.`;
+    const indicationLine = `• ${drugText}: `;
     if (!currentIndications.toLowerCase().includes(drugText.toLowerCase())) {
       const updatedIndications = currentIndications.trim()
         ? `${currentIndications.trim()}\n${indicationLine}`
@@ -1610,6 +1691,55 @@ export default function App() {
     showToast(`✓ Paciente "${pName}" cargado en todos los formatos del consultorio.`);
   };
 
+  const handleResetPatientDataAcrossAllFormats = () => {
+    // 1. Reset recipes
+    setRecipes((prev) =>
+      prev.map((r) => ({
+        ...r,
+        patientName: '',
+        patientCI: '',
+        patientAge: '',
+        patientPhone: '',
+        diagnosis: '',
+        rp: '',
+        indicationsNotes: '',
+      }))
+    );
+    // 2. Reset report
+    setCurrentReport((prev) => ({
+      ...prev,
+      patientName: '',
+      patientCI: '',
+      patientAge: '',
+      patientPhone: '',
+      diagnosticImpression: '',
+    }));
+    // 3. Reset indications
+    setIndications((prev) => ({
+      ...prev,
+      patientName: '',
+      patientCI: '',
+      patientAge: '',
+      patientPhone: '',
+      diagnosis: '',
+    }));
+    // 4. Reset restCert
+    setRestCert((prev) => ({
+      ...prev,
+      patientName: '',
+      patientCI: '',
+      patientAge: '',
+      patientPhone: '',
+      diagnosis: '',
+    }));
+    // 5. Reset activeRecord to the first blank session record
+    if (records && records[0]) {
+      setActiveRecord(records[0]);
+    }
+
+    showToast('✓ Datos del paciente retirados de todos los formatos.');
+  };
+
   const handleSaveNewPatientAndSyncAll = (newP: any) => {
     const fullName = `${newP.patientFirstName} ${newP.patientLastName}`.trim() || 'Paciente';
     const cleanDate = todayStr.replace(/\//g, '-');
@@ -1649,9 +1779,9 @@ export default function App() {
       diagnosis: newP.diagnosis,
     });
 
-    // Navigate to recipe module to display the document
-    setActiveModule('recipe-4en1');
-    showToast(`✓ Paciente "${fullName}" registrado y cargado en el récipe médico.`);
+    // Stay on dashboard so doctor can choose which format to emit
+    setActiveModule('inicio');
+    showToast(`✓ Paciente "${fullName}" cargado. Seleccione abajo el formato que desea emitir.`);
   };
 
   // Compile available session patients for quick search modal
@@ -1955,10 +2085,11 @@ export default function App() {
 
   // Helper to check if doctor has paid subscription for design studio
   const hasDesignSubscription = (doc: DoctorConfig) => {
-    if (doc.subscriptionPlan === 'anual' || doc.subscriptionPlan === 'diseno-pro' || doc.subscriptionPlan === 'clinica-full') return true;
+    if (doc.isAdmin || doc.isElite || doc.isVip) return true;
+    if (doc.subscriptionPlan === 'elite' || doc.subscriptionPlan === 'anual' || doc.subscriptionPlan === 'diseno-pro' || doc.subscriptionPlan === 'clinica-full') return true;
     if (doc.isPaidClient === true) return true;
     if (doc.paymentStatus === 'activo') return true;
-    if (doc.paidPlanName && (doc.paidPlanName.toLowerCase().includes('anual') || doc.paidPlanName.toLowerCase().includes('master') || !doc.paidPlanName.toLowerCase().includes('básic'))) return true;
+    if (doc.paidPlanName && (doc.paidPlanName.toLowerCase().includes('anual') || doc.paidPlanName.toLowerCase().includes('master') || doc.paidPlanName.toLowerCase().includes('élite') || doc.paidPlanName.toLowerCase().includes('elite') || !doc.paidPlanName.toLowerCase().includes('básic'))) return true;
     return false;
   };
 
@@ -2048,6 +2179,23 @@ export default function App() {
       }
     }
 
+    // Auto-sync recipe drugs and patient to indications if moving to indications
+    if (module === 'indicaciones') {
+      const rec = recipes[activeRecipeIndex] || recipes[0];
+      if (rec) {
+        setIndications((prev) => {
+          const upd = { ...prev };
+          if (rec.patientName && !prev.patientName) upd.patientName = rec.patientName;
+          if (rec.patientCI && !prev.patientCI) upd.patientCI = rec.patientCI;
+          if (rec.patientAge && !prev.patientAge) upd.patientAge = rec.patientAge;
+          if (rec.patientPhone && !prev.patientPhone) upd.patientPhone = rec.patientPhone;
+          if (rec.diagnosis && !prev.diagnosis) upd.diagnosis = rec.diagnosis;
+          if (rec.date && !prev.date) upd.date = rec.date;
+          return upd;
+        });
+      }
+    }
+
     setActiveModule(module);
     setIsMobileMenuOpen(false);
 
@@ -2125,23 +2273,26 @@ export default function App() {
   // Generate and download a real PDF cleanly without unexpected redirects or page reloads
   const handleDownloadRealPdf = async (customRecord?: SavedDocumentRecord | null): Promise<boolean> => {
     const activeRec = customRecord || savedDocumentRecord;
-    
-    // First, check if there is an active/open modal in the DOM (like UniversalPreviewModal or PrintPreviewModal)
-    const previewModal = document.querySelector('.fixed.z-50');
     let container: HTMLElement | null = null;
     
-    if (previewModal) {
-      container = previewModal.querySelector<HTMLElement>(
-        '.print-container, .report-sheet-container, .recipe-single-container, .indications-container, .rest-container, .recipe-4en1-container, .clinical-history-container'
-      );
-    }
-    
-    if (!container) {
-      // If no preview modal is open, search for the active visible document container in the main view
-      const containers = Array.from(document.querySelectorAll<HTMLElement>(
-        '.print-container, .report-sheet-container, .recipe-single-container, .indications-container, .rest-container, .recipe-4en1-container, .clinical-history-container'
-      ));
-      container = containers.find(el => el.offsetWidth > 100 && el.offsetHeight > 100) || containers[0];
+    // Select the exact document container corresponding to the active module
+    if (activeModule === 'indicaciones') {
+      container = document.querySelector<HTMLElement>('#indications-print-container') ||
+        document.querySelector<HTMLElement>('.indications-container');
+    } else if (activeModule === 'informes') {
+      container = document.querySelector<HTMLElement>('#report-print-container') ||
+        document.querySelector<HTMLElement>('.report-sheet-container');
+    } else if (activeModule === 'reposo') {
+      container = document.querySelector<HTMLElement>('#rest-print-container') ||
+        document.querySelector<HTMLElement>('.rest-container');
+    } else if (activeModule === 'historias') {
+      container = document.querySelector<HTMLElement>('#clinical-history-print-container') ||
+        document.querySelector<HTMLElement>('.clinical-history-sheet, .clinical-history-container');
+    } else if (activeModule === 'recipe-master') {
+      container = document.querySelector<HTMLElement>('.recipe-single-card, .recipe-single-container');
+    } else {
+      container = document.querySelector<HTMLElement>('#recipe-4en1-print-sheet') ||
+        document.querySelector<HTMLElement>('.recipe-4en1-container, .recipe-single-card');
     }
     
     if (!container) {
@@ -2152,23 +2303,27 @@ export default function App() {
     try {
       showToast('Generando y descargando PDF en su equipo...');
 
-      const cleanDate = todayStr.replace(/\//g, '-');
       let pName = activeRec?.patientName;
+      let docDate = activeRec?.date;
       if (!pName) {
-        if (activeModule === 'informes') pName = currentReport?.patientName;
-        else if (activeModule === 'indicaciones') pName = indications?.patientName;
-        else if (activeModule === 'reposo') pName = restCert?.patientName;
-        else if (activeModule === 'historias') pName = activeRecord?.patientName;
-        else pName = recipes[activeRecipeIndex]?.patientName || recipes[0]?.patientName;
+        if (activeModule === 'informes') {
+          pName = currentReport?.patientName;
+          docDate = currentReport?.date;
+        } else if (activeModule === 'indicaciones') {
+          pName = indications?.patientName;
+          docDate = indications?.date;
+        } else if (activeModule === 'reposo') {
+          pName = restCert?.patientName;
+          docDate = restCert?.date;
+        } else if (activeModule === 'historias') {
+          pName = activeRecord?.patientName;
+          docDate = activeRecord?.date;
+        } else {
+          pName = recipes[activeRecipeIndex]?.patientName || recipes[0]?.patientName;
+          docDate = recipes[activeRecipeIndex]?.date || recipes[0]?.date;
+        }
       }
 
-      const safePatient = (pName || 'Paciente')
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .trim()
-        .replace(/[/\\?%*:|"<>]/g, '')
-        .replace(/\s+/g, '_');
-      
       let prefix = 'Recipe';
       if (activeModule === 'informes') prefix = 'Informe';
       else if (activeModule === 'indicaciones') prefix = 'Indicaciones';
@@ -2176,10 +2331,10 @@ export default function App() {
       else if (activeModule === 'historias') prefix = 'Historia';
       else if (activeModule === 'recipe-4en1') prefix = 'Recipes_Medicos';
 
-      const fileName = activeRec?.pdfFileName || `${prefix}_${safePatient}_${cleanDate}.pdf`;
+      const fileName = activeRec?.pdfFileName || buildDocumentPdfFilename(prefix, pName || 'Paciente', docDate || todayStr);
       const success = await exportElementAsPDF(container, fileName);
       if (success) {
-        showToast('✓ ¡PDF descargado con éxito en su equipo!');
+        showToast(`✓ ¡PDF "${fileName}" descargado con éxito!`);
         return true;
       } else {
         showToast('⚠️ No se pudo completar la descarga del PDF.');
@@ -2340,13 +2495,7 @@ export default function App() {
         } catch (e) {}
       }
 
-      const safePatient = (patientName || 'Paciente')
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .trim()
-        .replace(/[/\\?%*:|"<>]/g, '')
-        .replace(/\s+/g, '_');
-      pdfFileName = `${docType === 'informe' ? 'Informe' : docType === 'indicaciones' ? 'Indicaciones' : docType === 'reposo' ? 'Reposo' : docType === 'historia' ? 'Historia' : 'Recipe'}_${safePatient}_${cleanDate}.pdf`;
+      pdfFileName = buildDocumentPdfFilename(docType, patientName, todayStr);
 
       const newRecord: SavedDocumentRecord = {
         id: `doc-${Date.now()}`,
@@ -2546,13 +2695,7 @@ export default function App() {
         } catch (_) {}
       }
 
-      const safePatient = (patientName || 'Paciente')
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .trim()
-        .replace(/[/\\?%*:|"<>]/g, '')
-        .replace(/\s+/g, '_');
-      const pdfFileName = `${docType === 'informe' ? 'Informe' : docType === 'indicaciones' ? 'Indicaciones' : docType === 'reposo' ? 'Reposo' : docType === 'historia' ? 'Historia' : 'Recipe'}_${safePatient}_${cleanDate}.pdf`;
+      const pdfFileName = buildDocumentPdfFilename(docType, patientName, todayStr);
 
       const newRecord: SavedDocumentRecord = {
         id: `doc-${Date.now()}`,
@@ -2691,14 +2834,7 @@ export default function App() {
         docType = 'Recipe';
       }
 
-      const cleanDate = todayStr.replace(/\//g, '-');
-      const safePatient = (patientName || 'Paciente')
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .trim()
-        .replace(/[/\\?%*:|"<>]/g, '');
-      
-      document.title = `${docType}_${safePatient}_${cleanDate}`;
+      document.title = buildDocumentPdfFilename(docType, patientName, todayStr).replace(/\.pdf$/i, '');
 
       window.print();
 
@@ -2714,7 +2850,7 @@ export default function App() {
   // If no doctor session is active, display the full-screen Step-by-Step Onboarding & Registration Wizard in dark executive tone
   if (!activeDoctorSessionId) {
     return (
-      <div className="min-h-screen bg-[#060c18] font-sans text-slate-100 flex flex-col justify-between">
+      <div className={`min-h-screen bg-[#060c18] font-sans text-slate-100 flex flex-col justify-between ${isDesktopMode ? 'desktop-simulation-mode' : ''}`}>
         {/* Animated Top Ribbon Marquee across the initial screen */}
         <CintilloTopRibbon />
 
@@ -2723,6 +2859,8 @@ export default function App() {
           onCompleteOnboarding={handleRegisterNewDoctor}
           onLoginDoctor={handleLoginDoctor}
           onOpenAdminPanel={() => setIsSecretAdminPromptOpen(true)}
+          isDesktopMode={isDesktopMode}
+          onToggleDesktopMode={toggleDesktopMode}
         />
 
         {toastMessage && (
@@ -2804,7 +2942,7 @@ export default function App() {
   }
 
   return (
-    <div className={`min-h-screen flex flex-col font-sans ${isPreviewMode ? 'bg-slate-200/60' : 'bg-slate-100 text-slate-900'}`}>
+    <div className={`min-h-screen flex flex-col font-sans ${isPreviewMode ? 'bg-slate-200/60' : 'bg-slate-100 text-slate-900'} ${isDesktopMode ? 'desktop-simulation-mode' : ''}`}>
       
       {/* 1. Animated Top Banner (User prototype feature) */}
       {!isPreviewMode && <CintilloTopRibbon />}
@@ -2916,37 +3054,39 @@ export default function App() {
               </div>
             </div>
 
-            {/* Right: Ir al Inicio (when in sub-modules) & Cerrar Sesión Button */}
-            <div className="flex items-center gap-2 shrink-0">
+            {/* Right: Ir al Inicio + Cerrar Sesión */}
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+
               {/* Botón de Instalación como App en PC con su Logo SOLO en pantalla de Inicio */}
               {activeModule === 'inicio' && <PWAInstallButton />}
 
               {activeModule !== 'inicio' && (
                 <button
                   onClick={() => handleNavigate('inicio')}
-                  className="px-3 py-1.5 sm:px-4 sm:py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer shrink-0"
+                  className="px-2.5 py-1.5 sm:px-4 sm:py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer shrink-0"
                   title="Volver a la pantalla de Inicio"
                 >
                   <ArrowLeft className="w-3.5 h-3.5 text-white" />
-                  <span className="font-bold">Ir al Inicio</span>
+                  <span className="font-bold hidden xs:inline">Inicio</span>
                 </button>
               )}
 
               <button
                 type="button"
                 onClick={handleLogout}
-                className="px-3.5 py-1.5 sm:px-4 sm:py-2 bg-rose-600 hover:bg-rose-700 text-white font-black rounded-xl text-xs sm:text-sm flex items-center gap-1.5 shadow-xs transition-all cursor-pointer border border-rose-500 shrink-0"
+                className="px-3 py-1.5 sm:px-4 sm:py-2 bg-rose-600 hover:bg-rose-700 text-white font-black rounded-xl text-xs sm:text-sm flex items-center gap-1.5 shadow-xs transition-all cursor-pointer border border-rose-500 shrink-0"
                 title="Cerrar Sesión"
               >
-                <LogOut className="w-4 h-4 text-white shrink-0" />
-                <span className="font-black whitespace-nowrap">Cerrar Sesión</span>
+                <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white shrink-0" />
+                <span className="font-black whitespace-nowrap hidden xs:inline">Cerrar Sesión</span>
+                <span className="font-black whitespace-nowrap xs:hidden">Salir</span>
               </button>
             </div>
 
           </header>
 
-          {/* Clean Subbar: Doctor & Clinic Summary */}
-          <div className="bg-slate-900 text-white border-b border-slate-800 px-3 sm:px-6 py-1.5 flex items-center justify-between gap-2 text-xs no-print">
+          {/* Clean Subbar: Doctor & Clinic Summary + Vista de Escritorio / Móvil Toggle */}
+          <div className="bg-slate-900 text-white border-b border-slate-800 px-3 sm:px-6 py-1.5 flex items-center justify-between gap-2 text-xs no-print flex-wrap">
             <div className="flex items-center gap-2 min-w-0">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
               <span className="font-bold text-white text-xs truncate">
@@ -2962,7 +3102,7 @@ export default function App() {
               )}
             </div>
 
-            <div className="flex items-center gap-2 text-[10px] sm:text-[11px] font-mono text-slate-300 shrink-0">
+            <div className="flex items-center gap-3 text-[10px] sm:text-[11px] font-mono text-slate-300 shrink-0">
               <span>MPPS: <strong className="text-teal-300">{config.mpps || '00.000'}</strong></span>
               <span>·</span>
               <span>CI: <strong className="text-teal-300">{config.ci || 'V-00.000.000'}</strong></span>
@@ -2972,10 +3112,10 @@ export default function App() {
       )}
 
       {/* Main Container Layout */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex min-w-0 w-full overflow-x-auto">
         
         {/* Main Content Area */}
-        <main className={`flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 flex flex-col items-center ${
+        <main className={`flex-1 overflow-y-auto w-full max-w-full px-2 sm:px-4 py-3 md:py-6 flex flex-col items-center ${
           isPreviewMode 
             ? 'p-0 md:p-2 bg-white' 
             : 'bg-slate-100'
@@ -3033,82 +3173,103 @@ export default function App() {
                 )}
               </div>
 
-              {/* Bottom Row: Proportional, Legible & Touch-Friendly Direct Module Tabs */}
-              <div className="flex items-center gap-1.5 overflow-x-auto max-w-full py-1 px-1 bg-slate-100/90 rounded-xl border border-slate-200/80 scrollbar-none">
-                <button
-                  onClick={() => handleNavigate('recipe-4en1')}
-                  className={`px-3 py-1.5 rounded-lg font-black text-xs transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
-                    activeModule === 'recipe-4en1' || activeModule === 'recipe-master'
-                      ? 'bg-blue-600 text-white shadow-xs ring-1 ring-blue-300'
-                      : 'bg-white hover:bg-blue-50 text-slate-800 border border-slate-200/90'
-                  }`}
-                  title="Ir a Récipes Médicos"
-                >
-                  <span>💊 Récipes</span>
-                </button>
-
-                <button
-                  onClick={() => handleNavigate('indicaciones')}
-                  className={`px-3 py-1.5 rounded-lg font-black text-xs transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
-                    activeModule === 'indicaciones'
-                      ? 'bg-indigo-600 text-white shadow-xs ring-1 ring-indigo-300'
-                      : 'bg-white hover:bg-indigo-50 text-slate-800 border border-slate-200/90'
-                  }`}
-                  title="Ir a Hoja de Indicaciones"
-                >
-                  <span>🕐 Indicaciones</span>
-                </button>
-
-                <button
-                  onClick={() => handleNavigate('informes')}
-                  className={`px-3 py-1.5 rounded-lg font-black text-xs transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
-                    activeModule === 'informes'
-                      ? 'bg-teal-600 text-white shadow-xs ring-1 ring-teal-300'
-                      : 'bg-white hover:bg-teal-50 text-slate-800 border border-slate-200/90'
-                  }`}
-                  title="Ir a Informe Médico"
-                >
-                  <span>📋 Informe Médico</span>
-                </button>
-
-                <button
-                  onClick={() => handleNavigate('reposo')}
-                  className={`px-3 py-1.5 rounded-lg font-black text-xs transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
-                    activeModule === 'reposo'
-                      ? 'bg-amber-600 text-white shadow-xs ring-1 ring-amber-300'
-                      : 'bg-white hover:bg-amber-50 text-slate-800 border border-slate-200/90'
-                  }`}
-                  title="Ir a Constancia / Reposo Médico"
-                >
-                  <span>⏱️ Constancias / Reposo</span>
-                </button>
-
-                <button
-                  onClick={() => handleNavigate('historias')}
-                  className={`px-3 py-1.5 rounded-lg font-black text-xs transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
-                    activeModule === 'historias'
-                      ? 'bg-purple-600 text-white shadow-xs ring-1 ring-purple-300'
-                      : 'bg-white hover:bg-purple-50 text-slate-800 border border-slate-200/90'
-                  }`}
-                  title="Ir a Historias Clínicas"
-                >
-                  <span>📁 Historias</span>
-                </button>
-
-                {isAuthorizedForDesigner && (
+              {/* Bottom Row: Proportional, Legible & Touch-Friendly Direct Module Tabs - MUCH LARGER & LLAMATIVOS */}
+              {/* Bottom Row: 2-Row Grid of Rounded, Strikingly Colorful & Eyecatching Module Buttons */}
+              <div className="bg-slate-200/80 p-2.5 sm:p-3 rounded-3xl border border-slate-300/80 shadow-inner space-y-2">
+                {/* Row 1: Récipes, Indicaciones, Informe Médico */}
+                <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
                   <button
-                    onClick={() => handleNavigate('diseno')}
-                    className={`px-3 py-1.5 rounded-lg font-black text-xs transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
-                      activeModule === 'diseno'
-                        ? 'bg-gradient-to-r from-amber-500 to-indigo-600 text-white shadow-xs ring-1 ring-amber-300'
-                        : 'bg-gradient-to-r from-amber-50 to-indigo-50 hover:from-amber-100 hover:to-indigo-100 text-indigo-950 border border-amber-300/80'
+                    onClick={() => handleNavigate('recipe-4en1')}
+                    className={`rounded-full px-3 py-2.5 sm:px-4 sm:py-3 font-black text-xs sm:text-sm transition-all cursor-pointer flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap shadow-sm hover:scale-[1.02] active:scale-95 ${
+                      activeModule === 'recipe-4en1' || activeModule === 'recipe-master'
+                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/30 ring-2 ring-blue-300 font-extrabold'
+                        : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 border border-blue-400/50'
                     }`}
-                    title="Estudio de Diseño PRO (Exclusivo Administrador y VIP)"
+                    title="Ir a Récipes Médicos"
                   >
-                    <Palette className="w-3.5 h-3.5 text-amber-600" />
-                    <span>Estudio de Diseño {config.isAdmin ? '(ADMIN)' : '(VIP)'}</span>
+                    <span className="text-sm sm:text-base">💊</span>
+                    <span>Récipes</span>
                   </button>
-                )}
+
+                  <button
+                    onClick={() => handleNavigate('indicaciones')}
+                    className={`rounded-full px-3 py-2.5 sm:px-4 sm:py-3 font-black text-xs sm:text-sm transition-all cursor-pointer flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap shadow-sm hover:scale-[1.02] active:scale-95 ${
+                      activeModule === 'indicaciones'
+                        ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-500/30 ring-2 ring-indigo-300 font-extrabold'
+                        : 'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white hover:from-indigo-600 hover:to-indigo-700 border border-indigo-400/50'
+                    }`}
+                    title="Ir a Hoja de Indicaciones"
+                  >
+                    <span className="text-sm sm:text-base">🕐</span>
+                    <span>Indicaciones</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleNavigate('informes')}
+                    className={`rounded-full px-3 py-2.5 sm:px-4 sm:py-3 font-black text-xs sm:text-sm transition-all cursor-pointer flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap shadow-sm hover:scale-[1.02] active:scale-95 ${
+                      activeModule === 'informes'
+                        ? 'bg-gradient-to-r from-teal-600 to-emerald-600 text-white shadow-md shadow-teal-500/30 ring-2 ring-teal-300 font-extrabold'
+                        : 'bg-gradient-to-r from-teal-500 to-emerald-500 text-white hover:from-teal-600 hover:to-emerald-600 border border-teal-400/50'
+                    }`}
+                    title="Ir a Informe Médico"
+                  >
+                    <span className="text-sm sm:text-base">📋</span>
+                    <span>Informes</span>
+                  </button>
+                </div>
+
+                {/* Row 2: Reposo Médico, Historias, Estudio de Diseño */}
+                <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
+                  <button
+                    onClick={() => handleNavigate('reposo')}
+                    className={`rounded-full px-3 py-2.5 sm:px-4 sm:py-3 font-black text-xs sm:text-sm transition-all cursor-pointer flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap shadow-sm hover:scale-[1.02] active:scale-95 ${
+                      activeModule === 'reposo'
+                        ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-md shadow-amber-500/30 ring-2 ring-amber-300 font-extrabold'
+                        : 'bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-600 hover:to-orange-600 border border-amber-400/50'
+                    }`}
+                    title="Ir a Constancia / Reposo Médico"
+                  >
+                    <span className="text-sm sm:text-base">⏱️</span>
+                    <span>Reposo</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleNavigate('historias')}
+                    className={`rounded-full px-3 py-2.5 sm:px-4 sm:py-3 font-black text-xs sm:text-sm transition-all cursor-pointer flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap shadow-sm hover:scale-[1.02] active:scale-95 ${
+                      activeModule === 'historias'
+                        ? 'bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white shadow-md shadow-purple-500/30 ring-2 ring-purple-300 font-extrabold'
+                        : 'bg-gradient-to-r from-purple-500 to-fuchsia-500 text-white hover:from-purple-600 hover:to-fuchsia-600 border border-purple-400/50'
+                    }`}
+                    title="Ir a Historias Clínicas"
+                  >
+                    <span className="text-sm sm:text-base">📁</span>
+                    <span>Historias</span>
+                  </button>
+
+                  {isAuthorizedForDesigner ? (
+                    <button
+                      onClick={() => handleNavigate('diseno')}
+                      className={`rounded-full px-3 py-2.5 sm:px-4 sm:py-3 font-black text-xs sm:text-sm transition-all cursor-pointer flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap shadow-sm hover:scale-[1.02] active:scale-95 ${
+                        activeModule === 'diseno'
+                          ? 'bg-gradient-to-r from-rose-500 via-purple-600 to-amber-500 text-white shadow-md ring-2 ring-amber-300 font-extrabold'
+                          : 'bg-gradient-to-r from-rose-500 to-pink-600 text-white hover:from-rose-600 hover:to-pink-700 border border-rose-400/50'
+                      }`}
+                      title="Estudio de Diseño PRO (Exclusivo Administrador y VIP)"
+                    >
+                      <Palette className="w-4 h-4 text-amber-200" />
+                      <span>Diseño {config.isAdmin ? '(ADMIN)' : '(VIP)'}</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleNavigate('suscripcion')}
+                      className="rounded-full px-3 py-2.5 sm:px-4 sm:py-3 font-black text-xs sm:text-sm transition-all cursor-pointer flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap shadow-sm hover:scale-[1.02] active:scale-95 bg-gradient-to-r from-slate-700 to-slate-800 text-white hover:from-slate-800 hover:to-slate-900 border border-slate-600"
+                      title="Suscripción / Plan de Membresía"
+                    >
+                      <Crown className="w-4 h-4 text-amber-400" />
+                      <span>Suscripción</span>
+                    </button>
+                  )}
+                </div>
               </div>
 
             </div>
@@ -3151,6 +3312,13 @@ export default function App() {
                 onLoadPatientToAllFormats={handleLoadPatientToAllFormats}
                 patientCount={availableSessionPatients.length}
                 existingPatients={availableSessionPatients}
+                activePatientName={recipes[0]?.patientName}
+                activePatientCI={recipes[0]?.patientCI}
+                activePatientAge={recipes[0]?.patientAge}
+                activePatientPhone={recipes[0]?.patientPhone}
+                activePatientEmail={recipes[0]?.patientEmail}
+                activePatientAddress={(recipes[0] as any)?.patientAddress}
+                onClearActivePatient={handleResetPatientDataAcrossAllFormats}
                 onUnlockDesignerDirectly={() => {
                   setIsDesignerUnlocked(true);
                   sessionStorage.setItem('digital_medic_unlocked_2534', 'true');
@@ -3263,6 +3431,7 @@ export default function App() {
                     onSaveAndShare={() => handleSavePatientOnly('recipe-master')}
                     onOpenSignatureModal={() => setIsSignatureModalOpen(true)}
                     onClearRecipeToBlank={() => handleClearRecipeToBlank(0)}
+                    onNavigateToIndications={() => handleNavigate('indicaciones')}
                   />
                 )}
 
@@ -3342,8 +3511,58 @@ export default function App() {
             </div>
           )}
 
-          {/* Module 2: Récipes Médicos */}
-          {activeModule === 'recipe-4en1' && (
+          {/* Module 2: Récipe Médico Unificado (Paso 1: Paciente -> Paso 2: Prescripción -> Paso 3: Indicaciones -> Paso 4: Descarga/Impresión/Envío Directo) */}
+          {(activeModule === 'recipe-master' || activeModule === 'recipe-4en1' || activeModule === 'recipe' || (activeModule as any) === 'recipes') && (
+            <ProgressiveRecipeWizard
+              config={config}
+              recipe={recipes[activeRecipeIndex] || recipes[0]}
+              onChangeRecipe={(upd) => handleUpdateRecipe(activeRecipeIndex, upd)}
+              indications={indications}
+              onChangeIndications={(upd) => {
+                setIndications(prev => ({ ...prev, ...upd }));
+                try {
+                  localStorage.setItem('digital_medic_indications_v2', JSON.stringify({ ...indications, ...upd }));
+                } catch (_) {}
+              }}
+              onUpdateConfig={updateCurrentConfig}
+              onPrint={handleTriggerPrint}
+              onDownloadPdf={() => handleDownloadRealPdf(null)}
+              onOpenEmailModal={() => handleOpenEmailDirectly('recipe-master')}
+              onSavePatientOnly={() => handleSavePatientOnly('recipe-master')}
+              onOpenPatientBank={() => setIsPatientBankOpen(true)}
+              onOpenPreviewModal={() => {
+                setPreviewInitialModule('recipe-master');
+                setIsUniversalPreviewOpen(true);
+              }}
+              onSwitchTo4In1={() => setActiveModule('recipe-4en1-view' as any)}
+              onClearRecipeToBlank={() => handleClearRecipeToBlank(activeRecipeIndex)}
+              onBackToHome={() => handleNavigate('inicio')}
+              existingPatients={patientBank}
+              onSelectExistingPatient={(p) => {
+                handleUpdateRecipe(activeRecipeIndex, {
+                  patientName: p.patientName,
+                  patientCI: p.patientCI,
+                  patientAge: p.patientAge,
+                  patientPhone: p.patientPhone || '',
+                  patientEmail: p.patientEmail || '',
+                  diagnosis: p.diagnosis || '',
+                  rp: p.rp || '',
+                  indicationsNotes: p.indicationsNotes || '',
+                });
+                setIndications(prev => ({
+                  ...prev,
+                  patientName: p.patientName,
+                  patientCI: p.patientCI,
+                  patientAge: p.patientAge,
+                  patientPhone: p.patientPhone || '',
+                  diagnosis: p.diagnosis || prev.diagnosis,
+                }));
+              }}
+            />
+          )}
+
+          {/* Module 2-B: Formato Opcional 4 Récipes en 1 Hoja */}
+          {(activeModule as any) === 'recipe-4en1-view' && (
             <FourInOneRecipeView
               config={config}
               recipes={recipes}
@@ -3362,29 +3581,6 @@ export default function App() {
               onBackToHome={() => handleNavigate('inicio')}
               onClearRecipeToBlank={() => handleClearRecipeToBlank(activeRecipeIndex)}
               onSwitchToNormalRecipe={() => setActiveModule('recipe-master')}
-            />
-          )}
-
-          {/* Module 3: Récipe Individual Master (renderizado en hoja carta con cuadrantes) */}
-          {activeModule === 'recipe-master' && (
-            <FourInOneRecipeView
-              config={config}
-              recipes={recipes}
-              onChangeRecipeItem={handleUpdateRecipe}
-              onSyncPatientToAll={handleSyncPatientToAllRecipes}
-              onCopyRecipe1ToAll={handleCopyRecipe1ToAll}
-              activeRecipeIndex={activeRecipeIndex}
-              onSelectActiveRecipe={setActiveRecipeIndex}
-              onUpdateConfig={updateCurrentConfig}
-              onPrint={handleTriggerPrint}
-              onDownloadPdf={() => handleDownloadRealPdf(null)}
-              onOpenEmailModal={() => handleOpenEmailDirectly('recipe-4en1')}
-              onSavePatientOnly={() => handleSavePatientOnly('recipe-4en1')}
-              onSaveAndShare={() => handleSavePatientOnly('recipe-4en1')}
-              onOpenPreview={() => setIsUniversalPreviewOpen(true)}
-              onBackToHome={() => handleNavigate('inicio')}
-              onClearRecipeToBlank={() => handleClearRecipeToBlank(activeRecipeIndex)}
-              onSwitchToNormalRecipe={undefined}
             />
           )}
 
@@ -3425,7 +3621,10 @@ export default function App() {
               currentReport={currentReport}
               onChangeReport={(upd) => {
                 hasUserEditedStateRef.current = true;
+                const mappedUpd: any = { ...upd };
+                if (upd.diagnosticImpression !== undefined) mappedUpd.diagnosis = upd.diagnosticImpression;
                 setCurrentReport((prev) => ({ ...prev, ...upd }));
+                handleSyncPatientFields(mappedUpd);
               }}
               onPrint={handleTriggerPrint}
               onDownloadPdf={() => handleDownloadRealPdf(null)}
@@ -3448,6 +3647,7 @@ export default function App() {
               onChangeIndications={(upd) => {
                 hasUserEditedStateRef.current = true;
                 setIndications((prev) => ({ ...prev, ...upd }));
+                handleSyncPatientFields(upd);
               }}
               onPrint={handleTriggerPrint}
               onDownloadPdf={() => handleDownloadRealPdf(null)}
@@ -3472,6 +3672,7 @@ export default function App() {
               onChangeCertificate={(upd) => {
                 hasUserEditedStateRef.current = true;
                 setRestCert((prev) => ({ ...prev, ...upd }));
+                handleSyncPatientFields(upd);
               }}
               onPrint={handleTriggerPrint}
               onDownloadPdf={() => handleDownloadRealPdf(null)}
@@ -3579,6 +3780,8 @@ export default function App() {
         onOpenDesignStudio={() => handleNavigate('diseno')}
         onOpenAdminPanel={() => setIsAdminPanelOpen(true)}
         onOpenEditPaymentConfig={() => setIsEditPaymentConfigModalOpen(true)}
+        isDesktopMode={isDesktopMode}
+        onToggleDesktopMode={toggleDesktopMode}
       />
 
       {/* Modal para Editar Datos de Cobro Oficiales */}
@@ -3822,12 +4025,12 @@ export default function App() {
       {/* Doctor Authentication & Onboarding Gate Modal */}
       <DoctorAuthModal
         isOpen={isAuthModalOpen}
-        onClose={activeDoctorSessionId ? () => setIsAuthModalOpen(false) : undefined}
+        onClose={() => setIsAuthModalOpen(false)}
         registeredDoctors={colleagueProfiles}
         onRegisterNewDoctor={handleRegisterNewDoctor}
         onLoginDoctor={handleLoginDoctor}
         onResetAllData={handleResetAllData}
-        onContinueAsGuest={undefined}
+        onContinueAsGuest={() => setIsAuthModalOpen(false)}
         onOpenAdminPanel={() => {
           setIsAuthModalOpen(false);
           setIsAdminPanelOpen(true);
@@ -3847,9 +4050,12 @@ export default function App() {
             ...DEFAULT_DOCTOR_CONFIG,
             ...(existingMaster || {}),
             id: 'doc-admin-master',
-            profileName: existingMaster?.profileName || 'Administrador Master',
-            doctorName: existingMaster?.doctorName || 'Administrador Master',
-            email: existingMaster?.email || 'admin@digitalmedic.com',
+            profileName: existingMaster?.profileName || 'Dr. Carlos E. Leal S.',
+            doctorName: existingMaster?.doctorName || 'Dr. Carlos E. Leal S.',
+            email: existingMaster?.email || 'carloseduardoleal29@gmail.com',
+            collegeNumber: existingMaster?.collegeNumber !== undefined ? existingMaster.collegeNumber : '',
+            institution: existingMaster?.institution !== undefined ? existingMaster.institution : '',
+            institutionDetails: existingMaster?.institutionDetails !== undefined ? existingMaster.institutionDetails : '',
             password: '2534',
             paymentStatus: 'activo',
             isPaidClient: true,
@@ -3981,7 +4187,6 @@ export default function App() {
           showToast('✓ Su clave ha sido actualizada con éxito');
         }}
       />
-
     </div>
   );
 }

@@ -91,6 +91,13 @@ interface WelcomeInicioModuleProps {
     diagnosis?: string;
     rp?: string;
   }>;
+  activePatientName?: string;
+  activePatientCI?: string;
+  activePatientAge?: string;
+  activePatientPhone?: string;
+  activePatientEmail?: string;
+  activePatientAddress?: string;
+  onClearActivePatient?: () => void;
 }
 
 export const WelcomeInicioModule: React.FC<WelcomeInicioModuleProps> = ({
@@ -111,7 +118,14 @@ export const WelcomeInicioModule: React.FC<WelcomeInicioModuleProps> = ({
   onLoadPatientToAllFormats,
   onLogout,
   patientCount = 0,
-  existingPatients = []
+  existingPatients = [],
+  activePatientName = '',
+  activePatientCI = '',
+  activePatientAge = '',
+  activePatientPhone = '',
+  activePatientEmail = '',
+  activePatientAddress = '',
+  onClearActivePatient
 }) => {
   // Patient Registration Modal State
   const [isPatientModalOpen, setIsPatientModalOpen] = useState(false);
@@ -321,15 +335,102 @@ export const WelcomeInicioModule: React.FC<WelcomeInicioModuleProps> = ({
               <ChevronRight className="w-4 h-4 text-slate-500 group-hover:translate-x-1 transition-transform shrink-0" />
             </button>
 
-            {/* INSTALAR COMO APLICACIÓN EN PC / ESCRITORIO CON LOGO OFICIAL */}
-            <div className="pt-0.5 flex justify-center">
-              <PWAInstallButton />
-            </div>
+            {/* BANNER ANIMADO LLAMATIVO: CREAR RÉCIPE */}
+            <button
+              onClick={() => onNavigate('recipe-master')}
+              className="w-full p-3.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white rounded-2xl transition-all flex items-center justify-between text-left shadow-lg shadow-blue-600/25 group hover:scale-[1.02] border-2 border-cyan-300/60 cursor-pointer relative overflow-hidden ring-4 ring-blue-500/10"
+            >
+              {/* Shimmer background animation */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out pointer-events-none" />
+              
+              <div className="flex items-center gap-3 relative z-10">
+                <div className="w-11 h-11 rounded-xl bg-white/20 text-white flex items-center justify-center shrink-0 border border-white/30 shadow-inner group-hover:rotate-12 transition-transform">
+                  <Sparkles className="w-6 h-6 text-amber-300 animate-pulse" />
+                </div>
+                <div>
+                  <div className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5 text-white">
+                    <span>✨ CREAR RÉCIPE ✨</span>
+                    <span className="px-1.5 py-0.5 bg-amber-400 text-slate-950 text-[9px] font-black rounded font-mono shadow-xs animate-bounce">
+                      NUEVO
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-cyan-100 mt-0.5 font-bold leading-tight">
+                    Redactar prescripción rápida & descargar PDF
+                  </div>
+                </div>
+              </div>
+              <ChevronRight className="w-5 h-5 text-cyan-200 group-hover:translate-x-1.5 transition-transform shrink-0 relative z-10" />
+            </button>
 
           </div>
 
         </div>
       </div>
+
+      {/* PACIENTE ACTIVO ECOSYSTEM PANEL (COMMAND CENTER) */}
+      {activePatientName && (
+        <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border-2 border-emerald-500 rounded-3xl p-5 sm:p-6 shadow-xl relative overflow-hidden animate-in fade-in slide-in-from-top-4 duration-200">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-400/10 rounded-full blur-2xl" />
+          
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="flex h-3 w-3 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                </span>
+                <span className="text-xs font-black uppercase tracking-widest text-emerald-850">
+                  Paciente Activo en el Consultorio Digital
+                </span>
+              </div>
+              
+              <h3 className="text-xl sm:text-2xl font-black text-slate-900 font-sans flex items-center gap-2 flex-wrap">
+                <span className="bg-emerald-600 text-white p-1 rounded-lg shrink-0">👤</span>
+                <span>{activePatientName}</span>
+              </h3>
+              
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs font-bold text-slate-700">
+                {activePatientCI && (
+                  <span className="bg-slate-200/80 text-slate-800 px-2.5 py-1 rounded-lg border border-slate-300 shadow-2xs">
+                    C.I: <strong className="text-slate-950 font-mono">{activePatientCI}</strong>
+                  </span>
+                )}
+                {activePatientAge && (
+                  <span className="bg-slate-200/80 text-slate-800 px-2.5 py-1 rounded-lg border border-slate-300 shadow-2xs">
+                    Edad: <strong className="text-slate-950">{activePatientAge}</strong>
+                  </span>
+                )}
+                {activePatientPhone && (
+                  <span className="bg-slate-200/80 text-slate-800 px-2.5 py-1 rounded-lg border border-slate-300 shadow-2xs">
+                    📱 {activePatientPhone}
+                  </span>
+                )}
+                {activePatientEmail && (
+                  <span className="bg-slate-200/80 text-slate-800 px-2.5 py-1 rounded-lg border border-slate-300 shadow-2xs">
+                    ✉️ {activePatientEmail}
+                  </span>
+                )}
+              </div>
+              
+              <p className="text-xs text-slate-600 leading-relaxed max-w-2xl pt-1 font-semibold">
+                👉 Este paciente se encuentra <strong className="text-emerald-800">sincronizado en tiempo real</strong> en todos los formatos del consultorio. Seleccione abajo el módulo que desea emitir para él:
+              </p>
+            </div>
+            
+            <div className="shrink-0 pt-2 md:pt-0">
+              <button
+                type="button"
+                onClick={onClearActivePatient}
+                className="w-full md:w-auto px-5 py-3 bg-rose-600 hover:bg-rose-700 text-white font-black rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-rose-600/20 border-2 border-rose-500 transition-all hover:scale-[1.02] cursor-pointer"
+                title="Limpiar paciente actual para ingresar uno nuevo"
+              >
+                <X className="w-4 h-4 text-white shrink-0" />
+                <span>Nuevo Paciente (Limpiar)</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 2. THE CORE MEDICAL MODULES: RÉCIPES, INFORME MÉDICO, CONSTANCIA/REPOSO, HISTORIA CLÍNICA, INDICACIONES, ESTUDIO DE DISEÑO */}
       <div className="space-y-4">
@@ -348,7 +449,7 @@ export const WelcomeInicioModule: React.FC<WelcomeInicioModuleProps> = ({
           
           {/* 1. RÉCIPES MÉDICOS */}
           <div 
-            onClick={() => onNavigate('recipe-4en1')}
+            onClick={() => onNavigate('recipe-master')}
             className="bg-white rounded-3xl border border-slate-200/90 hover:border-blue-500/70 hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-300 cursor-pointer group flex flex-col justify-between overflow-hidden transform hover:-translate-y-1 shadow-md"
           >
             {/* STYLIZED MODERN HERO IMAGE BANNER */}
@@ -392,51 +493,60 @@ export const WelcomeInicioModule: React.FC<WelcomeInicioModuleProps> = ({
               {/* Top Tag */}
               <div className="absolute top-3 left-3 z-20">
                 <span className="px-2.5 py-1 bg-slate-950/80 backdrop-blur-md text-cyan-300 text-[10px] font-black uppercase tracking-wider rounded-lg shadow-xs border border-cyan-500/30">
-                  Prescripción Rp.
+                  Asistente Progresivo
                 </span>
               </div>
             </div>
             
             {/* CARD BODY */}
-            <div className="p-5 sm:p-6 space-y-3 flex-1 flex flex-col justify-between">
+            <div className="p-5 sm:p-6 space-y-4 flex-1 flex flex-col justify-between bg-gradient-to-b from-white to-blue-50/25">
               <div>
-                <h3 className="font-black text-slate-900 text-lg group-hover:text-blue-600 transition-colors flex items-center justify-between">
+                <h3 className="font-black text-slate-900 text-xl group-hover:text-blue-600 transition-colors flex items-center justify-between">
                   <span>Récipes Médicos</span>
-                  <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200">
-                    Digital / Master
+                  <span className="text-[10px] font-extrabold text-blue-700 bg-blue-100 px-3 py-1 rounded-full border border-blue-200 uppercase tracking-wider">
+                    Asistente
                   </span>
                 </h3>
-                <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
-                  Prescripción médica oficial con posología, fármacos, membrete institucional, sello digital y firma autorizada.
+                <p className="text-xs text-slate-600 mt-2 leading-relaxed">
+                  Flujo guiado paso a paso optimizado para celulares: 1. Paciente ➜ 2. Fármacos/Rp. ➜ 3. Descargar PDF / WhatsApp.
                 </p>
               </div>
 
-              <div className="pt-3.5 border-t border-slate-100 flex items-center justify-between gap-2">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (onOpenFormatPreview) onOpenFormatPreview('recipe-4en1');
-                    else onOpenPreview();
-                  }}
-                  className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer border border-blue-200 shadow-2xs hover:scale-105 active:scale-95"
-                  title="Ver vista previa de la hoja de récipe con su membrete y diseño"
-                >
-                  <Eye className="w-3.5 h-3.5 text-blue-600" />
-                  <span>Vista Previa</span>
-                </button>
+              <div className="pt-4 border-t border-slate-200/60 flex flex-col gap-2.5">
+                {activePatientName && (
+                  <div className="bg-emerald-500/10 text-emerald-800 border-2 border-emerald-500/25 rounded-2xl py-2 px-3 text-center text-xs font-black flex items-center justify-center gap-1.5 animate-pulse">
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span className="truncate">Listo para: {activePatientName}</span>
+                  </div>
+                )}
+                
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onOpenFormatPreview) onOpenFormatPreview('recipe-master');
+                      else onOpenPreview();
+                    }}
+                    className="px-4 py-3 bg-blue-50 hover:bg-blue-100 text-blue-700 font-black rounded-2xl text-xs flex items-center gap-1.5 transition-all cursor-pointer border-2 border-blue-200 shadow-sm shrink-0 hover:scale-[1.02] active:scale-95"
+                    title="Ver vista previa de la hoja de récipe con su membrete y diseño"
+                  >
+                    <Eye className="w-4 h-4 text-blue-600" />
+                    <span>DISEÑO</span>
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onNavigate('recipe-4en1');
-                  }}
-                  className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-xs hover:scale-105 active:scale-95 cursor-pointer"
-                >
-                  <span>Redactar</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onNavigate('recipe-master');
+                    }}
+                    className="flex-1 py-3.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-700 text-white font-black rounded-2xl text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-md shadow-blue-600/20 border-2 border-blue-500/40 hover:scale-[1.02] active:scale-95 cursor-pointer text-center"
+                  >
+                    <span>{activePatientName ? 'Emitir Récipe' : 'Redactar Récipes'}</span>
+                    <ArrowRight className="w-4 h-4 text-white" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -495,45 +605,54 @@ export const WelcomeInicioModule: React.FC<WelcomeInicioModuleProps> = ({
             </div>
 
             {/* CARD BODY */}
-            <div className="p-5 sm:p-6 space-y-3 flex-1 flex flex-col justify-between">
+            <div className="p-5 sm:p-6 space-y-4 flex-1 flex flex-col justify-between bg-gradient-to-b from-white to-teal-50/25">
               <div>
-                <h3 className="font-black text-slate-900 text-lg group-hover:text-teal-600 transition-colors flex items-center justify-between">
+                <h3 className="font-black text-slate-900 text-xl group-hover:text-teal-600 transition-colors flex items-center justify-between">
                   <span>Informe Médico</span>
-                  <span className="text-[10px] font-bold text-teal-700 bg-teal-50 px-2.5 py-0.5 rounded-full border border-teal-200">
+                  <span className="text-[10px] font-extrabold text-teal-700 bg-teal-100 px-3 py-1 rounded-full border border-teal-200 uppercase tracking-wider">
                     Consulta / Alta
                   </span>
                 </h3>
-                <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
-                  Informes clínicos, diagnósticos, procedimientos quirúrgicos, resumen de evolución y recomendaciones.
+                <p className="text-xs text-slate-600 mt-2 leading-relaxed">
+                  Informes clínicos, diagnósticos, procedimientos quirúrgicos, resumen de evolución y pautas médicas.
                 </p>
               </div>
 
-              <div className="pt-3.5 border-t border-slate-100 flex items-center justify-between gap-2">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (onOpenFormatPreview) onOpenFormatPreview('informes');
-                    else onNavigate('informes');
-                  }}
-                  className="px-3 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-700 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer border border-teal-200 shadow-2xs hover:scale-105 active:scale-95"
-                  title="Ver vista previa del informe médico oficial con membrete y sello"
-                >
-                  <Eye className="w-3.5 h-3.5 text-teal-600" />
-                  <span>Vista Previa</span>
-                </button>
+              <div className="pt-4 border-t border-slate-200/60 flex flex-col gap-2.5">
+                {activePatientName && (
+                  <div className="bg-emerald-500/10 text-emerald-800 border-2 border-emerald-500/25 rounded-2xl py-2 px-3 text-center text-xs font-black flex items-center justify-center gap-1.5 animate-pulse">
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span className="truncate">Listo para: {activePatientName}</span>
+                  </div>
+                )}
+                
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onOpenFormatPreview) onOpenFormatPreview('informes');
+                      else onNavigate('informes');
+                    }}
+                    className="px-4 py-3 bg-teal-50 hover:bg-teal-100 text-teal-700 font-black rounded-2xl text-xs flex items-center gap-1.5 transition-all cursor-pointer border-2 border-teal-200 shadow-sm shrink-0 hover:scale-[1.02] active:scale-95"
+                    title="Ver vista previa del informe médico oficial con membrete y sello"
+                  >
+                    <Eye className="w-4 h-4 text-teal-600" />
+                    <span>DISEÑO</span>
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onNavigate('informes');
-                  }}
-                  className="px-3.5 py-1.5 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-xs hover:scale-105 active:scale-95 cursor-pointer"
-                >
-                  <span>Redactar</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onNavigate('informes');
+                    }}
+                    className="flex-1 py-3.5 bg-gradient-to-r from-teal-600 via-emerald-600 to-teal-700 hover:from-teal-700 hover:to-emerald-700 text-white font-black rounded-2xl text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-md shadow-teal-600/20 border-2 border-teal-500/40 hover:scale-[1.02] active:scale-95 cursor-pointer text-center"
+                  >
+                    <span>{activePatientName ? 'Emitir Informe' : 'Redactar Informe'}</span>
+                    <ArrowRight className="w-4 h-4 text-white" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -584,45 +703,54 @@ export const WelcomeInicioModule: React.FC<WelcomeInicioModuleProps> = ({
             </div>
 
             {/* CARD BODY */}
-            <div className="p-5 sm:p-6 space-y-3 flex-1 flex flex-col justify-between">
+            <div className="p-5 sm:p-6 space-y-4 flex-1 flex flex-col justify-between bg-gradient-to-b from-white to-amber-50/25">
               <div>
-                <h3 className="font-black text-slate-900 text-lg group-hover:text-amber-600 transition-colors flex items-center justify-between">
+                <h3 className="font-black text-slate-900 text-xl group-hover:text-amber-600 transition-colors flex items-center justify-between">
                   <span>Constancia / Reposo</span>
-                  <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200">
+                  <span className="text-[10px] font-extrabold text-amber-700 bg-amber-100 px-3 py-1 rounded-full border border-amber-200 uppercase tracking-wider">
                     Cálculo de Fechas
                   </span>
                 </h3>
-                <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
+                <p className="text-xs text-slate-600 mt-2 leading-relaxed">
                   Certificados de asistencia y reposos médicos laborales oficiales con cálculo automático de días y fechas.
                 </p>
               </div>
 
-              <div className="pt-3.5 border-t border-slate-100 flex items-center justify-between gap-2">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (onOpenFormatPreview) onOpenFormatPreview('reposo');
-                    else onNavigate('reposo');
-                  }}
-                  className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer border border-amber-200 shadow-2xs hover:scale-105 active:scale-95"
-                  title="Ver vista previa de la constancia de reposo laboral con sello"
-                >
-                  <Eye className="w-3.5 h-3.5 text-amber-600" />
-                  <span>Vista Previa</span>
-                </button>
+              <div className="pt-4 border-t border-slate-200/60 flex flex-col gap-2.5">
+                {activePatientName && (
+                  <div className="bg-emerald-500/10 text-emerald-800 border-2 border-emerald-500/25 rounded-2xl py-2 px-3 text-center text-xs font-black flex items-center justify-center gap-1.5 animate-pulse">
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span className="truncate">Listo para: {activePatientName}</span>
+                  </div>
+                )}
+                
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onOpenFormatPreview) onOpenFormatPreview('reposo');
+                      else onNavigate('reposo');
+                    }}
+                    className="px-4 py-3 bg-amber-50 hover:bg-amber-100 text-amber-800 font-black rounded-2xl text-xs flex items-center gap-1.5 transition-all cursor-pointer border-2 border-amber-200 shadow-sm shrink-0 hover:scale-[1.02] active:scale-95"
+                    title="Ver vista previa de la constancia de reposo laboral con sello"
+                  >
+                    <Eye className="w-4 h-4 text-amber-600" />
+                    <span>DISEÑO</span>
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onNavigate('reposo');
-                  }}
-                  className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-xs hover:scale-105 active:scale-95 cursor-pointer"
-                >
-                  <span>Emitir</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onNavigate('reposo');
+                    }}
+                    className="flex-1 py-3.5 bg-gradient-to-r from-amber-500 via-orange-600 to-amber-600 hover:from-amber-600 hover:to-orange-700 text-white font-black rounded-2xl text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-md shadow-amber-600/20 border-2 border-amber-500/40 hover:scale-[1.02] active:scale-95 cursor-pointer text-center"
+                  >
+                    <span>{activePatientName ? 'Emitir Reposo' : 'Emitir Reposo'}</span>
+                    <ArrowRight className="w-4 h-4 text-white" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -678,45 +806,54 @@ export const WelcomeInicioModule: React.FC<WelcomeInicioModuleProps> = ({
             </div>
 
             {/* CARD BODY */}
-            <div className="p-5 sm:p-6 space-y-3 flex-1 flex flex-col justify-between">
+            <div className="p-5 sm:p-6 space-y-4 flex-1 flex flex-col justify-between bg-gradient-to-b from-white to-purple-50/25">
               <div>
-                <h3 className="font-black text-slate-900 text-lg group-hover:text-purple-600 transition-colors flex items-center justify-between">
+                <h3 className="font-black text-slate-900 text-xl group-hover:text-purple-600 transition-colors flex items-center justify-between">
                   <span>Historia Clínica</span>
-                  <span className="text-[10px] font-bold text-purple-700 bg-purple-50 px-2.5 py-0.5 rounded-full border border-purple-200">
+                  <span className="text-[10px] font-extrabold text-purple-700 bg-purple-100 px-3 py-1 rounded-full border border-purple-200 uppercase tracking-wider">
                     Signos &amp; Examen
                   </span>
                 </h3>
-                <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
+                <p className="text-xs text-slate-600 mt-2 leading-relaxed">
                   Expediente clínico integral: antecedentes médicos, signos vitales, exploración física y evolución.
                 </p>
               </div>
 
-              <div className="pt-3.5 border-t border-slate-100 flex items-center justify-between gap-2">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (onOpenFormatPreview) onOpenFormatPreview('historias');
-                    else onNavigate('historias');
-                  }}
-                  className="px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer border border-purple-200 shadow-2xs hover:scale-105 active:scale-95"
-                  title="Ver vista previa de la historia clínica"
-                >
-                  <Eye className="w-3.5 h-3.5 text-purple-600" />
-                  <span>Vista Previa</span>
-                </button>
+              <div className="pt-4 border-t border-slate-200/60 flex flex-col gap-2.5">
+                {activePatientName && (
+                  <div className="bg-emerald-500/10 text-emerald-800 border-2 border-emerald-500/25 rounded-2xl py-2 px-3 text-center text-xs font-black flex items-center justify-center gap-1.5 animate-pulse">
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span className="truncate">Listo para: {activePatientName}</span>
+                  </div>
+                )}
+                
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onOpenFormatPreview) onOpenFormatPreview('historias');
+                      else onNavigate('historias');
+                    }}
+                    className="px-4 py-3 bg-purple-50 hover:bg-purple-100 text-purple-700 font-black rounded-2xl text-xs flex items-center gap-1.5 transition-all cursor-pointer border-2 border-purple-200 shadow-sm shrink-0 hover:scale-[1.02] active:scale-95"
+                    title="Ver vista previa de la historia clínica"
+                  >
+                    <Eye className="w-4 h-4 text-purple-600" />
+                    <span>DISEÑO</span>
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onNavigate('historias');
-                  }}
-                  className="px-3.5 py-1.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-xs hover:scale-105 active:scale-95 cursor-pointer"
-                >
-                  <span>Abrir Expediente</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onNavigate('historias');
+                    }}
+                    className="flex-1 py-3.5 bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-700 hover:from-purple-700 hover:to-indigo-700 text-white font-black rounded-2xl text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-md shadow-purple-600/20 border-2 border-purple-500/40 hover:scale-[1.02] active:scale-95 cursor-pointer text-center"
+                  >
+                    <span>{activePatientName ? 'Abrir Expediente' : 'Historias Clínicas'}</span>
+                    <ArrowRight className="w-4 h-4 text-white" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -774,45 +911,54 @@ export const WelcomeInicioModule: React.FC<WelcomeInicioModuleProps> = ({
             </div>
 
             {/* CARD BODY */}
-            <div className="p-5 sm:p-6 space-y-3 flex-1 flex flex-col justify-between">
+            <div className="p-5 sm:p-6 space-y-4 flex-1 flex flex-col justify-between bg-gradient-to-b from-white to-cyan-50/25">
               <div>
-                <h3 className="font-black text-slate-900 text-lg group-hover:text-cyan-700 transition-colors flex items-center justify-between">
+                <h3 className="font-black text-slate-900 text-xl group-hover:text-cyan-700 transition-colors flex items-center justify-between">
                   <span>Indicaciones</span>
-                  <span className="text-[10px] font-bold text-cyan-800 bg-cyan-50 px-2.5 py-0.5 rounded-full border border-cyan-200">
+                  <span className="text-[10px] font-extrabold text-cyan-800 bg-cyan-100 px-3 py-1 rounded-full border border-cyan-200 uppercase tracking-wider">
                     Posología &amp; Dieta
                   </span>
                 </h3>
-                <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
+                <p className="text-xs text-slate-600 mt-2 leading-relaxed">
                   Horarios de toma de medicamentos, pautas de dieta blanda, cuidados generales y signos de alarma.
                 </p>
               </div>
 
-              <div className="pt-3.5 border-t border-slate-100 flex items-center justify-between gap-2">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (onOpenFormatPreview) onOpenFormatPreview('indicaciones');
-                    else onNavigate('indicaciones');
-                  }}
-                  className="px-3 py-1.5 bg-cyan-50 hover:bg-cyan-100 text-cyan-800 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer border border-cyan-200 shadow-2xs hover:scale-105 active:scale-95"
-                  title="Ver vista previa de la hoja de indicaciones al paciente"
-                >
-                  <Eye className="w-3.5 h-3.5 text-cyan-700" />
-                  <span>Vista Previa</span>
-                </button>
+              <div className="pt-4 border-t border-slate-200/60 flex flex-col gap-2.5">
+                {activePatientName && (
+                  <div className="bg-emerald-500/10 text-emerald-800 border-2 border-emerald-500/25 rounded-2xl py-2 px-3 text-center text-xs font-black flex items-center justify-center gap-1.5 animate-pulse">
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span className="truncate">Listo para: {activePatientName}</span>
+                  </div>
+                )}
+                
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onOpenFormatPreview) onOpenFormatPreview('indicaciones');
+                      else onNavigate('indicaciones');
+                    }}
+                    className="px-4 py-3 bg-cyan-50 hover:bg-cyan-100 text-cyan-800 font-black rounded-2xl text-xs flex items-center gap-1.5 transition-all cursor-pointer border-2 border-cyan-200 shadow-sm shrink-0 hover:scale-[1.02] active:scale-95"
+                    title="Ver vista previa de la hoja de indicaciones al paciente"
+                  >
+                    <Eye className="w-4 h-4 text-cyan-700" />
+                    <span>DISEÑO</span>
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onNavigate('indicaciones');
-                  }}
-                  className="px-3.5 py-1.5 bg-cyan-700 hover:bg-cyan-800 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-xs hover:scale-105 active:scale-95 cursor-pointer"
-                >
-                  <span>Redactar</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onNavigate('indicaciones');
+                    }}
+                    className="flex-1 py-3.5 bg-gradient-to-r from-cyan-600 via-blue-600 to-cyan-700 hover:from-cyan-700 hover:to-blue-700 text-white font-black rounded-2xl text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-md shadow-cyan-600/20 border-2 border-cyan-500/40 hover:scale-[1.02] active:scale-95 cursor-pointer text-center"
+                  >
+                    <span>{activePatientName ? 'Emitir Indicaciones' : 'Redactar Indicaciones'}</span>
+                    <ArrowRight className="w-4 h-4 text-white" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>

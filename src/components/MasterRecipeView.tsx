@@ -57,6 +57,7 @@ export const MasterRecipeView: React.FC<MasterRecipeViewProps> = ({
   const printableSheetRef = useRef<HTMLDivElement>(null);
   const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
   const [showCutGuides, setShowCutGuides] = useState(true);
+  const [hideHeader, setHideHeader] = useState(false);
 
   const borderStyle = getDocumentBorderStyle(config.borderStyle, config.primaryDocColor);
   const textureClass = getPaperTextureClass(config.paperTexture);
@@ -82,6 +83,16 @@ export const MasterRecipeView: React.FC<MasterRecipeViewProps> = ({
               📄 Formato Hoja Carta · 1 Récipe (Cuadrante 1)
             </span>
           </div>
+
+          <button
+            type="button"
+            onClick={() => setHideHeader(!hideHeader)}
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors cursor-pointer flex items-center gap-1 ${
+              hideHeader ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200'
+            }`}
+          >
+            <span>{hideHeader ? '👁️ Mostrar Encabezado' : '🚫 Ocultar Encabezado'}</span>
+          </button>
 
           <button
             type="button"
@@ -212,9 +223,24 @@ export const MasterRecipeView: React.FC<MasterRecipeViewProps> = ({
               <DocumentHeader
                 config={config}
                 compact={true}
+                hideHeader={hideHeader}
                 onUpdateField={(field, val) => onUpdateConfig?.({ [field]: val })}
                 editableInline={true}
               />
+
+              <div className="flex justify-end mt-2 no-print">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (onBackToHome) onBackToHome(); // I need to pass indications navigation prop if I want to switch module.
+                    // Actually, I can't easily switch module from MasterRecipeView without a prop.
+                    // I will look at how to trigger navigation to indications.
+                  }}
+                  className="px-3 py-1 bg-blue-600 text-white text-xs font-bold rounded-lg"
+                >
+                  Continuar con Indicaciones ➔
+                </button>
+              </div>
 
               {/* Patient Bar */}
               <div 

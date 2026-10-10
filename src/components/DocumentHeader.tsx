@@ -7,6 +7,7 @@ import { BasicLogoSelectorModal } from './BasicLogoSelectorModal';
 interface DocumentHeaderProps {
   config: DoctorConfig;
   compact?: boolean;
+  hideHeader?: boolean;
   title?: string;
   onUpdateField?: (field: keyof DoctorConfig, value: string) => void;
   onUploadLogo?: (side: 'logoIzq' | 'logoDer', dataUrl: string) => void;
@@ -16,11 +17,13 @@ interface DocumentHeaderProps {
 export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
   config,
   compact = false,
+  hideHeader = false,
   title,
   onUpdateField,
   onUploadLogo,
   editableInline = true,
 }) => {
+  if (hideHeader) return null;
   const leftInputRef = useRef<HTMLInputElement>(null);
   const rightInputRef = useRef<HTMLInputElement>(null);
   const [logoModalSide, setLogoModalSide] = useState<'logoIzq' | 'logoDer' | null>(null);
@@ -199,7 +202,7 @@ export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
         )}
 
         {/* Cajón 2: Nombre del Médico / Colega Flanqueado por 2 Símbolos de la Medicina */}
-        <div className="flex items-center justify-center gap-1.5 sm:gap-2 my-0.5 whitespace-nowrap">
+        <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 my-0.5">
           {showSymbols && (
             <span 
               className="shrink-0 inline-flex items-center justify-center opacity-85 select-none print:opacity-100"
@@ -221,14 +224,14 @@ export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
             contentEditable={editableInline}
             suppressContentEditableWarning
             onBlur={(e) => onUpdateField?.('doctorName', e.currentTarget.innerText)}
-            className={`font-bold tracking-tight transition-all leading-tight outline-none cursor-text ${
+            className={`font-bold tracking-tight transition-all leading-tight outline-none cursor-text break-words ${
               editableInline ? 'hover:bg-blue-50/70 hover:ring-1 hover:ring-blue-300 rounded px-1' : ''
             }`}
             style={{
               color: config.nombreColor,
               fontFamily: config.fuenteNombre,
               fontSize: compact ? `calc(${config.nombreSize} * ${scaleCompact})` : config.nombreSize,
-              whiteSpace: compact ? 'nowrap' : 'normal',
+              whiteSpace: 'normal',
             }}
             title="Haga clic para editar el Nombre del Médico"
           >
@@ -274,6 +277,30 @@ export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
               title="Haga clic para editar Especialidad Médica"
             >
               {cleanSpecialty || (editableInline ? 'Especialista en [Especialidad]' : '')}
+            </div>
+          );
+        })()}
+
+        {/* Cajón 3B: Educación Médica Continua / Postgrados / Diplomados */}
+        {(() => {
+          const rawEducacion = (config.educacionContinua || '').trim();
+          if (!rawEducacion) return null;
+          return (
+            <div
+              contentEditable={editableInline}
+              suppressContentEditableWarning
+              onBlur={(e) => onUpdateField?.('educacionContinua', e.currentTarget.innerText.trim())}
+              className={`font-medium transition-colors leading-tight outline-none cursor-text ${
+                compact ? 'mt-0.5' : 'mt-1'
+              } ${editableInline ? 'hover:bg-blue-50/70 hover:ring-1 hover:ring-blue-300 rounded px-1' : ''}`}
+              style={{
+                color: config.educacionColor || config.specialtyColor || config.headerColor,
+                fontFamily: config.fuenteEducacion || config.fuenteSpecialty || config.fuenteHeader,
+                fontSize: config.educacionSize ? (compact ? `calc(${config.educacionSize} * ${scaleCompact})` : config.educacionSize) : (compact ? '8.5px' : '10.5px'),
+              }}
+              title="Educación Continua / Postgrados / Diplomados"
+            >
+              {rawEducacion}
             </div>
           );
         })()}

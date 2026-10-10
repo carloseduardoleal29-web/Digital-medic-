@@ -4,20 +4,30 @@ html, body {
   margin: 0;
   padding: 0;
   width: 100%;
-  max-width: 100vw;
-  overflow-x: hidden;
+  min-height: 100%;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   background-color: #f8fafc;
+  overflow-x: auto;
+  -webkit-text-size-adjust: 100%;
 }
 
 #root {
   width: 100%;
-  max-width: 100vw;
-  overflow-x: hidden;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+}
+
+/* Modo Escritorio Forzado / Sitio de Computadoras para Teléfonos Móviles */
+.desktop-simulation-mode {
+  min-width: 1024px !important;
+  width: 1024px !important;
+  overflow-x: auto !important;
+}
+
+.desktop-simulation-mode .cintillo-animado {
+  min-width: 1024px !important;
 }
 
 /* Document Header Logo Image Tight Constraint */
@@ -99,10 +109,13 @@ button, input, select, textarea {
 /* ==========================================================================
    PRINT STYLES: Reglas Exactas de Impresión Médica Profesional
    - Hoja Carta: 215.9mm ancho x 279.4mm alto (8.5 x 11 in)
-   - Récipe Médico: Pequeño (1/4 de hoja carta: ~104mm x ~136mm)
-   - 1 Récipe: Cabe COMPLETO en 1 cuarto de la hoja carta
-   - 2, 3 o 4 Récipes: Caben TODOS en una sola hoja carta (cuadrícula 2x2)
-   - Informes, Reposo, Indicaciones e Historias: Hoja Carta Entera (Full Letter)
+   - RÉCIPES:
+     * 1 Récipe: Cabe COMPLETO en 1 hoja limpia (1 cuarto o media hoja dentro de hoja carta)
+     * 2 Récipes en modo horizontal / 2en1: Cabe en 1 sola hoja carta
+     * 4 en 1 Grid: 4 cuadrantes en 1 sola hoja carta
+   - INDICACIONES, INFORME MÉDICO, REPOSO / CONSTANCIA:
+     * Caben ESTRICTAMENTE en 1 sola hoja carta (Single Full Page)
+     * CERO desbordamiento a 2da página
    ========================================================================== */
 @page {
   size: letter portrait;
@@ -110,15 +123,26 @@ button, input, select, textarea {
 }
 
 @media print {
-  html, body, #root {
+  html, body {
     background: #ffffff !important;
     margin: 0 !important;
     padding: 0 !important;
     width: 100% !important;
     height: 100% !important;
+    max-height: 279.4mm !important;
     overflow: hidden !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+  }
+
+  #root {
+    background: #ffffff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
   }
 
   .no-print,
@@ -129,7 +153,6 @@ button, input, select, textarea {
   button,
   .cintillo-animado,
   .modal-overlay,
-  .fixed,
   .toast {
     display: none !important;
     visibility: hidden !important;
@@ -139,31 +162,42 @@ button, input, select, textarea {
     padding: 0 !important;
   }
 
+  /* Desactivar min-heights de pantalla que puedan empujar el pie fuera de la hoja */
+  .print-container *,
+  .recipe-single-card *,
+  .recipe-single-container *,
+  .indications-container *,
+  .report-sheet-container *,
+  .rest-container *,
+  .recipe-4en1-container *,
+  .dual-recipe-container * {
+    min-height: 0 !important;
+  }
+
   /* --------------------------------------------------------------------------
-     1. FORMATO 4 EN 1: Hoja Carta Completa (215.9 x 279.4 mm) con Cuadrantes
+     1. FORMATO 4 EN 1: Hoja Carta Completa con 4 Cuadrantes en 1 Hoja
      -------------------------------------------------------------------------- */
   .recipe-4en1-container {
     box-shadow: none !important;
     border: none !important;
-    margin: 0 !important;
-    padding: 3.5mm !important;
+    margin: 0 auto !important;
+    padding: 2mm !important;
     width: 215.9mm !important;
     max-width: 215.9mm !important;
-    height: 279.4mm !important;
-    max-height: 279.4mm !important;
-    min-height: 279.4mm !important;
+    height: 265mm !important;
+    max-height: 265mm !important;
     box-sizing: border-box !important;
     overflow: hidden !important;
     page-break-inside: avoid !important;
     page-break-after: avoid !important;
     break-inside: avoid !important;
+    break-after: avoid !important;
     transform: none !important;
   }
 
   .recipe-4en1-grid {
-    height: 272.4mm !important;
-    max-height: 272.4mm !important;
-    min-height: 272.4mm !important;
+    height: 260mm !important;
+    max-height: 260mm !important;
     display: grid !important;
     grid-template-columns: repeat(2, 1fr) !important;
     grid-template-rows: repeat(2, 1fr) !important;
@@ -173,10 +207,9 @@ button, input, select, textarea {
   }
 
   .recipe-quadrant-card {
-    height: 134mm !important;
-    max-height: 134mm !important;
-    min-height: 0 !important;
-    padding: 2.5mm 3.5mm !important;
+    height: 128mm !important;
+    max-height: 128mm !important;
+    padding: 2mm 3mm !important;
     box-sizing: border-box !important;
     overflow: hidden !important;
     page-break-inside: avoid !important;
@@ -189,9 +222,8 @@ button, input, select, textarea {
   .recipe-quadrant-empty {
     border: 1px dashed #cbd5e1 !important;
     background: transparent !important;
-    height: 134mm !important;
-    max-height: 134mm !important;
-    min-height: 0 !important;
+    height: 128mm !important;
+    max-height: 128mm !important;
     box-sizing: border-box !important;
     overflow: hidden !important;
     page-break-inside: avoid !important;
@@ -199,77 +231,171 @@ button, input, select, textarea {
   }
 
   /* --------------------------------------------------------------------------
-     2. FORMATO RÉCIPE INDIVIDUAL: Exactamente 1 Cuarto de Hoja Carta (105 x 136 mm)
+     2. FORMATO RÉCIPES INDIVIDUALES (Ajuste Perfecto en 1 Sola Hoja Carta)
      -------------------------------------------------------------------------- */
-  .recipe-single-container {
+  .recipe-individual-sheet,
+  .recipe-single-container,
+  .recipe-single-card {
     box-shadow: none !important;
-    border: 1.5px solid #cbd5e1 !important;
-    border-radius: 8px !important;
-    margin: 4mm 0 0 4mm !important;
-    padding: 3mm 4mm !important;
-    width: 104mm !important;
-    max-width: 104mm !important;
-    height: 135mm !important;
-    max-height: 135mm !important;
-    min-height: 0 !important;
+    border: none !important;
+    margin: 0 auto !important;
+    padding: 4mm 6mm !important;
+    width: 100% !important;
+    max-width: 215.9mm !important;
+    height: 265mm !important;
+    max-height: 265mm !important;
     box-sizing: border-box !important;
     overflow: hidden !important;
     page-break-inside: avoid !important;
     page-break-after: avoid !important;
     break-inside: avoid !important;
+    break-after: avoid !important;
     transform: none !important;
     display: flex !important;
     flex-direction: column !important;
     justify-content: space-between !important;
   }
 
-  .recipe-single-container .doc-header-logo-img {
-    max-height: 32px !important;
+  /* Múltiples hojas individuales si hay varias activas */
+  #recipe-printable-sheets-container .recipe-individual-sheet {
+    page-break-after: always !important;
+    break-after: page !important;
   }
 
-  .recipe-single-container textarea {
-    min-height: 48mm !important;
-    max-height: 58mm !important;
-    font-size: 10.5px !important;
+  #recipe-printable-sheets-container .recipe-individual-sheet:last-child {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+
+  .recipe-individual-sheet .doc-header-logo-img,
+  .recipe-single-container .doc-header-logo-img,
+  .recipe-single-card .doc-header-logo-img {
+    max-height: 44px !important;
+  }
+
+  .recipe-individual-sheet textarea,
+  .recipe-single-container textarea,
+  .recipe-single-card textarea {
+    max-height: 38mm !important;
+    font-size: 11px !important;
+    line-height: 1.3 !important;
+    padding: 1.5mm !important;
+    resize: none !important;
+    overflow: hidden !important;
+  }
+
+  .recipe-individual-sheet input,
+  .recipe-single-container input,
+  .recipe-single-card input {
+    font-size: 11px !important;
+  }
+
+  /* --------------------------------------------------------------------------
+     3. FORMATOS DE HOJA ENTERA: Indicaciones, Informe Médico y Reposo Médico
+     - GARANTIZADO: 1 Sola Hoja Carta Limpia
+     -------------------------------------------------------------------------- */
+  .report-sheet-container,
+  .indications-container,
+  .rest-container,
+  .clinical-history-sheet:not(.multi-page),
+  .clinical-history-container:not(.multi-page) {
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 auto !important;
+    padding: 4mm 6mm !important;
+    width: 215.9mm !important;
+    max-width: 215.9mm !important;
+    height: 265mm !important;
+    max-height: 265mm !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    page-break-inside: avoid !important;
+    page-break-after: avoid !important;
+    break-inside: avoid !important;
+    break-after: avoid !important;
+    transform: none !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+  }
+
+  .report-sheet-container .doc-header-logo-img,
+  .indications-container .doc-header-logo-img,
+  .rest-container .doc-header-logo-img {
+    max-height: 46px !important;
+  }
+
+  .report-sheet-container textarea,
+  .indications-container textarea,
+  .rest-container textarea {
+    font-size: 11px !important;
     line-height: 1.35 !important;
     padding: 2mm !important;
     resize: none !important;
     overflow: hidden !important;
   }
 
-  .recipe-single-container input {
-    font-size: 10px !important;
-  }
-
   /* --------------------------------------------------------------------------
-     3. FORMATOS DE HOJA ENTERA: Informes, Reposo, Indicaciones e Historias
+     4. FORMATO DUAL 2 EN 1: Hoja Carta Única (215.9 x 279.4 mm) Récipe + Indicaciones
      -------------------------------------------------------------------------- */
-  .report-sheet-container,
-  .indications-container,
-  .rest-container,
-  .clinical-history-sheet,
-  .clinical-history-container {
+  .dual-recipe-container,
+  .dual-recipe-sheet {
     box-shadow: none !important;
     border: none !important;
     margin: 0 auto !important;
-    padding: 8mm 10mm !important;
+    padding: 3mm 4mm !important;
     width: 215.9mm !important;
     max-width: 215.9mm !important;
-    height: 279.4mm !important;
-    max-height: 279.4mm !important;
-    min-height: 279.4mm !important;
+    height: 265mm !important;
+    max-height: 265mm !important;
     box-sizing: border-box !important;
     overflow: hidden !important;
     page-break-inside: avoid !important;
     page-break-after: avoid !important;
     break-inside: avoid !important;
+    break-after: avoid !important;
     transform: none !important;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 3mm !important;
+  }
+
+  .dual-recipe-half {
+    height: 258mm !important;
+    max-height: 258mm !important;
+    box-sizing: border-box !important;
     display: flex !important;
     flex-direction: column !important;
     justify-content: space-between !important;
+    padding: 2mm !important;
+    overflow: hidden !important;
+  }
+
+  /* --------------------------------------------------------------------------
+     5. FORMATO 2 EN 1 HORIZONTAL (Récipes Horizontal / Paisaje)
+     -------------------------------------------------------------------------- */
+  .recipe-horizontal-2en1 {
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 auto !important;
+    padding: 3mm 4mm !important;
+    width: 279.4mm !important;
+    max-width: 279.4mm !important;
+    height: 205mm !important;
+    max-height: 205mm !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    page-break-inside: avoid !important;
+    page-break-after: avoid !important;
+    break-inside: avoid !important;
+    break-after: avoid !important;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 4mm !important;
   }
 
   textarea {
     resize: none !important;
   }
 }
+

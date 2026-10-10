@@ -1,4 +1,5 @@
 import { DoctorConfig, RecipeItem, MedicalReport, IndicationsSheet, MedicalRestCert, ClinicalRecord, SavedPatientEntry } from '../types';
+import { saveDirectToFirestore, fetchDirectFromFirestore } from './firebaseClient';
 
 export interface UserEcosystem {
   identifier: string;
@@ -17,42 +18,74 @@ export interface UserEcosystem {
 }
 
 /**
- * Guarda el ecosistema completo del usuario en el servidor en la nube.
+ * Guarda el ecosistema completo del usuario en el servidor en la nube y en Firestore.
  * Se asocia al correo o cédula del médico para que pueda acceder desde cualquier PC o teléfono.
  */
 export async function saveEcosystemToCloud(ecosystem: Partial<UserEcosystem>): Promise<boolean> {
   if (!ecosystem) return false;
+  let savedServer = false;
+  let savedDirectFirestore = false;
+
+  // 1. Guardado directo en Firestore
+  try {
+    savedDirectFirestore = await saveDirectToFirestore(ecosystem);
+  } catch (err) {
+    console.warn('[EcosystemSync] Direct Firestore save failed, using server fallback:', err);
+  }
+
+  // 2. Guardado en servidor API (que también respalda en Firestore y disco)
   try {
     const res = await fetch('/api/ecosystem/save', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(ecosystem),
     });
-    if (!res.ok) return false;
-    const data = await res.json();
-    return data && data.success;
+    if (res.ok) {
+      const data = await res.json();
+      savedServer = !!(data && data.success);
+    }
   } catch (err) {
-    console.error('[EcosystemSync] Error guardando ecosistema en la nube:', err);
-    return false;
+    console.error('[EcosystemSync] Error guardando ecosistema en servidor:', err);
   }
+
+  return savedDirectFirestore || savedServer;
 }
 
 /**
- * Obtiene el ecosistema completo del usuario desde el servidor en la nube.
+ * Obtiene el ecosistema completo del usuario desde el servidor en la nube o directo desde Firestore.
  */
 export async function fetchEcosystemFromCloud(identifier: string): Promise<UserEcosystem | null> {
   if (!identifier) return null;
+  let serverEco: UserEcosystem | null = null;
+  let firestoreEco: UserEcosystem | null = null;
+
+  // 1. Obtener desde servidor
   try {
     const res = await fetch(`/api/ecosystem/${encodeURIComponent(identifier.trim())}`);
-    if (!res.ok) return null;
-    const data = await res.json();
-    if (data && data.success && data.ecosystem) {
-      return data.ecosystem as UserEcosystem;
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.success && data.ecosystem) {
+        serverEco = data.ecosystem as UserEcosystem;
+      }
     }
   } catch (err) {
-    console.warn('[EcosystemSync] No se pudo obtener ecosistema en la nube:', err);
+    console.warn('[EcosystemSync] No se pudo obtener ecosistema del servidor:', err);
   }
-  return null;
+
+  // 2. Obtener directo desde Firestore
+  try {
+    firestoreEco = await fetchDirectFromFirestore(identifier);
+  } catch (err) {
+    console.warn('[EcosystemSync] No se pudo obtener ecosistema de Firestore directo:', err);
+  }
+
+  if (serverEco && firestoreEco) {
+    const serverTime = serverEco.updatedAt || 0;
+    const firestoreTime = firestoreEco.updatedAt || 0;
+    return firestoreTime >= serverTime ? firestoreEco : serverEco;
+  }
+
+  return firestoreEco || serverEco;
 }
 
 /**

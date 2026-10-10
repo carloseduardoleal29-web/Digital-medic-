@@ -761,9 +761,11 @@ export const searchDrugs = (query: string, customDrugs: DrugItem[] = []): DrugIt
 
   const all = getAllDrugs(customDrugs);
   return all.filter((d) => {
-    const nameNorm = d.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    const presNorm = d.presentation.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    return nameNorm.includes(clean) || presNorm.includes(clean);
+    const nameNorm = (d.name || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const presNorm = (d.presentation || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const instNorm = (d.instructions || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const specNorm = (d.specialty || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    return nameNorm.includes(clean) || presNorm.includes(clean) || instNorm.includes(clean) || specNorm.includes(clean);
   });
 };
 

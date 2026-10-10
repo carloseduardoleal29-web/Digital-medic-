@@ -70,7 +70,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
   onLoginAsDoctor
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [versionFilter, setVersionFilter] = useState<'todos' | 'pendiente' | 'activo' | 'prueba' | 'basico' | 'diseno-pro' | 'clinica-full'>('todos');
+  const [versionFilter, setVersionFilter] = useState<'todos' | 'pendiente' | 'activo' | 'prueba' | 'elite' | 'basico' | 'diseno-pro' | 'clinica-full'>('todos');
   const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Modals for admin actions
@@ -84,7 +84,12 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
 
   // Feature: "Dar Play" Activation Modal State
   const [activatingPlayDoc, setActivatingPlayDoc] = useState<DoctorConfig | null>(null);
-  const [chosenPlanForPlay, setChosenPlanForPlay] = useState<'mensual' | 'trimestral' | 'anual'>('trimestral');
+  const [chosenPlanForPlay, setChosenPlanForPlay] = useState<'mensual' | 'trimestral' | 'anual' | 'elite'>('trimestral');
+
+  // Feature: "Plan Élite" Custom Activation Modal State (Otorgar a futuro por X días)
+  const [activatingEliteDoc, setActivatingEliteDoc] = useState<DoctorConfig | null>(null);
+  const [eliteDaysInput, setEliteDaysInput] = useState<number>(30);
+  const [eliteCustomNotes, setEliteCustomNotes] = useState<string>('');
 
   // Feature: Payment Accounts Settings Modal
   const [isPaymentAccountsModalOpen, setIsPaymentAccountsModalOpen] = useState(false);
@@ -110,6 +115,10 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
     d.paymentStatus === 'prueba'
   ).length;
 
+  const eliteCount = registeredDoctors.filter(d => 
+    Boolean(d.isElite || d.paidPlanName?.toLowerCase().includes('élite') || d.paidPlanName?.toLowerCase().includes('elite') || d.subscriptionPlan === 'elite')
+  ).length;
+
   // Filtered doctors list
   const filteredDoctors = registeredDoctors.filter((doc) => {
     // 1. Version or status filter
@@ -119,6 +128,9 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
       if (doc.paymentStatus !== 'activo' && !doc.isPaidClient) return false;
     } else if (versionFilter === 'prueba') {
       if (doc.paymentStatus !== 'prueba') return false;
+    } else if (versionFilter === 'elite') {
+      const isEl = doc.isElite || doc.paidPlanName?.toLowerCase().includes('élite') || doc.paidPlanName?.toLowerCase().includes('elite') || doc.subscriptionPlan === 'elite';
+      if (!isEl) return false;
     } else if (versionFilter === 'basico') {
       const isBas = doc.subscriptionPlan === 'basico' || (!doc.isPaidClient && !doc.subscriptionPlan);
       if (!isBas) return false;
@@ -184,7 +196,13 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
   };
 
   // --- Feature: 'DAR PLAY' (Activar Cuenta) Execution ---
-  const handleConfirmDarPlay = (doc: DoctorConfig, planToActivate: 'mensual' | 'trimestral' | 'anual') => {
+  const handleConfirmDarPlay = (doc: DoctorConfig, planToActivate: 'mensual' | 'trimestral' | 'anual' | 'elite', customDays = 30) => {
+    if (planToActivate === 'elite') {
+      handleConfirmActivateElite(doc, customDays || eliteDaysInput || 30);
+      setActivatingPlayDoc(null);
+      return;
+    }
+
     const planNames = {
       mensual: 'Mensual PRO ($10 USD)',
       trimestral: 'Trimestral PRO ($28 USD)',
@@ -211,6 +229,66 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
     const msg = `*¡CUENTA ACTIVADA EN DIGITAL MÉDICO!* 🩺\n\nEstimado(a) Dr(a). *${doc.doctorName}*:\nSu suscripción (*${planNames[planToActivate]}*) ha sido verificada y activada exitosamente.\n\n📧 *Correo:* ${doc.email}\n👤 *Cédula / Usuario:* ${doc.ci}\n🔑 *Clave:* ${doc.password || doc.ci}\n\nYa puede ingresar de forma permanente. ¡Bienvenido(a)!`;
     navigator.clipboard.writeText(msg);
     alert(`✓ ¡Cuenta activada con éxito! Se ha copiado el mensaje de confirmación para WhatsApp.`);
+  };
+
+  // --- Feature: 'ACTIVAR PLAN ÉLITE' (Por cantidad de días definida por Administrador) ---
+  const handleConfirmActivateElite = (doc: DoctorConfig, days: number, notes?: string) => {
+    const validDays = Math.max(1, Math.round(Number(days) || 30));
+    const expiresDate = new Date(Date.now() + validDays * 24 * 60 * 60 * 1000);
+    const formattedExpires = expiresDate.toLocaleDateString('es-VE', { 
+      day: '2-digit', 
+      month: '2-digit', 
+      year: 'numeric' 
+    });
+
+    const updated: DoctorConfig = {
+      ...doc,
+      paymentStatus: 'activo',
+      isPaidClient: true,
+      isVip: true,
+      isElite: true,
+      subscriptionPlan: 'elite',
+      paidPlanName: `Plan Élite (${validDays} Días)`,
+      paidUntilDate: expiresDate.toISOString(),
+      eliteActivatedAt: new Date().toISOString(),
+      eliteExpiresAt: expiresDate.toISOString(),
+      eliteDays: validDays,
+      eliteNotes: notes?.trim() || 'Autorizado directamente por el Administrador Master Dr. Carlos Leal'
+    };
+
+    if (onUpdateDoctor) {
+      onUpdateDoctor(updated);
+    }
+
+    setActivatingEliteDoc(null);
+
+    // Auto-copy WhatsApp activation message for Plan Élite
+    const msg = `*¡PLAN ÉLITE ACTIVADO EN DIGITAL MÉDICO!* 💎✨\n\nEstimado(a) Dr(a). *${doc.doctorName}*:\nEl Administrador Master Dr. Carlos Leal le ha concedido acceso exclusivo al *PLAN ÉLITE* por *${validDays} días continuos*.\n\n📅 *Vigencia hasta:* ${formattedExpires}\n⭐ *Privilegios Élite Desbloqueados:*\n• Emisión ilimitada de Récipes Médicos 4 en 1 y Máster\n• Módulos completos de Historias Clínicas, Informes y Reposos Médicos\n• Acceso Exclusivo al Estudio de Diseño PRO (sellos, firmas y membretes de alta gama)\n• Respaldo y sincronización en la nube\n\n📧 *Correo:* ${doc.email}\n👤 *Cédula / Usuario:* ${doc.ci}\n🔑 *Clave:* ${doc.password || doc.ci}\n\nYa puede ingresar y emitir sus formatos con categoría Élite. ¡Muchos éxitos en su consulta médica!`;
+    
+    try {
+      navigator.clipboard.writeText(msg);
+    } catch (_) {}
+
+    alert(`✓ ¡Plan Élite activado con éxito para Dr(a). ${doc.doctorName} por ${validDays} días! (Vence el ${formattedExpires})\n\nSe ha copiado el mensaje de confirmación para WhatsApp.`);
+  };
+
+  const handleDeactivateElite = (doc: DoctorConfig) => {
+    if (!window.confirm(`¿Está seguro de DESACTIVAR el Plan Élite para ${doc.doctorName}? El médico regresará a la condición de prueba o plan regular.`)) return;
+
+    const updated: DoctorConfig = {
+      ...doc,
+      isElite: false,
+      subscriptionPlan: 'basico',
+      paidPlanName: 'Plan Básico',
+      eliteDays: 0,
+      eliteExpiresAt: undefined,
+    };
+
+    if (onUpdateDoctor) {
+      onUpdateDoctor(updated);
+    }
+    setActivatingEliteDoc(null);
+    alert(`✓ El Plan Élite ha sido desactivado para ${doc.doctorName}.`);
   };
 
   const copyDoctorCredentialsWhatsApp = (doc: DoctorConfig) => {
@@ -323,44 +401,54 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
           )}
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4 flex items-center gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center shrink-0">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+            <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-3 flex items-center gap-2.5">
+              <div className="w-10 h-10 rounded-xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center shrink-0">
                 <Users className="w-5 h-5" />
               </div>
               <div>
                 <span className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">Total Médicos</span>
-                <span className="text-xl font-black text-white">{totalDoctors}</span>
+                <span className="text-lg font-black text-white">{totalDoctors}</span>
               </div>
             </div>
 
-            <div className="bg-slate-800/80 border border-amber-500/40 rounded-2xl p-4 flex items-center gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+            <div className="bg-slate-800/80 border border-amber-500/40 rounded-2xl p-3 flex items-center gap-2.5">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
                 <Bell className="w-5 h-5" />
               </div>
               <div>
-                <span className="text-[10px] font-bold text-amber-300 block uppercase tracking-wider">Pendientes (Dar Play)</span>
-                <span className="text-xl font-black text-amber-300">{pendientesCount}</span>
+                <span className="text-[10px] font-bold text-amber-300 block uppercase tracking-wider">Pendientes</span>
+                <span className="text-lg font-black text-amber-300">{pendientesCount}</span>
               </div>
             </div>
 
-            <div className="bg-slate-800/80 border border-emerald-500/40 rounded-2xl p-4 flex items-center gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-emerald-600/20 text-emerald-400 flex items-center justify-center shrink-0">
+            <div className="bg-slate-800/80 border border-emerald-500/40 rounded-2xl p-3 flex items-center gap-2.5">
+              <div className="w-10 h-10 rounded-xl bg-emerald-600/20 text-emerald-400 flex items-center justify-center shrink-0">
                 <Play className="w-5 h-5" />
               </div>
               <div>
-                <span className="text-[10px] font-bold text-emerald-400 block uppercase tracking-wider">Activos (Pagados)</span>
-                <span className="text-xl font-black text-emerald-400">{activosCount}</span>
+                <span className="text-[10px] font-bold text-emerald-400 block uppercase tracking-wider">Activos (Play)</span>
+                <span className="text-lg font-black text-emerald-400">{activosCount}</span>
               </div>
             </div>
 
-            <div className="bg-slate-800/80 border border-cyan-500/40 rounded-2xl p-4 flex items-center gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-cyan-600/20 text-cyan-400 flex items-center justify-center shrink-0">
-                <Sparkles className="w-5 h-5" />
+            <div className="bg-slate-800/80 border border-cyan-500/40 rounded-2xl p-3 flex items-center gap-2.5">
+              <div className="w-10 h-10 rounded-xl bg-cyan-600/20 text-cyan-400 flex items-center justify-center shrink-0">
+                <Clock className="w-5 h-5" />
               </div>
               <div>
                 <span className="text-[10px] font-bold text-cyan-400 block uppercase tracking-wider">Prueba (14 Días)</span>
-                <span className="text-xl font-black text-cyan-300">{pruebasCount}</span>
+                <span className="text-lg font-black text-cyan-300">{pruebasCount}</span>
+              </div>
+            </div>
+
+            <div className="bg-slate-800/80 border border-purple-500/50 rounded-2xl p-3 flex items-center gap-2.5 bg-gradient-to-br from-purple-950/30 to-slate-900">
+              <div className="w-10 h-10 rounded-xl bg-purple-600/30 text-purple-300 flex items-center justify-center shrink-0 border border-purple-500/40">
+                <Sparkles className="w-5 h-5 text-amber-300" />
+              </div>
+              <div>
+                <span className="text-[10px] font-bold text-purple-300 block uppercase tracking-wider">Plan Élite</span>
+                <span className="text-lg font-black text-amber-300">{eliteCount}</span>
               </div>
             </div>
           </div>
@@ -370,9 +458,10 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
             <div className="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto text-xs pb-1 md:pb-0">
               {[
                 { id: 'todos', label: `Todos (${totalDoctors})` },
-                { id: 'pendiente', label: `🔔 Pendientes / Dar Play (${pendientesCount})` },
+                { id: 'pendiente', label: `🔔 Pendientes (${pendientesCount})` },
                 { id: 'activo', label: `✓ Activos (${activosCount})` },
                 { id: 'prueba', label: `Prueba 14d (${pruebasCount})` },
+                { id: 'elite', label: `💎 Plan Élite (${eliteCount})` },
               ].map((f) => (
                 <button
                   key={f.id}
@@ -507,78 +596,129 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
 
                           {/* Status & Plan */}
                           <td className="px-4 py-3">
-                            <div className="space-y-1">
-                              {doc.paymentStatus === 'activo' || doc.isPaidClient ? (
-                                <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-black inline-flex items-center gap-1">
-                                  <Check className="w-3 h-3 text-emerald-400" />
-                                  <span>ACTIVADO (PLAY)</span>
-                                </span>
-                              ) : doc.paymentStatus === 'prueba' ? (
-                                <span className="px-2 py-0.5 rounded-md bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-[10px] font-bold inline-flex items-center gap-1">
-                                  <Clock className="w-3 h-3 text-cyan-400" />
-                                  <span>Prueba 14 Días</span>
-                                </span>
-                              ) : (
-                                <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold inline-flex items-center gap-1">
-                                  <AlertCircle className="w-3 h-3 text-amber-400" />
-                                  <span>Pendiente / Cortado</span>
-                                </span>
-                              )}
-                              
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <div className="text-[10px] text-slate-400 font-semibold truncate">
-                                  {doc.paidPlanName || doc.subscriptionPlan || 'Plan Básico'}
-                                </div>
-                                {(doc.isVip || doc.subscriptionPlan === 'anual') && (
-                                  <span className="px-1.5 py-0.2 bg-amber-500/20 text-amber-300 border border-amber-500/40 rounded text-[9px] font-black">
-                                    👑 VIP
-                                  </span>
-                                )}
-                              </div>
+                            {(() => {
+                              const isEliteDoc = Boolean(doc.isElite || doc.paidPlanName?.toLowerCase().includes('élite') || doc.paidPlanName?.toLowerCase().includes('elite') || doc.subscriptionPlan === 'elite');
+                              return (
+                                <div className="space-y-1">
+                                  {isEliteDoc ? (
+                                    <span className="px-2 py-0.5 rounded-md bg-gradient-to-r from-purple-500/25 via-pink-500/20 to-amber-500/25 text-purple-200 border border-purple-400/50 text-[10px] font-black inline-flex items-center gap-1 shadow-xs">
+                                      <Sparkles className="w-3 h-3 text-amber-300 animate-pulse" />
+                                      <span>💎 PLAN ÉLITE ACTIVO</span>
+                                    </span>
+                                  ) : doc.paymentStatus === 'activo' || doc.isPaidClient ? (
+                                    <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-black inline-flex items-center gap-1">
+                                      <Check className="w-3 h-3 text-emerald-400" />
+                                      <span>ACTIVADO (PLAY)</span>
+                                    </span>
+                                  ) : doc.paymentStatus === 'prueba' ? (
+                                    <span className="px-2 py-0.5 rounded-md bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-[10px] font-bold inline-flex items-center gap-1">
+                                      <Clock className="w-3 h-3 text-cyan-400" />
+                                      <span>Prueba 14 Días</span>
+                                    </span>
+                                  ) : (
+                                    <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold inline-flex items-center gap-1">
+                                      <AlertCircle className="w-3 h-3 text-amber-400" />
+                                      <span>Pendiente / Cortado</span>
+                                    </span>
+                                  )}
+                                  
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <div className="text-[10px] text-slate-400 font-semibold truncate">
+                                      {doc.paidPlanName || doc.subscriptionPlan || 'Plan Básico'}
+                                    </div>
+                                    {(doc.isVip || doc.subscriptionPlan === 'anual' || isEliteDoc) && (
+                                      <span className="px-1.5 py-0.2 bg-amber-500/20 text-amber-300 border border-amber-500/40 rounded text-[9px] font-black">
+                                        👑 VIP
+                                      </span>
+                                    )}
+                                  </div>
 
-                              {/* Days Remaining Countdown Indicator */}
-                              {(() => {
-                                if (doc.paymentStatus === 'activo' || doc.isPaidClient) {
-                                  if (doc.paidUntilDate) {
-                                    const diff = Math.ceil((new Date(doc.paidUntilDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-                                    const days = diff > 0 ? diff : 0;
-                                    return (
-                                      <div className="text-[10px] text-emerald-300 font-mono font-bold flex items-center gap-1 mt-0.5">
-                                        <Clock className="w-3 h-3 text-emerald-400 shrink-0" />
-                                        <span>Quedan {days}d de plan</span>
-                                      </div>
-                                    );
-                                  }
-                                  return (
-                                    <div className="text-[10px] text-emerald-300 font-mono font-bold flex items-center gap-1 mt-0.5">
-                                      <Check className="w-3 h-3 text-emerald-400 shrink-0" />
-                                      <span>Acceso Anual / Activo</span>
-                                    </div>
-                                  );
-                                } else if (doc.paymentStatus === 'prueba') {
-                                  const trial = getDoctorTrialStatus(doc);
-                                  return (
-                                    <div className="text-[10px] text-cyan-300 font-mono font-bold flex items-center gap-1 mt-0.5">
-                                      <Clock className="w-3 h-3 text-cyan-400 shrink-0" />
-                                      <span>Prueba: {trial.daysLeft}d restantes</span>
-                                    </div>
-                                  );
-                                } else {
-                                  return (
-                                    <div className="text-[10px] text-rose-400 font-mono font-bold flex items-center gap-1 mt-0.5">
-                                      <AlertCircle className="w-3 h-3 text-rose-400 shrink-0" />
-                                      <span>Acceso Cortado / Vencido</span>
-                                    </div>
-                                  );
-                                }
-                              })()}
-                            </div>
+                                  {/* Days Remaining Countdown Indicator */}
+                                  {(() => {
+                                    if (isEliteDoc) {
+                                      if (doc.paidUntilDate) {
+                                        const diff = Math.ceil((new Date(doc.paidUntilDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                                        const days = diff > 0 ? diff : 0;
+                                        return (
+                                          <div className="text-[10px] text-purple-300 font-mono font-bold flex items-center gap-1 mt-0.5">
+                                            <Sparkles className="w-3 h-3 text-amber-300 shrink-0" />
+                                            <span>Quedan {days}d de Plan Élite</span>
+                                          </div>
+                                        );
+                                      }
+                                      return (
+                                        <div className="text-[10px] text-purple-300 font-mono font-bold flex items-center gap-1 mt-0.5">
+                                          <Sparkles className="w-3 h-3 text-amber-300 shrink-0" />
+                                          <span>Plan Élite Activo</span>
+                                        </div>
+                                      );
+                                    } else if (doc.paymentStatus === 'activo' || doc.isPaidClient) {
+                                      if (doc.paidUntilDate) {
+                                        const diff = Math.ceil((new Date(doc.paidUntilDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                                        const days = diff > 0 ? diff : 0;
+                                        return (
+                                          <div className="text-[10px] text-emerald-300 font-mono font-bold flex items-center gap-1 mt-0.5">
+                                            <Clock className="w-3 h-3 text-emerald-400 shrink-0" />
+                                            <span>Quedan {days}d de plan</span>
+                                          </div>
+                                        );
+                                      }
+                                      return (
+                                        <div className="text-[10px] text-emerald-300 font-mono font-bold flex items-center gap-1 mt-0.5">
+                                          <Check className="w-3 h-3 text-emerald-400 shrink-0" />
+                                          <span>Acceso Anual / Activo</span>
+                                        </div>
+                                      );
+                                    } else if (doc.paymentStatus === 'prueba') {
+                                      const trial = getDoctorTrialStatus(doc);
+                                      return (
+                                        <div className="text-[10px] text-cyan-300 font-mono font-bold flex items-center gap-1 mt-0.5">
+                                          <Clock className="w-3 h-3 text-cyan-400 shrink-0" />
+                                          <span>Prueba: {trial.daysLeft}d restantes</span>
+                                        </div>
+                                      );
+                                    } else {
+                                      return (
+                                        <div className="text-[10px] text-rose-400 font-mono font-bold flex items-center gap-1 mt-0.5">
+                                          <AlertCircle className="w-3 h-3 text-rose-400 shrink-0" />
+                                          <span>Acceso Cortado / Vencido</span>
+                                        </div>
+                                      );
+                                    }
+                                  })()}
+                                </div>
+                              );
+                            })()}
                           </td>
 
                           {/* EL "PLAY" DEL CREADOR (Boton de Activación y Cortar) */}
                           <td className="px-4 py-3 text-right">
                             <div className="flex items-center justify-end gap-2 flex-wrap">
                               
+                              {/* ACTIVAR O GESTIONAR PLAN ÉLITE */}
+                              {(() => {
+                                const isEliteDoc = Boolean(doc.isElite || doc.paidPlanName?.toLowerCase().includes('élite') || doc.paidPlanName?.toLowerCase().includes('elite') || doc.subscriptionPlan === 'elite');
+                                return (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setActivatingEliteDoc(doc);
+                                      setEliteDaysInput(doc.eliteDays || 30);
+                                      setEliteCustomNotes(doc.eliteNotes || '');
+                                    }}
+                                    className={`px-2.5 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-xs ${
+                                      isEliteDoc
+                                        ? 'bg-gradient-to-r from-purple-600 via-pink-600 to-amber-500 text-white border border-purple-400/60 shadow-md ring-1 ring-purple-300/40 hover:brightness-110'
+                                        : 'bg-purple-950/70 hover:bg-purple-900 text-purple-200 border border-purple-500/40 hover:border-purple-400'
+                                    }`}
+                                    title="Activar o renovar Plan Élite por una cantidad personalizada de días"
+                                  >
+                                    <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                                    <span>{isEliteDoc ? '💎 Élite Activo' : '💎 Plan Élite'}</span>
+                                  </button>
+                                );
+                              })()}
+
                               {/* VIP ACCESS TOGGLE FOR ESTUDIO DE DISEÑO */}
                               <button
                                 type="button"
@@ -822,6 +962,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                   { id: 'mensual', name: 'Mensual PRO', price: '$10 USD / mes', desc: 'Acceso a récipes, historias, informes y reposos' },
                   { id: 'trimestral', name: 'Trimestral PRO', price: '$28 USD / 3 meses', desc: 'Descuento especial de 3 meses' },
                   { id: 'anual', name: 'Anual VIP', price: '$95 USD / año', desc: 'Acceso total + Estudio de Diseño PRO' },
+                  { id: 'elite', name: '💎 Plan Élite Personalizado', price: `${eliteDaysInput} Días`, desc: 'Acceso Élite exclusivo por la cantidad de días que defina' },
                 ].map((p) => (
                   <button
                     key={p.id}
@@ -841,17 +982,206 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                   </button>
                 ))}
               </div>
+
+              {chosenPlanForPlay === 'elite' && (
+                <div className="mt-3 p-3 bg-purple-950/50 border border-purple-500/50 rounded-2xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-purple-300">Días a otorgar para el Plan Élite:</span>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="number"
+                        min={1}
+                        max={3650}
+                        value={eliteDaysInput}
+                        onChange={(e) => setEliteDaysInput(Math.max(1, parseInt(e.target.value) || 1))}
+                        className="w-20 px-2 py-1 bg-slate-900 border border-purple-400 rounded-lg text-white font-mono font-bold text-center text-xs"
+                      />
+                      <span className="text-xs text-slate-400">días</span>
+                    </div>
+                  </div>
+                  <div className="text-[11px] text-slate-300">
+                    Vence el: <strong className="text-amber-300 font-mono">{new Date(Date.now() + eliteDaysInput * 24 * 60 * 60 * 1000).toLocaleDateString('es-VE')}</strong>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="pt-2">
               <button
                 type="button"
-                onClick={() => handleConfirmDarPlay(activatingPlayDoc, chosenPlanForPlay)}
+                onClick={() => handleConfirmDarPlay(activatingPlayDoc, chosenPlanForPlay, eliteDaysInput)}
                 className="w-full py-3.5 bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-sm rounded-2xl shadow-xl shadow-emerald-500/30 flex items-center justify-center gap-2 cursor-pointer transition-all hover:scale-[1.01]"
               >
                 <CheckCircle2 className="w-5 h-5" />
                 <span> Confirmar Activación ("Dar Play") Ya</span>
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* MODAL 3: ACTIVAR PLAN ÉLITE PERSONALIZADO A FUTURO      */}
+      {/* ======================================================== */}
+      {activatingEliteDoc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-3 md:p-6 animate-in fade-in">
+          <div className="bg-slate-900 border-2 border-purple-500/70 rounded-3xl max-w-xl w-full p-5 sm:p-7 text-white space-y-5 relative shadow-2xl overflow-y-auto max-h-[95vh]">
+            <button
+              onClick={() => setActivatingEliteDoc(null)}
+              className="absolute top-4 right-4 p-1.5 rounded-full bg-slate-800 text-slate-400 hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="text-center space-y-2">
+              <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-purple-600 via-pink-600 to-amber-500 text-white font-black flex items-center justify-center mx-auto shadow-xl shadow-purple-600/30 border-2 border-purple-300/40">
+                <Sparkles className="w-8 h-8 text-amber-200" />
+              </div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-400/40 text-xs font-black uppercase tracking-wider">
+                👑 Control Exclusivo del Administrador Master
+              </div>
+              <h3 className="font-black text-xl text-white">
+                Activar Plan Élite Personalizado
+              </h3>
+              <p className="text-xs text-slate-300">
+                Dr(a). <strong>{activatingEliteDoc.doctorName}</strong> (C.I: {activatingEliteDoc.ci} · {activatingEliteDoc.specialty})
+              </p>
+            </div>
+
+            {/* Aviso aclaratorio de la salida del Plan Élite */}
+            <div className="p-3.5 rounded-2xl bg-gradient-to-r from-purple-950/60 via-slate-950 to-purple-950/60 border border-purple-500/30 text-xs text-slate-300 space-y-1.5">
+              <div className="flex items-center gap-2 text-amber-300 font-bold">
+                <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+                <span>¿Cómo funciona el Plan Élite?</span>
+              </div>
+              <p className="text-[11px] text-slate-300 leading-relaxed">
+                El <strong>Plan Élite</strong> saldrá próximamente como un paquete premium de cobro oficial. Como Administrador Master, esta función le permite <strong>activarlo de forma anticipada o por cortesía</strong> a los médicos que usted considere, asignando la <strong>cantidad exacta de días</strong> de acceso continuo que desee.
+              </p>
+            </div>
+
+            {/* Selector de días */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold text-purple-300 uppercase tracking-wide">
+                  1. Seleccione o Escriba la Cantidad de Días:
+                </label>
+                <span className="text-xs font-mono font-bold text-amber-300 bg-amber-500/20 px-2.5 py-0.5 rounded-full border border-amber-400/40">
+                  {eliteDaysInput} Días
+                </span>
+              </div>
+
+              {/* Botones de días predeterminados */}
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                {[
+                  { days: 7, label: '7 Días' },
+                  { days: 15, label: '15 Días' },
+                  { days: 30, label: '30 Días (1 Mes)' },
+                  { days: 60, label: '60 Días (2 Meses)' },
+                  { days: 90, label: '90 Días (3 Meses)' },
+                  { days: 180, label: '180 Días (6 Meses)' },
+                  { days: 365, label: '365 Días (1 Año)' },
+                ].map((preset) => (
+                  <button
+                    key={preset.days}
+                    type="button"
+                    onClick={() => setEliteDaysInput(preset.days)}
+                    className={`p-2 rounded-xl text-xs font-bold border transition-all text-center cursor-pointer ${
+                      eliteDaysInput === preset.days
+                        ? 'bg-purple-600 text-white border-purple-300 shadow-md ring-2 ring-purple-400/50'
+                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white hover:border-purple-500/40'
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Input manual libre para cualquier número de días */}
+              <div className="p-3 bg-slate-950 rounded-2xl border border-slate-800 flex items-center justify-between gap-3">
+                <div className="text-xs text-slate-300 font-semibold">
+                  O ingrese manualmente la cantidad exacta de días:
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <input
+                    type="number"
+                    min={1}
+                    max={3650}
+                    value={eliteDaysInput}
+                    onChange={(e) => setEliteDaysInput(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="w-24 px-3 py-1.5 bg-slate-900 border border-purple-400 rounded-xl text-white font-mono font-bold text-center text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                  />
+                  <span className="text-xs text-slate-400 font-bold">días</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Cálculo de fecha de vigencia y resumen en tiempo real */}
+            {(() => {
+              const expiresDate = new Date(Date.now() + Math.max(1, eliteDaysInput) * 24 * 60 * 60 * 1000);
+              const formattedExpires = expiresDate.toLocaleDateString('es-VE', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+              });
+              return (
+                <div className="p-3.5 rounded-2xl bg-purple-950/40 border border-purple-500/40 space-y-2 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">Inicio de vigencia:</span>
+                    <span className="text-white font-bold">Hoy ({new Date().toLocaleDateString('es-VE')})</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-purple-300 font-bold">Fecha de vencimiento calculada:</span>
+                    <span className="text-amber-300 font-mono font-bold uppercase">{formattedExpires}</span>
+                  </div>
+                  <div className="pt-2 border-t border-purple-900/60 text-[11px] text-slate-300 space-y-1">
+                    <div className="flex items-center gap-1.5 text-emerald-300 font-semibold">
+                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Acceso total ilimitado a todos los formatos médicos oficiales</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-amber-300 font-semibold">
+                      <Crown className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Estudio de Diseño PRO desbloqueado (sellos notariales y membretes)</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Notas opcionales */}
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1">
+                Motivo / Nota de Concesión (Opcional):
+              </label>
+              <input
+                type="text"
+                value={eliteCustomNotes}
+                onChange={(e) => setEliteCustomNotes(e.target.value)}
+                placeholder="Ej: Cortesía del Administrador, Prueba piloto especial, etc."
+                className="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
+              />
+            </div>
+
+            {/* Botones de acción */}
+            <div className="space-y-2 pt-2">
+              <button
+                type="button"
+                onClick={() => handleConfirmActivateElite(activatingEliteDoc, eliteDaysInput, eliteCustomNotes)}
+                className="w-full py-3.5 bg-gradient-to-r from-purple-600 via-pink-600 to-amber-500 hover:from-purple-500 hover:to-amber-400 text-white font-black text-sm rounded-2xl shadow-xl shadow-purple-600/30 flex items-center justify-center gap-2 cursor-pointer transition-all hover:scale-[1.01]"
+              >
+                <Sparkles className="w-5 h-5 text-amber-200" />
+                <span>Confirmar y Activar Plan Élite ({eliteDaysInput} Días)</span>
+              </button>
+
+              {(activatingEliteDoc.isElite || activatingEliteDoc.paidPlanName?.toLowerCase().includes('élite')) && (
+                <button
+                  type="button"
+                  onClick={() => handleDeactivateElite(activatingEliteDoc)}
+                  className="w-full py-2 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                >
+                  ⛔ Desactivar / Cancelar Plan Élite de este Médico
+                </button>
+              )}
             </div>
           </div>
         </div>

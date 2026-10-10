@@ -50,6 +50,11 @@ export interface DoctorConfig {
   paymentStatus: 'activo' | 'pendiente' | 'vencido' | 'prueba';
   isAdmin?: boolean;
   isVip?: boolean;
+  isElite?: boolean;
+  eliteActivatedAt?: string;
+  eliteExpiresAt?: string;
+  eliteDays?: number;
+  eliteNotes?: string;
   subscriptionPlan?: string;
   updatedAt?: number;
   password?: string;
@@ -106,6 +111,10 @@ export interface DoctorConfig {
   registrationDate?: string;
   patientBarSize?: string;
   colorPalettePreset?: string;
+  educacionContinua?: string;
+  fuenteEducacion?: string;
+  educacionSize?: string;
+  educacionColor?: string;
 }
 
 export interface RecipeItem {
@@ -115,11 +124,14 @@ export interface RecipeItem {
   patientCI: string;
   patientPhone: string;
   patientEmail?: string;
+  patientAddress?: string;
   date: string;
   diagnosis: string;
   rp: string;
   indicationsNotes: string;
 }
+
+export type SingleRecipeData = RecipeItem;
 
 export interface VitalSigns {
   ta: string;
@@ -167,8 +179,10 @@ export interface MedicalReport {
   patientCI: string;
   patientPhone: string;
   patientGender: string;
+  patientEmail?: string;
+  patientAddress?: string;
   date: string;
-  reportType: 'consulta' | 'referencia' | 'evaluacion' | 'general';
+  reportType: 'consulta' | 'referencia' | 'evaluacion' | 'general' | 'quirurgico' | 'alta';
   title: string;
   reasonForConsultation: string;
   clinicalSummary: string;
@@ -189,6 +203,8 @@ export interface IndicationsSheet {
   patientCI: string;
   patientPhone: string;
   patientAge: string;
+  patientEmail?: string;
+  patientAddress?: string;
   date: string;
   diagnosis: string;
   generalInstructions: string;
@@ -204,6 +220,8 @@ export interface MedicalRestCert {
   patientCI: string;
   patientPhone: string;
   patientAge: string;
+  patientEmail?: string;
+  patientAddress?: string;
   patientOccupation: string;
   companyName: string;
   date: string;

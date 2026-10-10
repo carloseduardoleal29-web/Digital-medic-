@@ -19,7 +19,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { DoctorConfig } from '../types';
-import { generatePDFBlob, exportElementAsPDF } from '../utils/exportDocument';
+import { generatePDFBlob, exportElementAsPDF, buildDocumentPdfFilename, sharePDFViaWebShare } from '../utils/exportDocument';
 
 interface CountryData {
   code: string;
@@ -227,11 +227,12 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
   const [channelMode, setChannelMode] = useState<'qr-phone' | 'pc-whatsapp'>('pc-whatsapp');
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
 
-  // Auto PDF Upload state
+  // Auto PDF Upload state and blob generator
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [generatedBlob, setGeneratedBlob] = useState<Blob | null>(null);
 
-  // Synchronize from patientPhone on mount/open
+  // Synchronize from patientPhone on mount/open and generate PDF in background
   React.useEffect(() => {
     if (isOpen) {
       const { countryCode, operator, local } = parseInitialPhone(patientPhone || '');
@@ -240,8 +241,53 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
       setLocalNumber(local);
       const combined = combinePhone(countryCode, operator, local);
       setPhoneNumber(combined);
+
+      // Auto generate & upload PDF in background for instant cloud link
+      async function autoGenerateAndUpload() {
+        try {
+          setIsUploading(true);
+          const targetElement = document.querySelector<HTMLElement>(
+            '#dual-recipe-print-container, #recipe-single-print-container, #indications-print-container, .dual-recipe-container, .dual-recipe-sheet, .print-container, .recipe-4en1-container, .report-sheet-container, .recipe-single-container, .recipe-single-card, .indications-container, .rest-container, .clinical-history-container'
+          );
+          const blob = await generatePDFBlob(targetElement);
+          if (blob) {
+            setGeneratedBlob(blob);
+            const reader = new FileReader();
+            reader.readAsDataURL(blob);
+            reader.onloadend = async () => {
+              const base64 = reader.result as string;
+              try {
+                const cleanPatient = (patientName || 'Paciente').replace(/[^a-zA-Z0-9]/g, '_');
+                const cleanDoc = (documentType || 'Recipe').replace(/[^a-zA-Z0-9]/g, '_');
+                const filename = `${cleanDoc}_${cleanPatient}.pdf`;
+                const res = await fetch('/api/pdf/upload', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ pdfBase64: base64, filename })
+                });
+                const data = await res.json();
+                if (data.success && data.url) {
+                  setPdfUrl(data.url);
+                }
+              } catch (err) {
+                console.warn('[WhatsApp PDF Upload Error]:', err);
+              } finally {
+                setIsUploading(false);
+              }
+            };
+          } else {
+            setIsUploading(false);
+          }
+        } catch (e) {
+          console.warn('[WhatsApp PDF Generation Error]:', e);
+          setIsUploading(false);
+        }
+      }
+
+      setPdfUrl(null);
+      autoGenerateAndUpload();
     }
-  }, [isOpen, patientPhone]);
+  }, [isOpen, patientPhone, patientName, documentType]);
 
   const getDocumentTypeName = () => {
     switch (documentType) {
@@ -292,19 +338,23 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
   };
 
   // Build professional WhatsApp markdown message with direct attachment instruction
+  const todayDateStr = new Intl.DateTimeFormat('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date()).replace(/[/\\:]/g, '-');
+  const pdfFilename = buildDocumentPdfFilename(documentType || 'Recipe', patientName, todayDateStr);
+
   const buildWhatsAppMessage = () => {
     const docName = getDocumentTypeName();
-    const cleanPatient = (patientName || 'Paciente').replace(/[^a-zA-Z0-9]/g, '_');
-    const pdfFilename = `${documentType}_${cleanPatient}.pdf`;
+    const pdfLine = pdfUrl 
+      ? `📥 *ENLACE DE DESCARGA DIRECTA DE SU PDF OFICIAL:*\n${pdfUrl}\n\n`
+      : `📎 *DOCUMENTO PDF OFICIAL:* ${pdfFilename} (Firmado y Sellado Digitalmente)\n\n`;
     
     let msg = `Estimado(a) *${patientName || 'Paciente'}*,\n\n` +
       `Le saluda el/la *Dr(a). ${config.doctorName}* (${config.specialty || 'Médico Especialista'}).\n\n` +
       `📄 *${docName.toUpperCase()} OFICIAL*\n\n` +
-      `📎 *INSTRUCCIÓN:* Se ha descargado automáticamente en su dispositivo el archivo PDF oficial (*${pdfFilename}*) firmado y sellado digitalmente. Por favor adjunte o presente el archivo PDF descargado para su validez legal en farmacias y centros asistenciales.\n\n` +
-      (contentBody ? `📋 *RESUMEN DE PRESCRIPCIÓN / INDICACIÓN:*\n${contentBody.length > 500 ? contentBody.slice(0, 480) + '...' : contentBody}\n\n` : '') +
+      pdfLine +
+      (contentBody ? `📋 *RESUMEN DE PRESCRIPCIÓN / INDICACIONES:*\n${contentBody.length > 450 ? contentBody.slice(0, 420) + '...' : contentBody}\n\n` : '') +
       `*M.P.P.S:* ${config.mpps || '00.000'} · *C.I:* ${config.ci || 'V-00.000.000'}\n` +
-      (config.phone ? `*Contacto / Consultas:* ${config.phone}\n` : '') +
-      `\n_Por favor cumpla las indicaciones especificadas en su documento oficial en PDF. ¡Que tenga una pronta y satisfactoria recuperación! ✨_`;
+      (config.phone ? `*Contacto:* ${config.phone}\n` : '') +
+      `\n_Documento legal con firma y sello digital. ¡Que tenga una pronta recuperación! ✨_`;
     return msg;
   };
 
@@ -328,7 +378,7 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
         light: '#ffffff'
       }
     }).then(setQrCodeDataUrl).catch(console.error);
-  }, [isOpen, selectedCountry, selectedOperator, localNumber, config, patientName, contentBody, documentTitle]);
+  }, [isOpen, selectedCountry, selectedOperator, localNumber, config, patientName, contentBody, documentTitle, pdfUrl]);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(messageText);
@@ -339,76 +389,94 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
   const handleSendWhatsApp = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // 1. Force instant local PDF download in browser (jsPDF / Blob)
-    const todayDateStr = new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date()).replace(/\//g, '-');
-    const cleanPatient = (patientName || 'Paciente').replace(/[^a-zA-Z0-9]/g, '_');
-    const filename = `${documentType || 'Recipe'}_${cleanPatient}_${todayDateStr}.pdf`;
-
-    try {
-      const targetElement = document.querySelector<HTMLElement>(
-        '.print-container, .recipe-4en1-container, .recipe-single-container, .report-sheet-container, .indications-container, .rest-container, .clinical-history-container'
-      );
-      await exportElementAsPDF(targetElement, filename);
-    } catch (err) {
-      console.warn('[Auto PDF Download Error]:', err);
-    }
-
     const cleanNumber = getCleanWhatsAppNumber(selectedCountry, selectedOperator, localNumber);
     if (onUpdatePatientPhone) {
       onUpdatePatientPhone(phoneNumber);
+    }
+
+    const targetElement = document.querySelector<HTMLElement>(
+      '#dual-recipe-print-container, #recipe-single-print-container, #indications-print-container, .dual-recipe-container, .dual-recipe-sheet, .print-container, .recipe-4en1-container, .report-sheet-container, .recipe-single-container, .recipe-single-card, .indications-container, .rest-container, .clinical-history-container'
+    );
+
+    // 1. En teléfonos móviles con soporte de compartir archivos: Usar Web Share para adjuntar el PDF REAL a WhatsApp
+    const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+    if (isMobile && typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+      try {
+        setIsSharing(true);
+        const res = await sharePDFViaWebShare(
+          targetElement,
+          pdfFilename,
+          `${getDocumentTypeName()} - ${patientName || 'Paciente'}`,
+          messageText,
+          cleanNumber
+        );
+        if (res.success) {
+          setIsSharing(false);
+          return;
+        }
+      } catch (shareErr) {
+        console.warn('[Direct WebShare Fallback]:', shareErr);
+      } finally {
+        setIsSharing(false);
+      }
+    }
+
+    // 2. En PC / WhatsApp Web o si Web Share no está activo: Descargar PDF localmente y abrir chat con enlace público
+    try {
+      await exportElementAsPDF(targetElement, pdfFilename);
+    } catch (err) {
+      console.warn('[Auto PDF Download Error]:', err);
     }
 
     const finalMsg = buildWhatsAppMessage();
     const encoded = encodeURIComponent(finalMsg);
     const targetUrl = cleanNumber.length > 6 
       ? `https://wa.me/${cleanNumber}?text=${encoded}`
-      : `https://wa.me/?text=${encoded}`;
+      : (isMobile ? `https://wa.me/?text=${encoded}` : `https://web.whatsapp.com/send?text=${encoded}`);
 
     try {
-      const link = document.createElement('a');
-      link.href = targetUrl;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      document.body.appendChild(link);
-      link.click();
-      setTimeout(() => {
-        if (document.body.contains(link)) document.body.removeChild(link);
-      }, 150);
+      if (isMobile) {
+        window.location.href = targetUrl;
+      } else {
+        const link = document.createElement('a');
+        link.href = targetUrl;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        document.body.appendChild(link);
+        link.click();
+        setTimeout(() => {
+          if (document.body.contains(link)) document.body.removeChild(link);
+        }, 300);
+      }
     } catch (_) {
-      window.open(targetUrl, '_blank');
+      try {
+        window.open(targetUrl, '_blank');
+      } catch (err) {
+        console.warn('Could not open WhatsApp window:', err);
+      }
     }
   };
 
   // Web Share API support (attaching the real PDF directly on smartphones into WhatsApp!)
   const handleNativeShare = async () => {
-    if (typeof navigator !== 'undefined' && navigator.share) {
-      try {
-        setIsSharing(true);
-        // Generate PDF blob to attach the actual file
-        const blob = await generatePDFBlob(null);
-        if (blob) {
-          const cleanPatient = (patientName || 'Paciente').replace(/[^a-zA-Z0-9]/g, '_');
-          const pdfFile = new File([blob], `${cleanPatient}_${getDocumentTypeName().replace(/\s+/g, '_')}.pdf`, { type: 'application/pdf' });
-          if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
-            await navigator.share({
-              files: [pdfFile],
-              title: `Documento Médico - ${patientName}`,
-              text: messageText,
-            });
-            return;
-          }
-        }
-        await navigator.share({
-          title: `Documento Médico - ${patientName}`,
-          text: messageText,
-        });
-      } catch (err) {
-        console.log('Share error or cancelled:', err);
-      } finally {
-        setIsSharing(false);
-      }
-    } else {
-      handleCopy();
+    try {
+      setIsSharing(true);
+      const cleanNumber = getCleanWhatsAppNumber(selectedCountry, selectedOperator, localNumber);
+      const targetElement = document.querySelector<HTMLElement>(
+        '#dual-recipe-print-container, #recipe-single-print-container, #indications-print-container, .dual-recipe-container, .dual-recipe-sheet, .print-container, .recipe-4en1-container, .report-sheet-container, .recipe-single-container, .recipe-single-card, .indications-container, .rest-container, .clinical-history-container'
+      );
+
+      await sharePDFViaWebShare(
+        targetElement,
+        pdfFilename,
+        `${getDocumentTypeName()} - ${patientName || 'Paciente'}`,
+        messageText,
+        cleanNumber
+      );
+    } catch (err) {
+      console.warn('Native share error:', err);
+    } finally {
+      setIsSharing(false);
     }
   };
 

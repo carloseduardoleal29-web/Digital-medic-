@@ -24,7 +24,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { DoctorConfig } from '../types';
-import { generatePDFBlob } from '../utils/exportDocument';
+import { generatePDFBlob, buildDocumentPdfFilename, sharePDFViaWebShare } from '../utils/exportDocument';
 
 interface CountryData {
   code: string;
@@ -323,8 +323,8 @@ export const SaveAndShareSuccessModal: React.FC<SaveAndShareSuccessModalProps> =
   const buildWhatsAppMessage = () => {
     if (!record) return '';
     const docName = getDocumentTypeName();
-    const cleanDate = record.date || new Intl.DateTimeFormat('es-ES').format(new Date());
-    const pdfFilename = record.pdfFileName || `${record.documentType}_${(record.patientName || 'Paciente').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+    const cleanDate = record.date || new Intl.DateTimeFormat('es-VE').format(new Date());
+    const pdfFilename = record.pdfFileName || buildDocumentPdfFilename(record.documentType || 'Recipe', record.patientName, cleanDate);
 
     let msg = `Estimado(a) *${record.patientName || 'Paciente'}*,\n\n` +
       `Le saluda el/la *Dr(a). ${record.doctorName || config.doctorName}* (${record.doctorSpecialty || config.specialty || 'Médico Especialista'}).\n\n` +
@@ -477,33 +477,26 @@ export const SaveAndShareSuccessModal: React.FC<SaveAndShareSuccessModalProps> =
   };
 
   const handleNativeShare = async () => {
-    if (typeof navigator !== 'undefined' && navigator.share) {
-      try {
-        setIsSharing(true);
-        const blob = await generatePDFBlob(null);
-        if (blob) {
-          const cleanPatient = (record.patientName || 'Paciente').replace(/[^a-zA-Z0-9]/g, '_');
-          const pdfFile = new File([blob], record.pdfFileName || `${cleanPatient}_Documento.pdf`, { type: 'application/pdf' });
-          if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
-            await navigator.share({
-              files: [pdfFile],
-              title: record.documentTitle,
-              text: messageText,
-            });
-            return;
-          }
-        }
-        await navigator.share({
-          title: record.documentTitle,
-          text: messageText,
-        });
-      } catch (err) {
-        console.log('Share error or cancelled:', err);
-      } finally {
-        setIsSharing(false);
-      }
-    } else {
-      handleCopyMessage();
+    try {
+      setIsSharing(true);
+      const cleanDate = record.date || new Intl.DateTimeFormat('es-VE').format(new Date());
+      const pdfFilename = record.pdfFileName || buildDocumentPdfFilename(record.documentType || 'Recipe', record.patientName, cleanDate);
+
+      const targetElement = document.querySelector<HTMLElement>(
+        '#recipe-4en1-print-sheet, .recipe-4en1-container, .print-container, .report-sheet-container, .recipe-single-container, .recipe-single-card, .indications-container, .rest-container, .clinical-history-container'
+      );
+
+      await sharePDFViaWebShare(
+        targetElement,
+        pdfFilename,
+        record.documentTitle || `${record.documentType} - ${record.patientName || 'Paciente'}`,
+        messageText,
+        record.patientPhone
+      );
+    } catch (err) {
+      console.warn('Native share error:', err);
+    } finally {
+      setIsSharing(false);
     }
   };
 

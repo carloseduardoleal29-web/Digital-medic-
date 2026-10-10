@@ -785,5 +785,6 @@ export const DEFAULT_DOCTOR_CONFIG: DoctorConfig = {
   folioNumber: 1,
   isPaidClient: true,
   paidPlanName: 'Plan Digital Medic Pro',
-  paymentStatus: 'activo'
+  paymentStatus: 'activo',
+  educacionContinua: ""
 };

@@ -1,10 +1,34 @@
-import React, { useState, useRef } from 'react';
-import { DoctorConfig, MedicalReport } from '../types';
+import React, { useState, useRef, useEffect } from 'react';
+import { DoctorConfig, MedicalReport, SavedPatientEntry } from '../types';
 import { DocumentHeader } from './DocumentHeader';
 import { DocumentFooter } from './DocumentFooter';
 import { WhatsAppShareModal } from './WhatsAppShareModal';
+import { EmailShareModal } from './EmailShareModal';
 import { getDocumentBorderStyle, getPaperTextureClass } from '../utils/documentStyles';
-import { FileText, Printer, MessageSquare, Eye, ArrowLeft, Trash2, Save, Download, Calendar, Mail } from 'lucide-react';
+import { 
+  FileText, 
+  Printer, 
+  Eye, 
+  ArrowLeft, 
+  ArrowRight, 
+  Trash2, 
+  Save, 
+  Download, 
+  Calendar, 
+  Mail, 
+  User, 
+  Clock, 
+  Check, 
+  ClipboardCheck, 
+  Plus, 
+  Sparkles,
+  Layers,
+  Activity,
+  HeartPulse,
+  Stethoscope,
+  Share2
+} from 'lucide-react';
+import { exportElementAsPDF, buildDocumentPdfFilename } from '../utils/exportDocument';
 
 interface ReportsModuleProps {
   config: DoctorConfig;
@@ -18,41 +42,42 @@ interface ReportsModuleProps {
   onOpenPreview?: () => void;
   onUpdateConfig?: (updated: Partial<DoctorConfig>) => void;
   onBackToHome?: () => void;
+  existingPatients?: SavedPatientEntry[];
 }
 
 const TEMPLATES: Record<string, Partial<MedicalReport>> = {
   quirurgico: {
-    title: "INFORME MÉDICO",
-    reasonForConsultation: "Intervención quirúrgica programada bajo anestesia general balanceada / regional.",
-    clinicalSummary: "Paciente acude para procedimiento quirúrgico electivo. Se realiza valoración preanestésica constatando vía aérea permeable Mallampati II, estabilidad hemodinámica basal. Sin antecedentes alérgicos reportados.",
-    procedures: "Se induce técnica anestésica sin complicaciones. Mantenimiento con ventilación mecánica protectora, analgesia multimodal intravenosa y antiemesis profiláctica. Procedimiento quirúrgico transcurre dentro de parámetros esperados sin eventualidades.",
-    paraclinicalStudies: "Hematología completa: Hemoglobina 13.8 g/dL, Plaquetas 245.000/mm3. TP 12.5 seg (Control 12 seg), TPT 29 seg. Glicemia 88 mg/dL, Creatinina 0.8 mg/dL. EKG: Ritmo sinusal normal.",
-    diagnosticImpression: "1. Estado posoperatorio mediato sin complicaciones.\n2. Recuperación anestésica Aldrete 10/10.",
-    treatmentPlan: "Terapia analgésica posoperatoria pautada. Cuidado estricto de herida quirúrgica. Deambulación asistida precoz.",
-    recommendations: "Mantener hidratación oral adecuada. Cuidado estricto de herida quirúrgica. Acudir a control por consulta externa en 7 días para retiro de puntos.",
-    daysRest: "10 días",
+    title: "INFORME MÉDICO DE EVALUACIÓN QUIRÚRGICA",
+    reasonForConsultation: "",
+    clinicalSummary: "",
+    procedures: "",
+    paraclinicalStudies: "",
+    diagnosticImpression: "",
+    treatmentPlan: "",
+    recommendations: "",
+    daysRest: "",
   },
   consulta: {
-    title: "INFORME MÉDICO",
-    reasonForConsultation: "Evaluación clínica integral y control médico periódico.",
-    clinicalSummary: "Paciente acude a consulta refiriendo cuadro clínico caracterizado por síntomas de evolución progresiva. Se encuentra orientado en tiempo, espacio y persona, hidratado y afebril.",
-    procedures: "Examen físico segmentario exhaustivo sin signos de focalización neurológica. Ruidos cardíacos rítmicos normofonéticos. Murmullo vesicular conservado en ambos campos pulmonares.",
-    paraclinicalStudies: "Perfil lipídico: Colesterol total 195 mg/dL, Triglicéridos 140 mg/dL, HDL 48 mg/dL. Química sanguínea dentro de rangos de normalidad.",
-    diagnosticImpression: "1. Síndrome metabólico en estadio inicial compensado.\n2. Trastorno funcional gastrointestinal leve.",
-    treatmentPlan: "Ajuste de hábitos higiénico-dietéticos. Plan farmacológico según récipe adjunto.",
-    recommendations: "Realizar actividad física aeróbica 30 minutos al día. Disminuir ingesta de sodio y azúcares refinados. Cita de control en 4 semanas.",
+    title: "INFORME MÉDICO DE CONSULTA EXTERNA",
+    reasonForConsultation: "",
+    clinicalSummary: "",
+    procedures: "",
+    paraclinicalStudies: "",
+    diagnosticImpression: "",
+    treatmentPlan: "",
+    recommendations: "",
     daysRest: "",
   },
   alta: {
-    title: "INFORME MÉDICO",
-    reasonForConsultation: "Hospitalización para compensación clínica y tratamiento intravenoso.",
-    clinicalSummary: "Paciente ingresó presentando cuadro infeccioso/inflamatorio agudo. Recibió cobertura terapéutica protocolizada con adecuada tolerancia oral y evolución clínica francamente favorable.",
-    procedures: "Hospitalización en sala general con monitorización continua de signos vitales, administración de fármacos por vía parenteral y balance hídrico neutro.",
-    paraclinicalStudies: "Control de laboratorio al egreso muestra normalización de reactantes de fase aguda (PCR y leucograma normal).",
-    diagnosticImpression: "1. Cuadro clínico resuelto satisfactoriamente.\n2. Paciente en condiciones clínicas estables para egreso domiciliario.",
-    treatmentPlan: "Completar tratamiento antimicrobiano y analgésico por vía oral según récipe médico adjunto.",
-    recommendations: "Dieta blanda adecuada, reposo relativo en domicilio. Consultar a emergencia ante fiebre superior a 38.5°C o disnea.",
-    daysRest: "5 días",
+    title: "INFORME MÉDICO DE ALTA DE HOSPITALIZACIÓN",
+    reasonForConsultation: "",
+    clinicalSummary: "",
+    procedures: "",
+    paraclinicalStudies: "",
+    diagnosticImpression: "",
+    treatmentPlan: "",
+    recommendations: "",
+    daysRest: "",
   }
 };
 
@@ -68,9 +93,13 @@ export const ReportsModule: React.FC<ReportsModuleProps> = ({
   onOpenPreview,
   onUpdateConfig,
   onBackToHome,
+  existingPatients = [],
 }) => {
   const printableReportRef = useRef<HTMLDivElement>(null);
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
   const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+  const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
 
   const applyTemplate = (key: string) => {
     const tmpl = TEMPLATES[key];
@@ -79,6 +108,8 @@ export const ReportsModule: React.FC<ReportsModuleProps> = ({
         ...tmpl,
         reportType: key as any,
       });
+      setFeedbackMsg(`✓ Plantilla "${key.toUpperCase()}" aplicada con éxito`);
+      setTimeout(() => setFeedbackMsg(null), 2000);
     }
   };
 
@@ -105,7 +136,7 @@ export const ReportsModule: React.FC<ReportsModuleProps> = ({
   };
 
   const safeConfig = config || {
-    doctorName: 'Dr. Médico Tratante',
+    doctorName: 'Dr. Carlos Leal',
     specialty: 'Médico Cirujano',
     borderStyle: 'solido',
     primaryDocColor: '#2563eb',
@@ -123,483 +154,915 @@ export const ReportsModule: React.FC<ReportsModuleProps> = ({
   const borderStyle = getDocumentBorderStyle(safeConfig.borderStyle, safeConfig.primaryDocColor);
   const textureClass = getPaperTextureClass(safeConfig.paperTexture);
 
+  const todayDateStr = new Intl.DateTimeFormat('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date()).replace(/[/\\:]/g, '-');
+  const pdfFilename = buildDocumentPdfFilename('Informe_Medico', safeReport.patientName, todayDateStr);
+
+  const handleDownloadReportPdf = async () => {
+    await exportElementAsPDF(printableReportRef.current, pdfFilename);
+  };
+
+  const handlePrintSpecificReport = () => {
+    window.print();
+  };
+
   return (
-    <div className="w-full flex flex-col items-center">
+    <div className="w-full max-w-4xl mx-auto flex flex-col items-center pb-12 animate-in fade-in duration-200">
       
-      {/* Templates & Actions Bar (no-print) */}
-      <div className="w-full max-w-[800px] mb-4 bg-white border border-slate-200 rounded-xl p-3 shadow-2xs flex flex-wrap items-center justify-between gap-2 text-xs no-print">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {onBackToHome && (
+      {/* ========================================================= */}
+      {/* TOP BANNER & PROGRESS NAVIGATION                          */}
+      {/* ========================================================= */}
+      <div className="w-full bg-white rounded-3xl border border-slate-200 shadow-sm p-3 sm:p-4 mb-4">
+        
+        {/* Header Bar */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-100">
+          <div className="flex items-center gap-2">
+            {onBackToHome && (
+              <button
+                type="button"
+                onClick={onBackToHome}
+                className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl flex items-center gap-1.5 text-xs transition-colors cursor-pointer"
+              >
+                <ArrowLeft className="w-3.5 h-3.5 text-blue-600" />
+                <span>Inicio</span>
+              </button>
+            )}
+            <div className="flex items-center gap-1.5">
+              <span className="px-2.5 py-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-xs font-black shadow-xs flex items-center gap-1">
+                <Sparkles className="w-3.5 h-3.5 text-cyan-200" />
+                <span>Asistente de Informe Médico</span>
+              </span>
+              <span className="text-xs text-slate-500 font-bold hidden md:inline">
+                {safeConfig.doctorName}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {/* Font Size Buttons */}
+            <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+              <span className="text-[10px] text-slate-500 font-bold px-1">Letra:</span>
+              <button
+                onClick={() => {
+                  const current = parseInt(safeConfig.reportFontSize || '12px', 10) || 12;
+                  onUpdateConfig?.({ reportFontSize: `${Math.max(10, current - 1)}px` });
+                }}
+                className="px-1.5 py-0.5 bg-white hover:bg-slate-200 border border-slate-200 rounded text-[10px] font-bold text-slate-700 cursor-pointer"
+              >
+                A-
+              </button>
+              <button
+                onClick={() => {
+                  const current = parseInt(safeConfig.reportFontSize || '12px', 10) || 12;
+                  onUpdateConfig?.({ reportFontSize: `${Math.min(20, current + 1)}px` });
+                }}
+                className="px-1.5 py-0.5 bg-white hover:bg-slate-200 border border-slate-200 rounded text-[10px] font-bold text-slate-700 cursor-pointer"
+              >
+                A+
+              </button>
+            </div>
+
             <button
               type="button"
-              onClick={onBackToHome}
-              className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg flex items-center gap-1.5 transition-colors border border-slate-300/80 cursor-pointer mr-1"
-              title="Volver a la pantalla principal"
+              onClick={() => {
+                onChangeReport({
+                  patientName: '',
+                  patientCI: '',
+                  patientPhone: '',
+                  patientAge: '',
+                  clinicalSummary: '',
+                  procedures: '',
+                  paraclinicalStudies: '',
+                  diagnosticImpression: '',
+                  treatmentPlan: '',
+                  recommendations: '',
+                  daysRest: '',
+                  restStartDate: '',
+                  restEndDate: ''
+                });
+                setCurrentStep(1);
+                setFeedbackMsg('✓ Formulario limpiado');
+                setTimeout(() => setFeedbackMsg(null), 2000);
+              }}
+              className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl transition-colors cursor-pointer border border-rose-200"
+              title="Vaciar datos y empezar nuevo informe"
             >
-              <ArrowLeft className="w-3.5 h-3.5 text-teal-600" />
-              <span>Inicio</span>
+              <Trash2 className="w-4 h-4" />
             </button>
-          )}
-          <FileText className="w-4 h-4 text-blue-600" />
-          <span className="font-bold text-slate-800">Plantillas:</span>
-          <button
-            onClick={() => applyTemplate('quirurgico')}
-            className="px-2.5 py-1 bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-700 rounded-lg transition-colors font-medium"
-          >
-            Quirúrgico
-          </button>
-          <button
-            onClick={() => applyTemplate('consulta')}
-            className="px-2.5 py-1 bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-700 rounded-lg transition-colors font-medium"
-          >
-            Consulta Externa
-          </button>
-          <button
-            onClick={() => applyTemplate('alta')}
-            className="px-2.5 py-1 bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-700 rounded-lg transition-colors font-medium"
-          >
-            Alta Médica
-          </button>
-
-          {/* Botón Rojo: Dejar en Blanco */}
-          <button
-            type="button"
-            onClick={() => {
-              onChangeReport({
-                patientName: '',
-                patientCI: '',
-                patientPhone: '',
-                patientAge: '',
-                clinicalSummary: '',
-                procedures: '',
-                paraclinicalStudies: '',
-                diagnosticImpression: '',
-                treatmentPlan: '',
-                recommendations: '',
-                daysRest: '',
-                restStartDate: '',
-                restEndDate: ''
-              });
-            }}
-            className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white border border-rose-500 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all hover:scale-105 active:scale-95 cursor-pointer"
-            title="Dejar informe médico completamente en blanco para un nuevo paciente"
-          >
-            <Trash2 className="w-3.5 h-3.5 text-white" />
-            <span>Dejar en Blanco</span>
-          </button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2 ml-auto flex-wrap">
-          {/* Quick font size adjustment */}
-          <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200">
-            <span className="text-[10px] text-slate-500 font-medium px-1">Letra:</span>
-            <button
-              onClick={() => {
-                const current = parseInt(config.reportFontSize || '12px', 10) || 12;
-                onUpdateConfig?.({ reportFontSize: `${Math.max(10, current - 1)}px` });
-              }}
-              className="px-1.5 py-0.5 bg-white hover:bg-slate-200 border rounded text-[10px] font-bold text-slate-700"
-              title="Reducir letra del informe"
-            >
-              A-
-            </button>
-            <button
-              onClick={() => {
-                const current = parseInt(config.reportFontSize || '12px', 10) || 12;
-                onUpdateConfig?.({ reportFontSize: `${Math.min(20, current + 1)}px` });
-              }}
-              className="px-1.5 py-0.5 bg-white hover:bg-slate-200 border rounded text-[10px] font-bold text-slate-700"
-              title="Agrandar letra del informe"
-            >
-              A+
-            </button>
-          </div>
+        {/* Step Visual Progress Bar */}
+        <div className="grid grid-cols-4 gap-1.5 sm:gap-3 pt-3">
+          
+          {/* Paso 1: Paciente */}
+          <button
+            type="button"
+            onClick={() => setCurrentStep(1)}
+            className={`flex items-center gap-1.5 sm:gap-2 p-2 sm:p-2.5 rounded-2xl transition-all text-left cursor-pointer ${
+              currentStep === 1
+                ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-300'
+                : currentStep > 1
+                ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
+                : 'bg-slate-50 text-slate-400'
+            }`}
+          >
+            <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-xl flex items-center justify-center font-black text-xs shrink-0 ${
+              currentStep === 1
+                ? 'bg-white text-blue-600 shadow-xs'
+                : currentStep > 1
+                ? 'bg-emerald-600 text-white'
+                : 'bg-slate-200 text-slate-600'
+            }`}>
+              {currentStep > 1 ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : '1'}
+            </div>
+            <div className="min-w-0">
+              <span className="text-[10px] sm:text-xs font-black block leading-tight truncate">
+                1. Paciente
+              </span>
+              <span className={`text-[9px] sm:text-[10px] block truncate ${currentStep === 1 ? 'text-blue-100' : 'text-slate-500'}`}>
+                {safeReport.patientName ? safeReport.patientName.split(' ')[0] : 'Datos'}
+              </span>
+            </div>
+          </button>
 
-          {/* Actions: Guardar Paciente, Vista Previa & Imprimir */}
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {onSaveAndShare && (
-              <button
-                type="button"
-                onClick={() => {
-                  (onSaveAndShare as any)(false);
-                }}
-                className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold border border-slate-300 rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer"
-                title="Guardar informe en el Banco de Pacientes."
-              >
-                <Save className="w-4 h-4 text-slate-500" />
-                <span>💾 Guardar Paciente</span>
-              </button>
-            )}
+          {/* Paso 2: Clínico */}
+          <button
+            type="button"
+            onClick={() => setCurrentStep(2)}
+            className={`flex items-center gap-1.5 sm:gap-2 p-2 sm:p-2.5 rounded-2xl transition-all text-left cursor-pointer ${
+              currentStep === 2
+                ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-300'
+                : currentStep > 2
+                ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
+                : 'bg-slate-50 text-slate-400'
+            }`}
+          >
+            <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-xl flex items-center justify-center font-black text-xs shrink-0 ${
+              currentStep === 2
+                ? 'bg-white text-blue-600 shadow-xs'
+                : currentStep > 2
+                ? 'bg-emerald-600 text-white'
+                : 'bg-slate-200 text-slate-600'
+            }`}>
+              {currentStep > 2 ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : '2'}
+            </div>
+            <div className="min-w-0">
+              <span className="text-[10px] sm:text-xs font-black block leading-tight truncate">
+                2. Evaluación
+              </span>
+              <span className={`text-[9px] sm:text-[10px] block truncate ${currentStep === 2 ? 'text-blue-100' : 'text-slate-500'}`}>
+                Resumen y Examen
+              </span>
+            </div>
+          </button>
 
-            {onDownloadPdf && (
-              <button
-                type="button"
-                onClick={onDownloadPdf}
-                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-sm hover:scale-105 active:scale-95 transition-all cursor-pointer"
-                title="Descargar informe en archivo PDF con el nombre del paciente y fecha"
-              >
-                <Download className="w-3.5 h-3.5 text-white" />
-                <span>📥 Descargar PDF</span>
-              </button>
-            )}
+          {/* Paso 3: Plan y Diagnósticos */}
+          <button
+            type="button"
+            onClick={() => setCurrentStep(3)}
+            className={`flex items-center gap-1.5 sm:gap-2 p-2 sm:p-2.5 rounded-2xl transition-all text-left cursor-pointer ${
+              currentStep === 3
+                ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-300'
+                : currentStep > 3
+                ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
+                : 'bg-slate-50 text-slate-400'
+            }`}
+          >
+            <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-xl flex items-center justify-center font-black text-xs shrink-0 ${
+              currentStep === 3
+                ? 'bg-white text-blue-600 shadow-xs'
+                : currentStep > 3
+                ? 'bg-emerald-600 text-white'
+                : 'bg-slate-200 text-slate-600'
+            }`}>
+              {currentStep > 3 ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : '3'}
+            </div>
+            <div className="min-w-0">
+              <span className="text-[10px] sm:text-xs font-black block leading-tight truncate">
+                3. Conducta
+              </span>
+              <span className={`text-[9px] sm:text-[10px] block truncate ${currentStep === 3 ? 'text-blue-100' : 'text-slate-500'}`}>
+                Tratamiento
+              </span>
+            </div>
+          </button>
 
-            {onOpenEmailModal && (
-              <button
-                type="button"
-                onClick={onOpenEmailModal}
-                className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-sm hover:scale-105 active:scale-95 transition-all cursor-pointer"
-                title="Enviar informe por correo electrónico al paciente"
-              >
-                <Mail className="w-3.5 h-3.5 text-white" />
-                <span>✉️ Enviar por Correo</span>
-              </button>
-            )}
+          {/* Paso 4: Final listo */}
+          <button
+            type="button"
+            onClick={() => setCurrentStep(4)}
+            className={`flex items-center gap-1.5 sm:gap-2 p-2 sm:p-2.5 rounded-2xl transition-all text-left cursor-pointer ${
+              currentStep === 4
+                ? 'bg-emerald-600 text-white shadow-md ring-2 ring-emerald-300'
+                : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
+            }`}
+          >
+            <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-xl flex items-center justify-center font-black text-xs shrink-0 ${
+              currentStep === 4
+                ? 'bg-white text-emerald-600 shadow-xs'
+                : 'bg-slate-200 text-slate-600'
+            }`}>
+              4
+            </div>
+            <div className="min-w-0">
+              <span className="text-[10px] sm:text-xs font-black block leading-tight truncate">
+                4. Listo
+              </span>
+              <span className={`text-[9px] sm:text-[10px] block truncate ${currentStep === 4 ? 'text-emerald-100' : 'text-slate-500'}`}>
+                Imprimir / PDF
+              </span>
+            </div>
+          </button>
 
-            {onOpenPreview && (
-              <button
-                type="button"
-                onClick={onOpenPreview}
-                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl flex items-center gap-1 text-xs shadow-2xs transition-colors cursor-pointer"
-                title="Ver cómo queda el informe médico en 1 sola hoja carta completa antes de imprimir"
-              >
-                <Eye className="w-3.5 h-3.5 text-blue-400" />
-                <span>Vista Previa</span>
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={onPrint}
-              className="px-4 py-1.5 bg-gradient-to-r from-blue-700 to-indigo-700 hover:from-blue-800 hover:to-indigo-800 text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
-              title="Imprimir informe directamente o guardar como PDF del sistema"
-            >
-              <Printer className="w-4 h-4 text-white" />
-              <span>🖨️ Imprimir Informe</span>
-            </button>
-          </div>
         </div>
       </div>
 
-      {/* Printable Sheet (1 Single Letter format Sheet) */}
-      <div
-        ref={printableReportRef}
-        className={`relative w-full max-w-[800px] min-h-[960px] shadow-xl p-6 sm:p-7 transition-all print-container report-sheet-container flex flex-col justify-between ${textureClass} ${
-          config.enforcePureBlackText ? 'enforce-pure-black' : ''
-        }`}
-        style={{
-          backgroundColor: config.tonePapel || '#ffffff',
-          border: borderStyle,
-          borderRadius: config.docCornerRadius || '16px',
-        }}
-      >
-        {/* Watermark */}
-        {config.marcaAgua && !config.marcaAgua.includes('DIGITAL') && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
-            <img
-              src={config.marcaAgua}
-              alt="Marca de agua"
-              className="marca-agua-img"
-              style={{
-                opacity: config.watermarkOpacity ?? 0.12,
-                width: `${config.watermarkScale || 55}%`,
-                transform: `rotate(${config.watermarkRotation || 0}deg)`,
-              }}
-            />
-          </div>
-        )}
+      {feedbackMsg && (
+        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-2xl border border-emerald-500 flex items-center gap-2 text-xs font-black animate-in fade-in">
+          <Sparkles className="w-4 h-4 text-emerald-400" />
+          <span>{feedbackMsg}</span>
+        </div>
+      )}
 
-        {/* Content */}
-        <div className="relative z-10 flex flex-col h-full flex-1">
-          {/* Header */}
-          <DocumentHeader
-            config={config}
-            onUpdateField={(field, val) => onUpdateConfig?.({ [field]: val })}
-          />
-
-          {/* Document Title */}
-          <div className="text-center my-2 pb-1.5 border-b border-slate-200">
-            <input
-              type="text"
-              value={currentReport.title}
-              onChange={(e) => onChangeReport({ title: e.target.value })}
-              className="text-center font-bold text-base uppercase tracking-wider w-full bg-transparent outline-none focus:border-b-2"
-              style={{ color: config.headerColor, fontFamily: config.fuenteHeader }}
-            />
+      {/* ========================================================= */}
+      {/* PASO 1: DATOS DEL PACIENTE & PLANTILLAS                   */}
+      {/* ========================================================= */}
+      {currentStep === 1 && (
+        <div className="w-full bg-white rounded-3xl border border-slate-200 shadow-sm p-4 sm:p-6 md:p-8 space-y-6 animate-in fade-in">
+          
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+            <div>
+              <h2 className="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2">
+                <User className="w-6 h-6 text-blue-600" />
+                <span>Paso 1: Datos del Paciente</span>
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-500 font-semibold mt-0.5">
+                Seleccione una plantilla médica o ingrese los datos de filiación del paciente:
+              </p>
+            </div>
           </div>
 
-          {/* Patient Details Row - Clean 3-Line Layout with Age next to Cédula */}
-          <div 
-            className="py-1.5 px-3 bg-slate-50/90 border border-slate-200/90 rounded-xl mb-2.5 space-y-1.5 shadow-2xs text-xs"
-            style={{ fontSize: config.patientBarSize || '12px' }}
-          >
-            {/* Line 1: Paciente */}
-            <div className="flex items-center gap-1.5 min-w-0">
-              <span className="font-bold text-slate-800 shrink-0">Paciente:</span>
+          {/* Quick Template Cards */}
+          <div className="space-y-2 bg-slate-50 border border-slate-200 rounded-2xl p-4">
+            <span className="text-xs font-black text-slate-700 flex items-center gap-1.5 uppercase tracking-wide">
+              <FileText className="w-4 h-4 text-blue-600" />
+              <span>Plantillas de Redacción Rápida:</span>
+            </span>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1.5">
+              <button
+                type="button"
+                onClick={() => applyTemplate('quirurgico')}
+                className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                  safeReport.reportType === 'quirurgico'
+                    ? 'bg-blue-600 text-white border-blue-500 shadow-md'
+                    : 'bg-white hover:bg-slate-100 border-slate-200 text-slate-800'
+                }`}
+              >
+                <span className="font-black text-xs block mb-0.5">📂 Quirúrgico</span>
+                <span className="text-[10px] opacity-90 block leading-tight">Valoración anestésica e intervención programada.</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => applyTemplate('consulta')}
+                className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                  safeReport.reportType === 'consulta'
+                    ? 'bg-blue-600 text-white border-blue-500 shadow-md'
+                    : 'bg-white hover:bg-slate-100 border-slate-200 text-slate-800'
+                }`}
+              >
+                <span className="font-black text-xs block mb-0.5">📋 Consulta Externa</span>
+                <span className="text-[10px] opacity-90 block leading-tight">Evaluación clínica integral y control médico general.</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => applyTemplate('alta')}
+                className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                  safeReport.reportType === 'alta'
+                    ? 'bg-blue-600 text-white border-blue-500 shadow-md'
+                    : 'bg-white hover:bg-slate-100 border-slate-200 text-slate-800'
+                }`}
+              >
+                <span className="font-black text-xs block mb-0.5">🏥 Alta Médica</span>
+                <span className="text-[10px] opacity-90 block leading-tight">Condiciones estables al egreso domiciliario pos-ingreso.</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Form Fields: Grandes y Cómodos */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
+            
+            <div className="sm:col-span-2">
+              <label className="block text-xs sm:text-sm font-black text-slate-800 mb-1">
+                Título del Informe: *
+              </label>
               <input
                 type="text"
-                value={currentReport.patientName}
-                onChange={(e) => onChangeReport({ patientName: e.target.value })}
-                placeholder="Nombre y Apellidos del Paciente"
-                className="flex-1 bg-transparent border-b border-dashed border-slate-300 focus:border-blue-600 outline-none font-semibold text-slate-900 min-w-[150px]"
+                value={safeReport.title}
+                onChange={(e) => onChangeReport({ title: e.target.value })}
+                placeholder="Ej: INFORME MÉDICO OFICIAL"
+                className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-2xl text-sm sm:text-base font-bold text-slate-900 focus:bg-white focus:border-blue-600 outline-none transition-all shadow-inner placeholder:text-slate-400"
               />
             </div>
 
-            {/* Line 2: Cédula y Edad al lado */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-slate-200/60 items-center">
-              <div className="flex items-center gap-1.5 min-w-0">
-                <span className="font-bold text-slate-800 shrink-0">C.I. / Doc:</span>
-                <input
-                  type="text"
-                  value={currentReport.patientCI}
-                  onChange={(e) => onChangeReport({ patientCI: e.target.value })}
-                  placeholder="V-00.000.000"
-                  className="flex-1 bg-transparent border-b border-dashed border-slate-300 focus:border-blue-600 outline-none font-semibold text-slate-900"
-                />
-              </div>
-              <div className="flex items-center gap-1.5 min-w-0">
-                <span className="font-bold text-slate-800 shrink-0">Edad:</span>
-                <input
-                  type="text"
-                  value={currentReport.patientAge}
-                  onChange={(e) => onChangeReport({ patientAge: e.target.value })}
-                  placeholder="42 años"
-                  className="flex-1 bg-transparent border-b border-dashed border-slate-300 focus:border-blue-600 outline-none font-semibold text-slate-900"
-                />
-              </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs sm:text-sm font-black text-slate-800 mb-1">
+                Nombre y Apellido del Paciente: *
+              </label>
+              <input
+                type="text"
+                value={safeReport.patientName}
+                onChange={(e) => onChangeReport({ patientName: e.target.value })}
+                placeholder="Ej: María Elena Rodríguez"
+                className="w-full px-4 py-3.5 bg-slate-50 border-2 border-slate-200 rounded-2xl text-base sm:text-lg font-bold text-slate-900 focus:bg-white focus:border-blue-600 outline-none transition-all shadow-inner placeholder:text-slate-400"
+              />
             </div>
 
-            {/* Line 3: Teléfono y Fecha */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-slate-200/60 items-center">
-              <div className="flex items-center gap-1.5 min-w-0">
-                <span className="font-bold text-slate-800 shrink-0">Teléfono:</span>
-                <input
-                  type="text"
-                  value={currentReport.patientPhone || ''}
-                  onChange={(e) => onChangeReport({ patientPhone: e.target.value })}
-                  placeholder="+58 414-0000000"
-                  className="flex-1 bg-transparent border-b border-dashed border-slate-300 focus:border-blue-600 outline-none font-semibold text-slate-900"
-                />
-              </div>
-              <div className="flex items-center gap-1.5 min-w-0">
-                <span className="font-bold text-slate-800 shrink-0">Fecha:</span>
-                <input
-                  type="text"
-                  value={currentReport.date}
-                  onChange={(e) => onChangeReport({ date: e.target.value })}
-                  placeholder="Fecha"
-                  className="flex-1 bg-transparent border-b border-dashed border-slate-300 focus:border-blue-600 outline-none font-semibold text-slate-900"
-                />
-              </div>
+            <div>
+              <label className="block text-xs sm:text-sm font-black text-slate-800 mb-1">
+                Cédula de Identidad (C.I.):
+              </label>
+              <input
+                type="text"
+                value={safeReport.patientCI}
+                onChange={(e) => onChangeReport({ patientCI: e.target.value })}
+                placeholder="Ej: V-18.456.789"
+                className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-2xl text-sm sm:text-base font-bold text-slate-900 focus:bg-white focus:border-blue-600 outline-none transition-all shadow-inner placeholder:text-slate-400"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs sm:text-sm font-black text-slate-800 mb-1">
+                Edad del Paciente:
+              </label>
+              <input
+                type="text"
+                value={safeReport.patientAge}
+                onChange={(e) => onChangeReport({ patientAge: e.target.value })}
+                placeholder="Ej: 34 años / 5 meses"
+                className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-2xl text-sm sm:text-base font-bold text-slate-900 focus:bg-white focus:border-blue-600 outline-none transition-all shadow-inner placeholder:text-slate-400"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs sm:text-sm font-black text-slate-800 mb-1">
+                Teléfono WhatsApp:
+              </label>
+              <input
+                type="tel"
+                value={safeReport.patientPhone || ''}
+                onChange={(e) => onChangeReport({ patientPhone: e.target.value })}
+                placeholder="Ej: +58 412 1234567"
+                className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-2xl text-sm sm:text-base font-bold text-slate-900 focus:bg-white focus:border-blue-600 outline-none transition-all shadow-inner placeholder:text-slate-400"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs sm:text-sm font-black text-slate-800 mb-1 flex items-center gap-1">
+                <Calendar className="w-3.5 h-3.5 text-blue-600" />
+                <span>Fecha de Emisión:</span>
+              </label>
+              <input
+                type="text"
+                value={safeReport.date}
+                onChange={(e) => onChangeReport({ date: e.target.value })}
+                placeholder="DD/MM/AAAA"
+                className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-2xl text-sm sm:text-base font-bold text-slate-900 focus:bg-white focus:border-blue-600 outline-none transition-all shadow-inner placeholder:text-slate-400"
+              />
+            </div>
+
+          </div>
+
+          {/* Action Button: Continuar */}
+          <div className="pt-4 border-t border-slate-100 flex justify-end">
+            <button
+              type="button"
+              onClick={() => setCurrentStep(2)}
+              className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-black text-base sm:text-lg rounded-2xl shadow-xl shadow-blue-600/25 flex items-center justify-center gap-3 transition-all transform hover:scale-[1.02] active:scale-95 cursor-pointer"
+            >
+              <span>Siguiente: Evaluación Clínica</span>
+              <ArrowRight className="w-5 h-5 text-cyan-200" />
+            </button>
+          </div>
+
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* PASO 2: EVALUACIÓN CLÍNICA (Resumen y Examen)             */}
+      {/* ========================================================= */}
+      {currentStep === 2 && (
+        <div className="w-full bg-white rounded-3xl border border-slate-200 shadow-sm p-4 sm:p-6 md:p-8 space-y-6 animate-in fade-in">
+          
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+            <div>
+              <h2 className="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2">
+                <Stethoscope className="w-6 h-6 text-blue-600" />
+                <span>Paso 2: Resumen Clínico y Examen Físico</span>
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-500 font-semibold mt-0.5">
+                Describa los hallazgos clínicos y procedimientos realizados al paciente:
+              </p>
             </div>
           </div>
 
-          {/* Report Sections with Customizable Font Size & Family */}
-          <div 
-            className="space-y-2 sm:space-y-2.5 flex-1"
-            style={{
-              fontSize: config.reportFontSize || '12px',
-              fontFamily: config.reportFontFamily || 'inherit',
-            }}
-          >
-            
+          <div className="space-y-4">
             {/* 1. Motivo de Consulta & Resumen Clínico */}
             <div>
-              <div className="flex items-center justify-between mb-0.5">
-                <label className="font-bold text-slate-800 text-[11.5px]" style={{ color: config.headerColor }}>
-                  1. MOTIVO DE CONSULTA Y RESUMEN CLÍNICO:
-                </label>
-                {currentReport.clinicalSummary && (
-                  <button
-                    type="button"
-                    onClick={() => onChangeReport({ clinicalSummary: '' })}
-                    className="no-print px-1.5 py-0.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded text-[10px] font-bold flex items-center gap-0.5"
-                    title="Borrar resumen clínico"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                    <span>Borrar</span>
-                  </button>
-                )}
-              </div>
+              <label className="block text-xs sm:text-sm font-black text-slate-800 mb-1 flex items-center justify-between">
+                <span>1. MOTIVO DE CONSULTA Y RESUMEN CLÍNICO: *</span>
+              </label>
               <textarea
-                value={currentReport.clinicalSummary}
+                rows={6}
+                value={safeReport.clinicalSummary}
                 onChange={(e) => onChangeReport({ clinicalSummary: e.target.value })}
-                placeholder="Describa la evolución clínica, antecedentes pertinentes y motivo de atención..."
-                className="w-full min-h-[50px] p-2 bg-transparent border border-slate-200 rounded focus:border-blue-500 focus:outline-none resize-none leading-relaxed"
+                placeholder="Paciente masculino/femenino que acude refiriendo síntomas caracterizados por..."
+                className="w-full p-4 bg-slate-50 border-2 border-slate-200 rounded-2xl text-sm sm:text-base font-semibold text-slate-900 focus:bg-white focus:border-blue-600 outline-none transition-all leading-relaxed shadow-inner placeholder:text-slate-400"
               />
             </div>
 
             {/* 2. Procedimientos / Examen Físico */}
             <div>
-              <div className="flex items-center justify-between mb-0.5">
-                <label className="font-bold text-slate-800 text-[11.5px]" style={{ color: config.headerColor }}>
-                  2. EXAMEN FÍSICO Y PROCEDIMIENTOS REALIZADOS:
-                </label>
-                {currentReport.procedures && (
-                  <button
-                    type="button"
-                    onClick={() => onChangeReport({ procedures: '' })}
-                    className="no-print px-1.5 py-0.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded text-[10px] font-bold flex items-center gap-0.5"
-                    title="Borrar procedimientos"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                    <span>Borrar</span>
-                  </button>
-                )}
-              </div>
+              <label className="block text-xs sm:text-sm font-black text-slate-800 mb-1 flex items-center justify-between">
+                <span>2. EXAMEN FÍSICO Y PROCEDIMIENTOS REALIZADOS:</span>
+              </label>
               <textarea
-                value={currentReport.procedures}
+                rows={6}
+                value={safeReport.procedures}
                 onChange={(e) => onChangeReport({ procedures: e.target.value })}
-                placeholder="Detalle el examen segmentario, procedimiento quirúrgico, anestésico o médico efectuado..."
-                className="w-full min-h-[46px] p-2 bg-transparent border border-slate-200 rounded focus:border-blue-500 focus:outline-none resize-none leading-relaxed"
+                placeholder="Ruidos cardíacos rítmicos sin soplos, murmullo vesicular conservado en ambos hemitórax..."
+                className="w-full p-4 bg-slate-50 border-2 border-slate-200 rounded-2xl text-sm sm:text-base font-semibold text-slate-900 focus:bg-white focus:border-blue-600 outline-none transition-all leading-relaxed shadow-inner placeholder:text-slate-400"
               />
             </div>
+          </div>
 
+          {/* Navigation Buttons */}
+          <div className="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => setCurrentStep(1)}
+              className="px-5 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm rounded-2xl flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Volver</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setCurrentStep(3)}
+              className="px-8 py-3.5 bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-black text-sm sm:text-base rounded-2xl shadow-xl shadow-blue-600/25 flex items-center gap-2 transition-all transform hover:scale-[1.02] active:scale-95 cursor-pointer"
+            >
+              <span>Siguiente: Conducta y Diagnóstico</span>
+              <ArrowRight className="w-5 h-5 text-cyan-200" />
+            </button>
+          </div>
+
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* PASO 3: DIAGNÓSTICO Y TRATAMIENTO                         */}
+      {/* ========================================================= */}
+      {currentStep === 3 && (
+        <div className="w-full bg-white rounded-3xl border border-slate-200 shadow-sm p-4 sm:p-6 md:p-8 space-y-6 animate-in fade-in">
+          
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+            <div>
+              <h2 className="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2">
+                <ClipboardCheck className="w-6 h-6 text-blue-600" />
+                <span>Paso 3: Diagnósticos y Conducta</span>
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-500 font-semibold mt-0.5">
+                Defina los paraclínicos, diagnósticos CIE-10 y el reposo médico:
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
             {/* 3. Estudios Paraclínicos y Complementarios */}
             <div>
-              <div className="flex items-center justify-between mb-0.5">
-                <label className="font-bold text-slate-800 text-[11.5px]" style={{ color: config.headerColor }}>
-                  3. ESTUDIOS PARACLÍNICOS Y DE APOYO DIAGNÓSTICO:
-                </label>
-                {currentReport.paraclinicalStudies && (
-                  <button
-                    type="button"
-                    onClick={() => onChangeReport({ paraclinicalStudies: '' })}
-                    className="no-print px-1.5 py-0.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded text-[10px] font-bold flex items-center gap-0.5"
-                    title="Borrar estudios paraclínicos"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                    <span>Borrar</span>
-                  </button>
-                )}
-              </div>
+              <label className="block text-xs sm:text-sm font-black text-slate-800 mb-1">
+                3. ESTUDIOS PARACLÍNICOS Y DE APOYO DIAGNÓSTICO:
+              </label>
               <textarea
-                value={currentReport.paraclinicalStudies}
+                rows={3}
+                value={safeReport.paraclinicalStudies}
                 onChange={(e) => onChangeReport({ paraclinicalStudies: e.target.value })}
-                placeholder="Laboratorios relevantes, estudios de imagen (Rayos X, TAC, Ecosonografía), electrocardiograma..."
-                className="w-full min-h-[42px] p-2 bg-transparent border border-slate-200 rounded focus:border-blue-500 focus:outline-none resize-none leading-relaxed"
+                placeholder="Laboratorios dentro de límites normales, TP/TPT adecuados, EKG sin hallazgos patológicos..."
+                className="w-full p-3 bg-slate-50 border-2 border-slate-200 rounded-2xl text-xs sm:text-sm font-semibold text-slate-900 focus:bg-white focus:border-blue-600 outline-none transition-all shadow-inner placeholder:text-slate-400"
               />
             </div>
 
             {/* 4. Impresión Diagnóstica */}
             <div>
-              <div className="flex items-center justify-between mb-0.5">
-                <label className="font-bold text-slate-800 text-[11.5px]" style={{ color: config.headerColor }}>
-                  4. IMPRESIÓN DIAGNÓSTICA (CIE-10):
-                </label>
-                {currentReport.diagnosticImpression && (
-                  <button
-                    type="button"
-                    onClick={() => onChangeReport({ diagnosticImpression: '' })}
-                    className="no-print px-1.5 py-0.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded text-[10px] font-bold flex items-center gap-0.5"
-                    title="Borrar diagnósticos"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                    <span>Borrar</span>
-                  </button>
-                )}
-              </div>
+              <label className="block text-xs sm:text-sm font-black text-slate-800 mb-1">
+                4. IMPRESIÓN DIAGNÓSTICA (CIE-10): *
+              </label>
               <textarea
-                value={currentReport.diagnosticImpression}
+                rows={3}
+                value={safeReport.diagnosticImpression}
                 onChange={(e) => onChangeReport({ diagnosticImpression: e.target.value })}
-                placeholder="1. Diagnóstico principal&#10;2. Diagnósticos secundarios o comorbilidades"
-                className="w-full min-h-[44px] p-2 bg-transparent border border-slate-200 rounded focus:border-blue-500 focus:outline-none resize-none leading-relaxed font-semibold text-slate-900"
+                placeholder="1. Lumbalgia mecánica crónica.&#10;2. Hipertensión arterial esencial estadio I."
+                className="w-full p-3 bg-slate-50 border-2 border-slate-200 rounded-2xl text-xs sm:text-sm font-semibold text-slate-900 focus:bg-white focus:border-blue-600 outline-none transition-all shadow-inner placeholder:text-slate-400 font-mono"
               />
             </div>
 
             {/* 5. Plan Terapéutico y Recomendaciones */}
             <div>
-              <div className="flex items-center justify-between mb-0.5">
-                <label className="font-bold text-slate-800 text-[11.5px]" style={{ color: config.headerColor }}>
-                  5. CONDUCTA, TRATAMIENTO Y RECOMENDACIONES:
-                </label>
-                {currentReport.recommendations && (
-                  <button
-                    type="button"
-                    onClick={() => onChangeReport({ recommendations: '' })}
-                    className="no-print px-1.5 py-0.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded text-[10px] font-bold flex items-center gap-0.5"
-                    title="Borrar recomendaciones"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                    <span>Borrar</span>
-                  </button>
-                )}
-              </div>
+              <label className="block text-xs sm:text-sm font-black text-slate-800 mb-1">
+                5. CONDUCTA, TRATAMIENTO Y RECOMENDACIONES:
+              </label>
               <textarea
-                value={currentReport.recommendations}
+                rows={4}
+                value={safeReport.recommendations}
                 onChange={(e) => onChangeReport({ recommendations: e.target.value })}
-                placeholder="Plan farmacológico pautado, signos de alarma, régimen dietético y fecha de control..."
-                className="w-full min-h-[48px] p-2 bg-transparent border border-slate-200 rounded focus:border-blue-500 focus:outline-none resize-none leading-relaxed"
+                placeholder="Se prescribe analgésico por vía oral, evitar esfuerzos físicos por 5 días, control en consulta externa..."
+                className="w-full p-3 bg-slate-50 border-2 border-slate-200 rounded-2xl text-xs sm:text-sm font-semibold text-slate-900 focus:bg-white focus:border-blue-600 outline-none transition-all shadow-inner placeholder:text-slate-400"
               />
             </div>
 
             {/* 6. Reposo Médico Pautado */}
-            <div className="p-2 sm:p-2.5 bg-blue-50/80 border border-blue-200/90 rounded-xl space-y-1.5 shadow-2xs">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <div className="flex items-center gap-1.5">
-                  <Calendar className="w-3.5 h-3.5 text-blue-700 shrink-0" />
-                  <span className="font-bold text-xs uppercase tracking-wide" style={{ color: config.headerColor }}>
-                    6. Reposo Médico Sugerido:
-                  </span>
-                </div>
-                <div className="flex items-center gap-1.5 text-xs">
-                  <span className="font-bold text-slate-700">Días continuos:</span>
+            <div className="p-4 bg-blue-50/50 border-2 border-blue-100 rounded-2xl space-y-3">
+              <span className="text-xs font-black text-blue-900 flex items-center gap-1.5 uppercase tracking-wide">
+                <Calendar className="w-4 h-4" />
+                <span>6. Reposo Médico Sugerido (Opcional):</span>
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 mb-0.5">Días continuos:</label>
                   <input
                     type="text"
-                    value={currentReport.daysRest ?? ''}
+                    value={safeReport.daysRest ?? ''}
                     onChange={(e) => onChangeReport({ daysRest: e.target.value })}
                     placeholder="Ej: 5 días"
-                    className="w-24 px-2 py-0.5 bg-white border border-blue-300 rounded font-bold text-blue-900 text-center outline-none focus:ring-1 focus:ring-blue-500 shadow-2xs"
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-bold text-blue-900 outline-none focus:border-blue-600 shadow-2xs text-xs sm:text-sm"
                   />
-                  {currentReport.daysRest && (
-                    <button
-                      type="button"
-                      onClick={() => onChangeReport({ daysRest: '', restStartDate: '', restEndDate: '' })}
-                      className="no-print p-0.5 text-slate-400 hover:text-rose-600 rounded text-[10px]"
-                      title="Quitar reposo del informe"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  )}
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 mb-0.5">Desde (Inicio):</label>
+                  <input
+                    type="text"
+                    value={safeReport.restStartDate || safeReport.date || ''}
+                    onChange={(e) => onChangeReport({ restStartDate: e.target.value })}
+                    placeholder="DD/MM/AAAA"
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-bold text-slate-900 outline-none focus:border-blue-600 shadow-2xs text-xs sm:text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 mb-0.5">Hasta (Fin):</label>
+                  <input
+                    type="text"
+                    value={safeReport.restEndDate || ''}
+                    onChange={(e) => onChangeReport({ restEndDate: e.target.value })}
+                    placeholder="DD/MM/AAAA"
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-bold text-slate-900 outline-none focus:border-blue-600 shadow-2xs text-xs sm:text-sm"
+                  />
                 </div>
               </div>
+            </div>
+          </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1 border-t border-blue-200/60">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <span className="font-semibold text-slate-700 shrink-0">Desde:</span>
-                  <input
-                    type="text"
-                    value={currentReport.restStartDate || currentReport.date || ''}
-                    onChange={(e) => onChangeReport({ restStartDate: e.target.value })}
-                    placeholder="Fecha de inicio"
-                    className="flex-1 bg-white/90 border border-blue-200 rounded px-2 py-0.5 outline-none text-slate-800"
-                  />
+          {/* Navigation Buttons */}
+          <div className="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => setCurrentStep(2)}
+              className="px-5 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm rounded-2xl flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Volver</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setCurrentStep(4)}
+              className="px-8 py-3.5 bg-gradient-to-r from-emerald-600 via-emerald-700 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-black text-sm sm:text-base rounded-2xl shadow-xl shadow-emerald-600/25 flex items-center gap-2 transition-all transform hover:scale-[1.02] active:scale-95 cursor-pointer"
+            >
+              <span>Ver Formato e Imprimir / Descargar</span>
+              <ArrowRight className="w-5 h-5 text-white" />
+            </button>
+          </div>
+
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* PASO 4: VISTA FINAL & DESCARGA / IMPRESIÓN DIRECTA        */}
+      {/* ========================================================= */}
+      {currentStep === 4 && (
+        <div className="w-full space-y-4 animate-in fade-in">
+          
+          {/* Main Action Control Center Bar */}
+          <div className="w-full bg-slate-900 text-white rounded-3xl border border-slate-800 p-4 sm:p-5 shadow-2xl space-y-4">
+            
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="w-8 h-8 rounded-xl bg-emerald-500 text-slate-950 font-black text-base flex items-center justify-center">
+                  ✓
+                </span>
+                <div>
+                  <h3 className="font-black text-base sm:text-lg text-white leading-tight">
+                    Informe Médico Listo para Emisión
+                  </h3>
+                  <span className="text-xs text-emerald-300 font-medium">
+                    Paciente: <strong>{safeReport.patientName || 'Sin nombre'}</strong> · {safeReport.date || 'Hoy'}
+                  </span>
                 </div>
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <span className="font-semibold text-slate-700 shrink-0">Hasta:</span>
-                  <input
-                    type="text"
-                    value={currentReport.restEndDate || ''}
-                    onChange={(e) => onChangeReport({ restEndDate: e.target.value })}
-                    placeholder="Fecha de culminación"
-                    className="flex-1 bg-white/90 border border-blue-200 rounded px-2 py-0.5 outline-none text-slate-800"
-                  />
-                </div>
+              </div>
+            </div>
+
+            {/* Direct Instant Action Buttons */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              
+              {/* 1. Descargar PDF */}
+              <button
+                type="button"
+                onClick={handleDownloadReportPdf}
+                className="p-3 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black text-xs flex flex-col items-center justify-center gap-1.5 shadow-lg shadow-blue-900/40 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-blue-400/40"
+              >
+                <Download className="w-5 h-5 text-cyan-200" />
+                <span>Descargar PDF</span>
+              </button>
+
+              {/* 2. Enviar por WhatsApp */}
+              <button
+                type="button"
+                onClick={() => setIsWhatsAppModalOpen(true)}
+                className="p-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl font-black text-xs flex flex-col items-center justify-center gap-1.5 shadow-lg shadow-emerald-900/40 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-emerald-400/40"
+              >
+                <Share2 className="w-5 h-5 text-emerald-200" />
+                <span>Enviar por WhatsApp</span>
+              </button>
+
+              {/* 3. Enviar por Correo */}
+              <button
+                type="button"
+                onClick={() => setIsEmailModalOpen(true)}
+                className="p-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black text-xs flex flex-col items-center justify-center gap-1.5 shadow-lg shadow-indigo-900/40 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-indigo-400/40"
+              >
+                <Mail className="w-5 h-5 text-indigo-200" />
+                <span>Enviar por Correo</span>
+              </button>
+
+              {/* 4. Imprimir Directamente */}
+              <button
+                type="button"
+                onClick={handlePrintSpecificReport}
+                className="p-3 bg-slate-800 hover:bg-slate-700 text-white rounded-2xl font-black text-xs flex flex-col items-center justify-center gap-1.5 shadow-md transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-slate-700"
+              >
+                <Printer className="w-5 h-5 text-cyan-300" />
+                <span>Imprimir Documento</span>
+              </button>
+
+            </div>
+
+            {/* Extra Row: WhatsApp, Guardar Paciente y Edición */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800/80 text-xs">
+              <div className="flex items-center gap-2">
+                {onSaveAndShare && (
+                  <button
+                    type="button"
+                    onClick={() => (onSaveAndShare as any)(false)}
+                    className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer border border-slate-700"
+                  >
+                    <Save className="w-4 h-4 text-blue-400" />
+                    <span>Guardar Paciente</span>
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep(1)}
+                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl transition-colors cursor-pointer flex items-center gap-1"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5 text-blue-400" />
+                  <span>Volver a Editar</span>
+                </button>
               </div>
             </div>
 
           </div>
 
-          {/* Footer */}
-          <div className="mt-3">
-            <DocumentFooter
-              config={config}
-              notesText="Informe médico expedido a solicitud de la parte interesada para los fines pertinentes."
-              onUpdateConfigField={(field, val) => onUpdateConfig?.({ [field]: val })}
-            />
-          </div>
         </div>
+      )}
 
-      </div>
+      {/* ========================================================= */}
+      {/* VISTA PREVIA REAL DEL INFORME MÉDICO EN FORMATO CARTA     */}
+      {/* ========================================================= */}
+      <div className={currentStep === 4 ? "w-full flex justify-center py-2" : "hidden"}>
+            <div
+              ref={printableReportRef}
+              id="report-print-container"
+              className={`relative w-full max-w-[816px] bg-white shadow-2xl p-6 sm:p-8 rounded-2xl transition-all report-sheet-container print-container border border-slate-200/90 ${textureClass} ${
+                safeConfig.enforcePureBlackText ? 'enforce-pure-black' : ''
+              }`}
+              style={{
+                backgroundColor: safeConfig.tonePapel || '#ffffff',
+                border: borderStyle,
+                borderRadius: safeConfig.docCornerRadius || '16px',
+                minHeight: '1056px',
+                boxSizing: 'border-box',
+              }}
+            >
+              {/* Watermark */}
+              {safeConfig.marcaAgua && !safeConfig.marcaAgua.includes('DIGITAL') && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
+                  <img
+                    src={safeConfig.marcaAgua}
+                    alt="Marca de agua"
+                    className="marca-agua-img"
+                    style={{
+                      opacity: Math.min(safeConfig.watermarkOpacity ?? 0.08, 0.12),
+                      width: `${Math.min(60, safeConfig.watermarkScale || 50)}%`,
+                      transform: `rotate(${safeConfig.watermarkRotation || 0}deg)`,
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* Main Content Container */}
+              <div className="relative z-10 flex flex-col justify-between h-full min-h-[920px]">
+                
+                {/* Header */}
+                <div>
+                  <DocumentHeader
+                    config={safeConfig}
+                    compact={false}
+                    editableInline={false}
+                  />
+
+                  {/* Title Bar */}
+                  <div className="my-2.5 pb-1 border-b border-slate-200 text-center">
+                    <span 
+                      className="text-base sm:text-lg font-black tracking-wide uppercase font-serif"
+                      style={{ color: safeConfig.primaryDocColor }}
+                    >
+                      {safeReport.title || 'INFORME MÉDICO'}
+                    </span>
+                  </div>
+
+                  {/* Patient Bar */}
+                  <div className="bg-slate-50 border border-slate-200/90 rounded-xl p-3 mb-4 text-xs">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                      <div className="sm:col-span-2">
+                        <span className="text-slate-400 font-bold block text-[10px] uppercase">Paciente:</span>
+                        <strong className="text-slate-900 text-xs sm:text-sm truncate block">{safeReport.patientName || 'Paciente General'}</strong>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 font-bold block text-[10px] uppercase">C.I. / Doc:</span>
+                        <span className="text-slate-900 font-bold">{safeReport.patientCI || 'S/C'}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 font-bold block text-[10px] uppercase">Edad:</span>
+                        <span className="text-slate-900 font-bold">{safeReport.patientAge || '--'}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 font-bold block text-[10px] uppercase">Teléfono:</span>
+                        <span className="text-slate-900 font-bold">{safeReport.patientPhone || '--'}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 font-bold block text-[10px] uppercase">Fecha Emisión:</span>
+                        <span className="text-slate-900 font-bold">{safeReport.date || '--'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Report Body Sections */}
+                  <div 
+                    className="space-y-4 my-2"
+                    style={{
+                      fontFamily: safeConfig.reportFontFamily || 'inherit',
+                      fontSize: safeConfig.reportFontSize || '12px'
+                    }}
+                  >
+                    {/* Section 1 */}
+                    {safeReport.clinicalSummary && (
+                      <div className="bg-white/50 p-2.5 rounded-lg border border-slate-100">
+                        <span className="font-black text-xs block mb-1 uppercase tracking-wider" style={{ color: safeConfig.primaryDocColor }}>
+                          1. MOTIVO DE CONSULTA Y RESUMEN CLÍNICO
+                        </span>
+                        <p className="text-slate-900 whitespace-pre-wrap leading-relaxed">
+                          {safeReport.clinicalSummary}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Section 2 */}
+                    {safeReport.procedures && (
+                      <div className="bg-white/50 p-2.5 rounded-lg border border-slate-100">
+                        <span className="font-black text-xs block mb-1 uppercase tracking-wider" style={{ color: safeConfig.primaryDocColor }}>
+                          2. EXAMEN FÍSICO Y PROCEDIMIENTOS REALIZADOS
+                        </span>
+                        <p className="text-slate-900 whitespace-pre-wrap leading-relaxed">
+                          {safeReport.procedures}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Section 3 */}
+                    {safeReport.paraclinicalStudies && (
+                      <div className="bg-white/50 p-2.5 rounded-lg border border-slate-100">
+                        <span className="font-black text-xs block mb-1 uppercase tracking-wider" style={{ color: safeConfig.primaryDocColor }}>
+                          3. ESTUDIOS PARACLÍNICOS Y DE APOYO DIAGNÓSTICO
+                        </span>
+                        <p className="text-slate-900 whitespace-pre-wrap leading-relaxed">
+                          {safeReport.paraclinicalStudies}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Section 4 */}
+                    {safeReport.diagnosticImpression && (
+                      <div className="bg-white/50 p-2.5 rounded-lg border border-slate-100">
+                        <span className="font-black text-xs block mb-1 uppercase tracking-wider" style={{ color: safeConfig.primaryDocColor }}>
+                          4. IMPRESIÓN DIAGNÓSTICA (CIE-10)
+                        </span>
+                        <p className="text-slate-950 font-bold whitespace-pre-wrap leading-relaxed">
+                          {safeReport.diagnosticImpression}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Section 5 */}
+                    {safeReport.recommendations && (
+                      <div className="bg-white/50 p-2.5 rounded-lg border border-slate-100">
+                        <span className="font-black text-xs block mb-1 uppercase tracking-wider" style={{ color: safeConfig.primaryDocColor }}>
+                          5. PLAN TERAPÉUTICO CONDUCTA Y RECOMENDACIONES
+                        </span>
+                        <p className="text-slate-900 whitespace-pre-wrap leading-relaxed">
+                          {safeReport.recommendations}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Section 6 (Reposo) */}
+                    {safeReport.daysRest && (
+                      <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-xl flex items-center justify-between">
+                        <div>
+                          <span className="font-black text-xs block text-blue-900 uppercase">
+                            6. REPOSO MÉDICO SUGERIDO
+                          </span>
+                          <span className="text-xs font-bold text-slate-800">
+                            Se prescribe reposo clínico de {safeReport.daysRest} continuos.
+                          </span>
+                        </div>
+                        {(safeReport.restStartDate || safeReport.restEndDate) && (
+                          <div className="text-right text-[11px] font-bold text-slate-700">
+                            {safeReport.restStartDate && <span>Desde: {safeReport.restStartDate}</span>}
+                            {safeReport.restEndDate && <span className="block">Hasta: {safeReport.restEndDate}</span>}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                  </div>
+                </div>
+
+                {/* Footer with Seal and Signature */}
+                <div className="pt-4 mt-4 border-t border-slate-200">
+                  <DocumentFooter
+                    config={safeConfig}
+                    compact={true}
+                    notesText="Informe médico expedido a solicitud de la parte interesada para los fines pertinentes."
+                  />
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+      {/* WhatsApp Share Modal */}
+      <WhatsAppShareModal
+        isOpen={isWhatsAppModalOpen}
+        onClose={() => setIsWhatsAppModalOpen(false)}
+        config={safeConfig}
+        documentType="report"
+        patientName={safeReport.patientName || 'Paciente'}
+        patientPhone={safeReport.patientPhone || ''}
+        documentTitle="Informe Médico"
+        contentBody={reportBodyForWhatsApp}
+        onTriggerPrintPdf={handleDownloadReportPdf}
+        onOpenEmailModal={() => setIsEmailModalOpen(true)}
+      />
+
+      {/* Email Share Modal */}
+      <EmailShareModal
+        isOpen={isEmailModalOpen}
+        onClose={() => setIsEmailModalOpen(false)}
+        config={safeConfig}
+        documentType="report"
+        patientName={safeReport.patientName || 'Paciente'}
+        patientEmail=""
+        documentTitle="Informe Médico"
+        contentBody={reportBodyForWhatsApp}
+        onTriggerPrintPdf={handleDownloadReportPdf}
+      />
+
     </div>
   );
 };
+
+export default ReportsModule;

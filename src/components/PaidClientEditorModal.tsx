@@ -663,14 +663,24 @@ export const PaidClientEditorModal: React.FC<PaidClientEditorModalProps> = ({
                       Nombre del Plan
                     </label>
                     <select
-                      value={formData.paidPlanName || 'Plan Digital Medic Pro'}
-                      onChange={(e) => handleFieldChange('paidPlanName', e.target.value)}
+                      value={formData.paidPlanName || 'Plan Mensual Pro'}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const isEliteSelected = val.toLowerCase().includes('élite') || val.toLowerCase().includes('elite');
+                        handleFieldChange('paidPlanName', val);
+                        if (isEliteSelected) {
+                          handleFieldChange('isElite', true);
+                          handleFieldChange('isVip', true);
+                          handleFieldChange('subscriptionPlan', 'elite');
+                        }
+                      }}
                       className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-indigo-500"
                     >
-                      <option value="Plan Digital Medic Pro">Plan Digital Medic Pro</option>
-                      <option value="Plan Clínico Élite">Plan Clínico Élite</option>
-                      <option value="Plan Multiconsultorio">Plan Multiconsultorio</option>
-                      <option value="Plan Corporativo">Plan Corporativo</option>
+                      <option value="Plan Mensual Pro">Plan Mensual Pro ($10 USD)</option>
+                      <option value="Plan Trimestral Pro">Plan Trimestral Pro ($28 USD)</option>
+                      <option value="Plan Anual VIP">Plan Anual VIP ($95 USD)</option>
+                      <option value="Plan Élite Autorizado">Plan Élite Autorizado (Administrador)</option>
+                      <option value="Prueba Gratuita (14 Días)">Prueba Gratuita (14 Días)</option>
                     </select>
                   </div>
 
@@ -815,6 +825,19 @@ export const PaidClientEditorModal: React.FC<PaidClientEditorModalProps> = ({
                     type="email"
                     value={formData.email || ''}
                     onChange={(e) => handleFieldChange('email', e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1">
+                    Educación Médica Continua / Postgrados / Cursos
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.educacionContinua || ''}
+                    onChange={(e) => handleFieldChange('educacionContinua', e.target.value)}
+                    placeholder="Ej: Diplomado en Dolor / Fellow Cuidados Intensivos"
                     className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-indigo-500"
                   />
                 </div>

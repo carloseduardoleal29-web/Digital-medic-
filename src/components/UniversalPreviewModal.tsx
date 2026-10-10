@@ -12,7 +12,8 @@ import {
   Grid2X2,
   FileCheck2,
   Download,
-  Scissors
+  Scissors,
+  Share2
 } from 'lucide-react';
 import { 
   DoctorConfig, 
@@ -26,6 +27,7 @@ import {
 import { DocumentHeader } from './DocumentHeader';
 import { DocumentFooter } from './DocumentFooter';
 import { getDocumentBorderStyle, getPaperTextureClass } from '../utils/documentStyles';
+import { sharePDFViaWebShare, exportElementAsPDF, buildDocumentPdfFilename } from '../utils/exportDocument';
 
 interface UniversalPreviewModalProps {
   isOpen: boolean;
@@ -61,33 +63,149 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
   const previewSheetRef = useRef<HTMLDivElement>(null);
   const [selectedPreviewModule, setSelectedPreviewModule] = useState<ActiveModule>(activeModule);
   const [zoom, setZoom] = useState<number>(100);
+  const [isSharing, setIsSharing] = useState<boolean>(false);
+  const [shareSuccessNotice, setShareSuccessNotice] = useState<string>('');
+
+  const calculateMobileFitZoom = () => {
+    if (typeof window === 'undefined') return 100;
+    const w = window.innerWidth;
+    if (w < 860) {
+      const fit = Math.floor(((w - 24) / 816) * 100);
+      return Math.min(100, Math.max(32, fit));
+    }
+    return 100;
+  };
+
+  const getDocumentPatientAndDate = () => {
+    let patientName = '';
+    let docDate = '';
+    let patientPhone = '';
+    let prefix = 'Recipe';
+
+    switch (selectedPreviewModule) {
+      case 'informes':
+        patientName = currentReport?.patientName || '';
+        docDate = currentReport?.date || '';
+        patientPhone = currentReport?.patientPhone || '';
+        prefix = 'Informe';
+        break;
+      case 'reposo':
+        patientName = medicalRestCert?.patientName || '';
+        docDate = medicalRestCert?.date || '';
+        patientPhone = medicalRestCert?.patientPhone || '';
+        prefix = 'Reposo';
+        break;
+      case 'indicaciones':
+        patientName = indicationsSheet?.patientName || '';
+        docDate = indicationsSheet?.date || '';
+        patientPhone = indicationsSheet?.patientPhone || '';
+        prefix = 'Indicaciones';
+        break;
+      case 'historias':
+        patientName = clinicalRecord?.patientName || '';
+        docDate = clinicalRecord?.date || '';
+        patientPhone = clinicalRecord?.patientPhone || '';
+        prefix = 'Historia';
+        break;
+      case 'recipe-master':
+      case 'recipe-4en1':
+      case 'diseno':
+      default:
+        const firstRec = (recipes4en1 && recipes4en1.length > 0 ? recipes4en1[0] : null) || recipe;
+        patientName = firstRec?.patientName || '';
+        docDate = firstRec?.date || '';
+        patientPhone = firstRec?.patientPhone || '';
+        prefix = selectedPreviewModule === 'recipe-4en1' ? 'Recipes_4en1' : 'Recipe';
+        break;
+    }
+
+    let docName = 'documento médico';
+    switch (selectedPreviewModule) {
+      case 'informes':
+        docName = 'informe médico';
+        break;
+      case 'reposo':
+        docName = 'certificado de reposo médico';
+        break;
+      case 'indicaciones':
+        docName = 'hoja de indicaciones';
+        break;
+      case 'historias':
+        docName = 'historia clínica';
+        break;
+      case 'recipe-4en1':
+        docName = 'récipes médicos 4 en 1';
+        break;
+      default:
+        docName = 'récipe médico';
+        break;
+    }
+
+    const fileName = buildDocumentPdfFilename(prefix, patientName, docDate);
+    const shareTitle = `${prefix} - ${patientName || 'Paciente'}`;
+    const shareText = `Hola ${patientName || 'estimado paciente'}, le envío su ${docName} oficial en formato PDF adjunto con fecha ${docDate || 'de hoy'}.`;
+
+    return { patientName, docDate, patientPhone, fileName, shareTitle, shareText };
+  };
+
+  const handleShareNative = async () => {
+    if (!previewSheetRef.current) return;
+    try {
+      setIsSharing(true);
+      const info = getDocumentPatientAndDate();
+      const targetSheet = previewSheetRef.current.querySelector<HTMLElement>(
+        '.print-container, .recipe-4en1-container, .report-sheet-container, .indications-container, .rest-container, .clinical-history-container'
+      ) || previewSheetRef.current;
+
+      const res = await sharePDFViaWebShare(
+        targetSheet,
+        info.fileName,
+        info.shareTitle,
+        info.shareText,
+        info.patientPhone
+      );
+
+      if (res.success) {
+        if (res.method === 'webshare') {
+          setShareSuccessNotice(`✓ PDF "${info.fileName}" compartido directamente a WhatsApp.`);
+        } else {
+          setShareSuccessNotice(`✓ PDF "${info.fileName}" descargado en su dispositivo y abierto en WhatsApp.`);
+        }
+        setTimeout(() => setShareSuccessNotice(''), 5000);
+      }
+    } catch (err) {
+      console.warn('Share error:', err);
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
+  const handleDownloadDirectPDF = async () => {
+    if (onConfirmDownloadPdf) {
+      onConfirmDownloadPdf();
+      return;
+    }
+    if (!previewSheetRef.current) return;
+    const info = getDocumentPatientAndDate();
+    const targetSheet = previewSheetRef.current.querySelector<HTMLElement>(
+      '.print-container, .recipe-4en1-container, .report-sheet-container, .indications-container, .rest-container, .clinical-history-container'
+    ) || previewSheetRef.current;
+    await exportElementAsPDF(targetSheet, info.fileName);
+    setShareSuccessNotice(`✓ Descargado: ${info.fileName}`);
+    setTimeout(() => setShareSuccessNotice(''), 4000);
+  };
 
   // Sync with prop when opened and auto-scale zoom based on screen width
   React.useEffect(() => {
     if (isOpen) {
       setSelectedPreviewModule(activeModule);
-      
-      const screenWidth = typeof window !== 'undefined' ? window.innerWidth : 1200;
-      const isMobile = screenWidth < 768;
-
-      if (activeModule === 'recipe-master' || activeModule === 'diseno') {
-        setZoom(isMobile ? 70 : 100);
-      } else {
-        setZoom(isMobile ? 60 : 85);
-      }
+      setZoom(calculateMobileFitZoom());
     }
   }, [activeModule, isOpen]);
 
   // Adjust zoom automatically as they switch format tabs in the preview modal
   React.useEffect(() => {
-    const screenWidth = typeof window !== 'undefined' ? window.innerWidth : 1200;
-    const isMobile = screenWidth < 768;
-
-    if (selectedPreviewModule === 'recipe-master' || selectedPreviewModule === 'diseno') {
-      setZoom(isMobile ? 70 : 100);
-    } else {
-      setZoom(isMobile ? 60 : 85);
-    }
+    setZoom(calculateMobileFitZoom());
   }, [selectedPreviewModule]);
 
   if (!isOpen) return null;
@@ -106,13 +224,19 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
   const getFormatSpecs = () => {
     switch (selectedPreviewModule) {
       case 'recipe-master':
+        return {
+          name: 'Récipe Médico Normal',
+          sizeName: 'Formato Normal de Récipe (Hoja Completa / Media Carta)',
+          widthClass: 'w-[780px] min-h-[960px]',
+          sheetBadge: 'Récipe Normal Oficial',
+        };
       case 'recipe-4en1':
       case 'diseno':
         return {
-          name: 'Hoja Carta de Récipes Médicos',
-          sizeName: 'Hoja Carta Real (21.6 x 27.9 cm) con Récipes en Cuadrantes',
-          widthClass: 'w-[840px] min-h-[1050px]',
-          sheetBadge: 'Hoja Carta Multi-Récipe',
+          name: 'Hoja Carta de Récipes Médicos (4 en 1)',
+          sizeName: 'Hoja Carta Real (21.6 x 27.9 cm) con 4 Récipes en Cuadrantes',
+          widthClass: 'w-[816px] min-h-[1056px]',
+          sheetBadge: 'Récipes 4 en 1',
         };
       case 'informes':
         return {
@@ -200,73 +324,93 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
         </div>
 
         {/* Actions & Zoom */}
-        <div className="flex items-center gap-2.5">
-          {/* Zoom Controls */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Zoom Controls with Mobile Fit & Desktop Toggle */}
           <div className="flex items-center bg-slate-800 rounded-xl p-1 border border-slate-700 text-xs text-slate-300">
             <button
-              onClick={() => setZoom((z) => Math.max(20, z - 5))}
-              className="p-1.5 hover:bg-slate-700 rounded-lg transition-colors"
+              onClick={() => setZoom((z) => Math.max(25, z - 5))}
+              className="p-1.5 hover:bg-slate-700 rounded-lg transition-colors cursor-pointer"
               title="Reducir Zoom"
             >
               <ZoomOut className="w-3.5 h-3.5" />
             </button>
-            <span className="px-2 font-mono font-bold text-xs">{zoom}%</span>
+            <span className="px-2 font-mono font-bold text-xs min-w-[36px] text-center">{zoom}%</span>
             <button
               onClick={() => setZoom((z) => Math.min(130, z + 5))}
-              className="p-1.5 hover:bg-slate-700 rounded-lg transition-colors"
+              className="p-1.5 hover:bg-slate-700 rounded-lg transition-colors cursor-pointer"
               title="Aumentar Zoom"
             >
               <ZoomIn className="w-3.5 h-3.5" />
             </button>
             <button
-              onClick={() => setZoom(100)}
-              className="px-2 py-1 ml-0.5 hover:bg-slate-700 rounded-lg text-[10px] font-semibold text-slate-400"
+              onClick={() => setZoom(calculateMobileFitZoom())}
+              className="px-2 py-1 ml-0.5 hover:bg-slate-700 rounded-lg text-[10px] font-bold text-cyan-300 transition-colors cursor-pointer border-l border-slate-700"
+              title="Ajustar toda la hoja a la pantalla del teléfono sin que se corte nada"
             >
-              100%
+              📱 Ajustar
+            </button>
+            <button
+              onClick={() => setZoom(100)}
+              className="px-2 py-1 hover:bg-slate-700 rounded-lg text-[10px] font-bold text-slate-300 transition-colors cursor-pointer"
+              title="Ver en tamaño real de escritorio (100%)"
+            >
+              🖥️ 100%
             </button>
           </div>
 
           <button
-            onClick={() => {
-              if (onConfirmDownloadPdf) {
-                onConfirmDownloadPdf();
-              } else {
-                handlePrint();
-              }
-            }}
-            className="px-4 py-2 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl font-bold text-xs flex items-center gap-2 shadow-md transition-all hover:scale-[1.02] cursor-pointer"
-            title="Descargar PDF nítido en su equipo de forma inmediata"
+            onClick={handleDownloadDirectPDF}
+            className="px-3.5 py-2 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-md transition-all hover:scale-[1.02] cursor-pointer"
+            title="Descargar archivo PDF con el nombre del paciente y fecha"
           >
             <Download className="w-4 h-4 text-emerald-200" />
             <span>Descargar PDF</span>
           </button>
 
           <button
+            onClick={handleShareNative}
+            disabled={isSharing}
+            className="px-3.5 py-2 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-md transition-all hover:scale-[1.02] cursor-pointer"
+            title="Compartir el PDF directamente a WhatsApp o aplicaciones del teléfono"
+          >
+            <Share2 className="w-4 h-4 text-emerald-200" />
+            <span>{isSharing ? 'Generando...' : '📱 Enviar a WhatsApp'}</span>
+          </button>
+
+          <button
             onClick={handlePrint}
-            className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl font-bold text-xs flex items-center gap-2 shadow-md transition-all hover:scale-[1.02] cursor-pointer"
+            className="px-3.5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-md transition-all hover:scale-[1.02] cursor-pointer"
             title="Imprimir en impresora física o guardar como PDF del sistema"
           >
             <Printer className="w-4 h-4" />
-            <span>🖨️ Imprimir Documento</span>
+            <span>🖨️ Imprimir</span>
           </button>
 
           {/* Prominent Red Exit Button requested by the user */}
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold text-xs flex items-center gap-2 shadow-md transition-all hover:scale-[1.02] cursor-pointer"
+            className="px-3.5 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-md transition-all hover:scale-[1.02] cursor-pointer"
             title="Salir de Vista Previa"
           >
             <X className="w-4 h-4" />
-            <span>Salir de Vista Previa</span>
+            <span>Salir</span>
           </button>
         </div>
       </div>
 
+      {/* Floating Notice Banner when PDF is downloaded or shared */}
+      {shareSuccessNotice && (
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-emerald-700 text-white px-4 py-2 rounded-xl shadow-2xl text-xs font-bold flex items-center gap-2 animate-in fade-in duration-200 border border-emerald-400">
+          <CheckCircle2 className="w-4 h-4 text-white" />
+          <span>{shareSuccessNotice}</span>
+        </div>
+      )}
+
       {/* Main Canvas with the exact sheet rendered */}
-      <div className="flex-1 overflow-auto p-3 sm:p-6 flex justify-center items-start bg-slate-950/70">
+      <div className="flex-1 overflow-auto p-2 sm:p-4 md:p-6 flex justify-center items-start bg-slate-950/70">
         <div 
           ref={previewSheetRef}
-          className="my-4 transition-all"
+          className="my-3 transition-all"
           style={{ 
             zoom: zoom / 100,
             transformOrigin: 'top center'
@@ -274,20 +418,139 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
         >
 
           {/* ========================================================= */}
-          {/* CASE 1 & 2: RÉCIPES MÉDICOS (HOJA CARTA 4 CUADRANTES CON POSICIONAMIENTO) */}
+          {/* CASE 1: RÉCIPE MÉDICO NORMAL (1 SOLO RÉCIPE EN HOJA COMPLETA) */}
           {/* ========================================================= */}
-          {(selectedPreviewModule === 'recipe-master' || selectedPreviewModule === 'recipe-4en1' || selectedPreviewModule === 'diseno') && (
+          {selectedPreviewModule === 'recipe-master' && (() => {
+            const currentRec = recipe || (recipes4en1 && recipes4en1.length > 0 ? recipes4en1[0] : null) || {
+              id: 'rec-default',
+              patientName: '',
+              patientCI: '',
+              patientAge: '',
+              date: '',
+              diagnosis: '',
+              rp: '',
+              indicationsNotes: '',
+            };
+
+            return (
+              <div
+                className={`relative ${specs.widthClass} bg-white shadow-2xl p-6 sm:p-8 rounded-2xl transition-all print-container recipe-single-card flex flex-col justify-between ${textureClass} ${
+                  config.enforcePureBlackText ? 'enforce-pure-black' : ''
+                }`}
+                style={{
+                  backgroundColor: config.tonePapel || '#ffffff',
+                  border: borderStyle,
+                  borderRadius: config.docCornerRadius || '16px',
+                  boxSizing: 'border-box',
+                }}
+              >
+                {/* Watermark */}
+                {config.marcaAgua && !config.marcaAgua.includes('DIGITAL') && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
+                    <img
+                      src={config.marcaAgua}
+                      alt="Marca de agua"
+                      className="marca-agua-img"
+                      style={{
+                        opacity: config.watermarkOpacity ?? 0.1,
+                        width: `${Math.min(60, config.watermarkScale || 50)}%`,
+                        transform: `rotate(${config.watermarkRotation || 0}deg)`,
+                      }}
+                    />
+                  </div>
+                )}
+
+                <div className="relative z-10 flex flex-col justify-between h-full flex-1">
+                  <div>
+                    <DocumentHeader config={config} compact={false} editableInline={false} />
+
+                    {/* Title */}
+                    <div className="my-2.5 pb-1 border-b border-slate-200 flex items-center justify-between">
+                      <span 
+                        className="text-base sm:text-lg font-black tracking-wide uppercase font-serif"
+                        style={{ color: config.primaryDocColor }}
+                      >
+                        RÉCIPE MÉDICO OFICIAL
+                      </span>
+                      <span className="text-xs font-semibold text-slate-500">
+                        Fecha: <strong className="text-slate-800">{currentRec.date || '—'}</strong>
+                      </span>
+                    </div>
+
+                    {/* Patient Bar */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-2.5 bg-slate-50/90 border border-slate-200/90 rounded-xl mb-3 text-xs shadow-2xs">
+                      <div className="col-span-2">
+                        <span className="font-bold text-slate-700">Paciente: </span>
+                        <strong className="text-slate-900">{currentRec.patientName || '—'}</strong>
+                      </div>
+                      <div>
+                        <span className="font-bold text-slate-700">C.I.: </span>
+                        <span className="text-slate-900 font-semibold">{currentRec.patientCI || '—'}</span>
+                      </div>
+                      <div>
+                        <span className="font-bold text-slate-700">Edad: </span>
+                        <span className="text-slate-900 font-semibold">{currentRec.patientAge || '—'}</span>
+                      </div>
+                      {currentRec.diagnosis && (
+                        <div className="col-span-2 sm:col-span-4 pt-1 border-t border-slate-200/60">
+                          <span className="font-bold text-slate-700">Diagnóstico (CIE): </span>
+                          <span className="text-slate-900 font-medium">{currentRec.diagnosis}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Rp Section */}
+                    <div className="my-3 flex flex-col">
+                      <span 
+                        className="text-2xl sm:text-3xl font-black italic tracking-wide mb-2"
+                        style={{ color: config.primaryDocColor, fontFamily: "'Playfair Display', serif" }}
+                      >
+                        Rp.
+                      </span>
+                      <div 
+                        className="p-4 rounded-xl bg-slate-50/40 border border-slate-200 text-slate-900 whitespace-pre-wrap leading-relaxed min-h-[300px]"
+                        style={{
+                          fontFamily: config.rxBodyFontFamily || "'Roboto', sans-serif",
+                          fontSize: config.bodyFontSize || '14px',
+                        }}
+                      >
+                        {currentRec.rp || <span className="text-slate-400 italic">Sin prescripción médica registrada.</span>}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Document Footer */}
+                  <div className="mt-4 pt-2 border-t border-slate-200">
+                    <DocumentFooter
+                      config={config}
+                      compact={false}
+                      notesText={currentRec.indicationsNotes || config.footerNotesText}
+                      editableInline={false}
+                    />
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* ========================================================= */}
+          {/* CASE 2: RÉCIPES MÉDICOS 4 EN 1 (HOJA CARTA 4 CUADRANTES) */}
+          {/* ========================================================= */}
+          {(selectedPreviewModule === 'recipe-4en1' || selectedPreviewModule === 'diseno') && (
             <div
-              className={`relative w-[840px] min-h-[1050px] bg-white shadow-2xl p-4 transition-all print-container recipe-4en1-container ${textureClass} ${
+              className={`relative w-[816px] max-w-[816px] min-h-[1056px] bg-white shadow-2xl p-4 transition-all print-container recipe-4en1-container ${textureClass} ${
                 config.enforcePureBlackText ? 'enforce-pure-black' : ''
               }`}
               style={{
                 backgroundColor: config.tonePapel || '#ffffff',
                 border: borderStyle,
                 borderRadius: config.docCornerRadius || '16px',
+                width: '816px',
+                minHeight: '1056px',
+                boxSizing: 'border-box',
               }}
             >
-              <div className="grid grid-cols-2 grid-rows-2 gap-3 relative z-10 min-h-[1010px] recipe-4en1-grid">
+              <div className="grid grid-cols-2 grid-rows-2 gap-3 relative z-10 min-h-[1020px] recipe-4en1-grid">
                 {[0, 1, 2, 3].map((idx) => {
                   const rec = recipes4en1[idx] || (idx === 0 ? recipe : null);
                   const isSlotFilled = rec && Boolean(rec.rp?.trim() || rec.patientName?.trim() || rec.diagnosis?.trim());
@@ -301,13 +564,13 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
                         key={idx}
                         className="relative border-2 border-dashed border-slate-200 rounded-xl p-4 bg-slate-50/30 flex flex-col items-center justify-center text-center text-slate-400 min-h-[490px] recipe-quadrant-empty"
                       >
-                        <div className="space-y-1.5 opacity-60">
+                        <div className="space-y-1.5 opacity-60 no-print">
                           <Scissors className="w-5 h-5 mx-auto text-slate-300" />
                           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-                            Cuadrante {idx + 1} Libre
+                            Cuadrante {idx + 1} Libre (1/4 Carta)
                           </span>
                           <span className="text-[10px] text-slate-400 block max-w-[180px]">
-                            Espacio disponible para cortar la hoja carta o añadir otro récipe.
+                            Espacio libre para corte de hoja carta.
                           </span>
                         </div>
                       </div>
