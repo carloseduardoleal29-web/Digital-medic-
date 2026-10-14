@@ -340,7 +340,7 @@ export const WelcomeInicioModule: React.FC<WelcomeInicioModuleProps> = ({
 
             {/* BANNER ANIMADO LLAMATIVO: CREAR RÉCIPE */}
             <button
-              onClick={() => onNavigate('recipe-master')}
+              onClick={() => onNavigate('recipe-4en1')}
               className="w-full p-3.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white rounded-2xl transition-all flex items-center justify-between text-left shadow-lg shadow-blue-600/25 group hover:scale-[1.02] border-2 border-cyan-300/60 cursor-pointer relative overflow-hidden ring-4 ring-blue-500/10"
             >
               {/* Shimmer background animation */}
@@ -479,7 +479,7 @@ export const WelcomeInicioModule: React.FC<WelcomeInicioModuleProps> = ({
           
           {/* 1. RÉCIPES MÉDICOS */}
           <div 
-            onClick={() => onNavigate('recipe-master')}
+            onClick={() => onNavigate('recipe-4en1')}
             className="bg-white rounded-3xl border border-slate-200/90 hover:border-blue-500/70 hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-300 cursor-pointer group flex flex-col justify-between overflow-hidden transform hover:-translate-y-1 shadow-md"
           >
             {/* STYLIZED MODERN HERO IMAGE BANNER */}
@@ -512,7 +512,7 @@ export const WelcomeInicioModule: React.FC<WelcomeInicioModuleProps> = ({
                 <div className="flex flex-col gap-2">
                   <div className="px-3 py-1.5 bg-white/20 backdrop-blur-md border border-white/40 rounded-xl shadow-lg flex items-center gap-1.5 text-white">
                     <span className="text-xs font-black bg-cyan-400 text-slate-950 px-1.5 py-0.5 rounded font-mono">Rx</span>
-                    <span className="text-[11px] font-bold">Digital</span>
+                    <span className="text-[11px] font-bold">4 en 1</span>
                   </div>
                   <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-400 to-blue-500 flex items-center justify-center text-white shadow-lg shadow-cyan-500/30 transform rotate-12 group-hover:rotate-45 transition-transform">
                     <Pill className="w-5 h-5 text-white" />
@@ -523,7 +523,7 @@ export const WelcomeInicioModule: React.FC<WelcomeInicioModuleProps> = ({
               {/* Top Tag */}
               <div className="absolute top-3 left-3 z-20">
                 <span className="px-2.5 py-1 bg-slate-950/80 backdrop-blur-md text-cyan-300 text-[10px] font-black uppercase tracking-wider rounded-lg shadow-xs border border-cyan-500/30">
-                  Asistente Progresivo
+                  Hoja Carta (4 en 1)
                 </span>
               </div>
             </div>
@@ -534,11 +534,11 @@ export const WelcomeInicioModule: React.FC<WelcomeInicioModuleProps> = ({
                 <h3 className="font-black text-slate-900 text-xl group-hover:text-blue-600 transition-colors flex items-center justify-between">
                   <span>Récipes Médicos</span>
                   <span className="text-[10px] font-extrabold text-blue-700 bg-blue-100 px-3 py-1 rounded-full border border-blue-200 uppercase tracking-wider">
-                    Asistente
+                    4 en 1
                   </span>
                 </h3>
                 <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                  Flujo guiado paso a paso optimizado para celulares: 1. Paciente ➜ 2. Fármacos/Rp. ➜ 3. Descargar PDF / WhatsApp.
+                  Hoja carta con 4 récipes idénticos para imprimir o enviar por WhatsApp con PDF y tratamiento.
                 </p>
               </div>
 
@@ -555,7 +555,7 @@ export const WelcomeInicioModule: React.FC<WelcomeInicioModuleProps> = ({
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (onOpenFormatPreview) onOpenFormatPreview('recipe-master');
+                      if (onOpenFormatPreview) onOpenFormatPreview('recipe-4en1');
                       else onOpenPreview();
                     }}
                     className="px-4 py-3 bg-blue-50 hover:bg-blue-100 text-blue-700 font-black rounded-2xl text-xs flex items-center gap-1.5 transition-all cursor-pointer border-2 border-blue-200 shadow-sm shrink-0 hover:scale-[1.02] active:scale-95"
@@ -569,11 +569,11 @@ export const WelcomeInicioModule: React.FC<WelcomeInicioModuleProps> = ({
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onNavigate('recipe-master');
+                      onNavigate('recipe-4en1');
                     }}
                     className="flex-1 py-3.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-700 text-white font-black rounded-2xl text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-md shadow-blue-600/20 border-2 border-blue-500/40 hover:scale-[1.02] active:scale-95 cursor-pointer text-center"
                   >
-                    <span>{activePatientName ? 'Emitir Récipe' : 'Redactar Récipes'}</span>
+                    <span>{activePatientName ? 'Emitir Récipes' : 'Redactar Récipes'}</span>
                     <ArrowRight className="w-4 h-4 text-white" />
                   </button>
                 </div>
