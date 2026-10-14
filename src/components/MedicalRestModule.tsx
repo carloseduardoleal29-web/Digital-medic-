@@ -2,9 +2,9 @@ import React, { useRef, useState, useEffect } from 'react';
 import { DoctorConfig, MedicalRestCert } from '../types';
 import { DocumentHeader } from './DocumentHeader';
 import { DocumentFooter } from './DocumentFooter';
-import { WhatsAppShareModal } from './WhatsAppShareModal';
 import { EmailShareModal } from './EmailShareModal';
 import { getDocumentBorderStyle, getPaperTextureClass } from '../utils/documentStyles';
+import { exportAndSendWhatsAppBusiness } from '../utils/exportDocument';
 import { 
   ShieldCheck, 
   Printer, 
@@ -99,7 +99,6 @@ export const MedicalRestModule: React.FC<MedicalRestModuleProps> = ({
 }) => {
   const printableSheetRef = useRef<HTMLDivElement>(null);
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
-  const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
 
@@ -675,39 +674,27 @@ export const MedicalRestModule: React.FC<MedicalRestModuleProps> = ({
             </div>
 
             {/* Direct Instant Action Buttons */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               
-              {/* 1. Descargar PDF */}
+              {/* Botón WhatsApp Business */}
               <button
                 type="button"
-                onClick={handleDownloadRestPdf}
-                className="p-3 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black text-xs flex flex-col items-center justify-center gap-1.5 shadow-lg shadow-blue-900/40 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-blue-400/40"
-              >
-                <Download className="w-5 h-5 text-cyan-200" />
-                <span>Descargar PDF</span>
-              </button>
-
-              {/* 2. Enviar por WhatsApp */}
-              <button
-                type="button"
-                onClick={() => setIsWhatsAppModalOpen(true)}
+                onClick={() => {
+                  exportAndSendWhatsAppBusiness(
+                    printableSheetRef.current,
+                    safeCert.patientName || 'Carlos leal',
+                    'Constancia de Reposo',
+                    safeCert.date || '14/10/26',
+                    safeCert.patientPhone
+                  );
+                }}
                 className="p-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl font-black text-xs flex flex-col items-center justify-center gap-1.5 shadow-lg shadow-emerald-900/40 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-emerald-400/40"
               >
-                <Share2 className="w-5 h-5 text-emerald-200" />
+                <span className="text-xl">📱</span>
                 <span>Enviar por WhatsApp</span>
               </button>
 
-              {/* 3. Enviar por Correo */}
-              <button
-                type="button"
-                onClick={() => setIsEmailModalOpen(true)}
-                className="p-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black text-xs flex flex-col items-center justify-center gap-1.5 shadow-lg shadow-indigo-900/40 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-indigo-400/40"
-              >
-                <Mail className="w-5 h-5 text-indigo-200" />
-                <span>Enviar por Correo</span>
-              </button>
-
-              {/* 4. Imprimir Directamente */}
+              {/* Imprimir Directamente */}
               <button
                 type="button"
                 onClick={handlePrintSpecificRest}
@@ -715,6 +702,16 @@ export const MedicalRestModule: React.FC<MedicalRestModuleProps> = ({
               >
                 <Printer className="w-5 h-5 text-cyan-300" />
                 <span>Imprimir Documento</span>
+              </button>
+
+              {/* Enviar por Correo */}
+              <button
+                type="button"
+                onClick={() => setIsEmailModalOpen(true)}
+                className="p-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black text-xs flex flex-col items-center justify-center gap-1.5 shadow-lg shadow-indigo-900/40 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-indigo-400/40"
+              >
+                <Mail className="w-5 h-5 text-indigo-200" />
+                <span>Enviar por Correo</span>
               </button>
 
             </div>
@@ -825,12 +822,12 @@ export const MedicalRestModule: React.FC<MedicalRestModuleProps> = ({
                   <div className="bg-slate-50/50 border border-slate-200 rounded-2xl p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs sm:text-sm">
                     <div>
                       <span className="text-slate-500 font-bold block uppercase text-[10px]">Nombre del Paciente:</span>
-                      <span className="font-black text-slate-900 text-sm sm:text-base">{safeCert.patientName || '_____________________________________'}</span>
+                      <span className="font-black text-slate-900 text-sm sm:text-base">{safeCert.patientName || 'Paciente'}</span>
                     </div>
 
                     <div>
                       <span className="text-slate-500 font-bold block uppercase text-[10px]">Cédula de Identidad:</span>
-                      <span className="font-black text-slate-900 text-sm sm:text-base">{safeCert.patientCI || '_________________'}</span>
+                      <span className="font-black text-slate-900 text-sm sm:text-base">{safeCert.patientCI || 'S/C'}</span>
                     </div>
 
                     {safeCert.patientAge && (
@@ -924,29 +921,7 @@ export const MedicalRestModule: React.FC<MedicalRestModuleProps> = ({
       {/* ========================================================= */}
       {/* SHARING MODALS                                            */}
       {/* ========================================================= */}
-      <WhatsAppShareModal
-        isOpen={isWhatsAppModalOpen}
-        onClose={() => setIsWhatsAppModalOpen(false)}
-        config={safeConfig}
-        documentType="rest"
-        patientName={safeCert.patientName}
-        patientPhone={safeCert.patientPhone || ''}
-        documentTitle={safeCert.diagnosis || 'Constancia de Reposo'}
-        contentBody={
-          `CONSTANCIA DE REPOSO MÉDICO\n` +
-          `Paciente: ${safeCert.patientName || 'Paciente'}\n` +
-          `C.I.: ${safeCert.patientCI || 'N/A'}\n` +
-          `Días de Reposo: ${safeCert.daysRest || '0'} días continuos\n` +
-          `Desde: ${safeCert.startDate} - Hasta: ${safeCert.endDate || '—'}\n` +
-          `Diagnóstico: ${safeCert.diagnosis || 'Consulta General'}`
-        }
-        onUpdatePatientPhone={(ph) => onChangeCertificate({ patientPhone: ph })}
-        onTriggerPrintPdf={handleDownloadRestPdf}
-        onOpenEmailModal={() => {
-          setIsWhatsAppModalOpen(false);
-          setIsEmailModalOpen(true);
-        }}
-      />
+
 
       <EmailShareModal
         isOpen={isEmailModalOpen}

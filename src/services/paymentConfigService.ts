@@ -69,30 +69,39 @@ export function isPaymentConfigured(config?: PaymentConfig | null): boolean {
 const LOCAL_STORAGE_KEY = 'digital_medic_payment_config_v4';
 
 export async function fetchPaymentConfig(): Promise<PaymentConfig> {
-  // 1. Try fetching from server
+  // 1. Check local storage first
+  let localConfig: PaymentConfig | null = null;
+  try {
+    const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed && typeof parsed === 'object') {
+        localConfig = parsed;
+      }
+    }
+  } catch (_) {}
+
+  // 2. Fetch from server
   try {
     const res = await fetch('/api/payment-config');
     if (res.ok) {
       const data = await res.json();
-      if (data?.config && data.config.pagoMovil) {
+      if (data?.config && isPaymentConfigured(data.config)) {
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data.config));
         return data.config;
       }
     }
   } catch (err) {
-    console.warn('Could not fetch payment config from server, checking local storage:', err);
+    console.warn('Could not fetch payment config from server, using local storage:', err);
   }
 
-  // 2. LocalStorage fallback
-  try {
-    const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (parsed && parsed.pagoMovil) return parsed;
-    }
-  } catch (_) {}
+  // 3. If server returned unconfigured/empty data but local config has data, keep local config & push to server!
+  if (localConfig && isPaymentConfigured(localConfig)) {
+    savePaymentConfig(localConfig);
+    return localConfig;
+  }
 
-  return DEFAULT_PAYMENT_CONFIG;
+  return localConfig || DEFAULT_PAYMENT_CONFIG;
 }
 
 export async function savePaymentConfig(config: PaymentConfig): Promise<boolean> {

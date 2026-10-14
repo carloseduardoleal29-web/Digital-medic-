@@ -65,6 +65,7 @@ interface DoctorLeftDrawerProps {
   onOpenDesignStudio?: () => void;
   onOpenAdminPanel?: () => void;
   onOpenEditPaymentConfig?: () => void;
+  onOpenSyncDevices?: () => void;
   isDesktopMode?: boolean;
   onToggleDesktopMode?: () => void;
 }
@@ -81,6 +82,7 @@ export const DoctorLeftDrawer: React.FC<DoctorLeftDrawerProps> = ({
   onOpenDesignStudio,
   onOpenAdminPanel,
   onOpenEditPaymentConfig,
+  onOpenSyncDevices,
   isDesktopMode = false,
   onToggleDesktopMode
 }) => {
@@ -801,6 +803,21 @@ export const DoctorLeftDrawer: React.FC<DoctorLeftDrawerProps> = ({
             </button>
           )}
 
+          {/* Botón Sincronizar Móvil / PC */}
+          {onOpenSyncDevices && (
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenSyncDevices();
+              }}
+              className="w-full py-2.5 px-3 bg-gradient-to-r from-blue-700 via-indigo-700 to-slate-900 hover:from-blue-600 hover:to-indigo-600 text-white rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md border border-blue-400/40"
+            >
+              <Smartphone className="w-4 h-4 text-cyan-300" />
+              <span>📱 Abrir en mi Celular / PC (QR & Enlace)</span>
+            </button>
+          )}
+
           {/* C.E. LEAL Studio Developer Branding Badge */}
           <CeLealStudioLogo variant="badge" className="w-full justify-center" />
 
@@ -829,6 +846,7 @@ export const DoctorLeftDrawer: React.FC<DoctorLeftDrawerProps> = ({
               <span>⚙️ Mis Métodos de Cobro (Bs / Binance / Zinli)</span>
             </button>
           )}
+
 
           <button
             onClick={() => {

@@ -49,13 +49,13 @@ import {
 } from '../data/drugDatabase';
 import { DocumentHeader } from './DocumentHeader';
 import { DocumentFooter } from './DocumentFooter';
+import { getDocumentBorderStyle, getPaperTextureClass } from '../utils/documentStyles';
 import { 
   exportElementAsPDF, 
   exportMultipleElementsAsPDF, 
-  buildDocumentPdfFilename 
+  buildDocumentPdfFilename,
+  exportAndSendWhatsAppBusiness 
 } from '../utils/exportDocument';
-import { getDocumentBorderStyle, getPaperTextureClass } from '../utils/documentStyles';
-import { WhatsAppShareModal } from './WhatsAppShareModal';
 import { EmailShareModal } from './EmailShareModal';
 
 interface ProgressiveRecipeWizardProps {
@@ -107,11 +107,16 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
   // Vista activa en el Paso 4: 'recipe' | 'indications'
   const [finalPreviewTab, setFinalPreviewTab] = useState<'recipe' | 'indications'>('recipe');
 
+  // Tamaño del récipe en formato solo récipe:
+  // 'quarter': 1/4 Hoja Carta (Pequeño, 4 caben en una hoja carta) -> Activo por defecto como pidió el usuario
+  // 'half': Media Carta Horizontal (2 caben en una hoja carta)
+  // 'letter': Hoja Carta Completa
+  const [recipeSize, setRecipeSize] = useState<'quarter' | 'half' | 'letter'>('quarter');
+  const [printFourInSheet, setPrintFourInSheet] = useState<boolean>(false);
+  const printableFourInSheetRef = useRef<HTMLDivElement>(null);
+
   const [patientSearchQuery, setPatientSearchQuery] = useState('');
   const [drugSearchQuery, setDrugSearchQuery] = useState('');
-  const [selectedDrugCategory, setSelectedDrugCategory] = useState<string>('todas');
-  const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
-  const [whatsAppDocType, setWhatsAppDocType] = useState<'recipe' | 'indications'>('recipe');
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
   const [isStep2CatalogOpen, setIsStep2CatalogOpen] = useState(true);
   const [step2CatalogTab, setStep2CatalogTab] = useState<'drugs' | 'schedules' | 'diet' | 'alarms'>('drugs');
@@ -190,8 +195,12 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
     };
   });
 
-  // Sincronizar localIndications cuando cambian los datos del paciente
+  // Sincronizar localIndications cuando cambian los datos del paciente y asegurar fecha válida
   useEffect(() => {
+    if (!recipe.date) {
+      const todayFormatted = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      onChangeRecipe({ date: todayFormatted });
+    }
     setLocalIndications((prev) => ({
       ...prev,
       patientName: recipe.patientName || prev.patientName,
@@ -218,6 +227,9 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
 
   const borderStyle = getDocumentBorderStyle(config.borderStyle, config.primaryDocColor);
   const textureClass = getPaperTextureClass(config.paperTexture);
+
+  // Estado para categoría de medicamentos seleccionada en Paso 2
+  const [selectedDrugCategory, setSelectedDrugCategory] = useState<string>('todas');
 
   // Estado para el panel desplegable de posologías y catálogo en Indicaciones
   const [isIndicationsCatalogOpen, setIsIndicationsCatalogOpen] = useState(true);
@@ -354,33 +366,57 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
   // 1. Descarga en 1 Sola Hoja (2 en 1: Récipe e Indicaciones Juntos)
   const handleDownloadDualPdfDirect = async () => {
     setIsExporting(true);
-    const filename = buildDocumentPdfFilename('Tratamiento_2en1', recipe.patientName, recipe.date);
+    const filename = buildDocumentPdfFilename('récipe', recipe.patientName || 'Carlos leal', recipe.date || '14/10/26');
     await exportElementAsPDF(printableDualRef.current, filename);
     setIsExporting(false);
   };
 
-  // 2. Descarga directa del Récipe individual (1 Hoja)
+  // 2. Descarga directa del Récipe individual (1 Hoja o 1/4 Hoja)
   const handleDownloadRecipePdfDirect = async () => {
     setIsExporting(true);
-    const filename = buildDocumentPdfFilename('Recipe', recipe.patientName, recipe.date);
+    const filename = buildDocumentPdfFilename('récipe', recipe.patientName || 'Carlos leal', recipe.date || '14/10/26');
     await exportElementAsPDF(printableRecipeRef.current, filename);
+    setIsExporting(false);
+  };
+
+  // 2-B. Descarga directa de Hoja Carta Completa con 4 copias del récipe (para recortar)
+  const handleDownloadFourInSheetDirect = async () => {
+    setIsExporting(true);
+    const filename = buildDocumentPdfFilename('récipe 4 en 1', recipe.patientName || 'Carlos leal', recipe.date || '14/10/26');
+    await exportElementAsPDF(printableFourInSheetRef.current, filename);
     setIsExporting(false);
   };
 
   // 3. Descarga directa de las Indicaciones individuales (1 Hoja)
   const handleDownloadIndicationsPdfDirect = async () => {
     setIsExporting(true);
-    const filename = buildDocumentPdfFilename('Indicaciones', recipe.patientName, recipe.date);
+    const filename = buildDocumentPdfFilename('indicaciones', recipe.patientName || 'Carlos leal', recipe.date || '14/10/26');
     await exportElementAsPDF(printableIndicationsRef.current, filename);
     setIsExporting(false);
   };
 
-  // 4. Impresión física inmediata
-  const handlePrintSpecific = (tab: 'recipe' | 'indications') => {
+  // 4. Impresión física inmediata con asignación garantizada de título para 'Guardar como PDF'
+  const handlePrintSpecific = (tab: 'recipe' | 'indications', printFourCopies: boolean = false) => {
     setFinalPreviewTab(tab);
+    setPrintFourInSheet(printFourCopies);
+
+    const pName = recipe.patientName || 'Carlos leal';
+    const pDate = recipe.date || '14/10/26';
+    const docName = tab === 'recipe' ? (printFourCopies ? 'récipe 4 en 1' : 'récipe') : 'indicaciones';
+    const cleanTitle = buildDocumentPdfFilename(docName, pName, pDate).replace(/\.pdf$/i, '');
+    const oldTitle = document.title;
+    document.title = cleanTitle;
+
+    const restoreTitle = () => {
+      document.title = oldTitle;
+      setPrintFourInSheet(false);
+      window.removeEventListener('afterprint', restoreTitle);
+    };
+    window.addEventListener('afterprint', restoreTitle);
+
     setTimeout(() => {
       window.print();
-    }, 150);
+    }, 180);
   };
 
   return (
@@ -389,7 +425,7 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
       {/* ========================================================= */}
       {/* TOP BANNER & PROGRESS NAVIGATION */}
       {/* ========================================================= */}
-      <div className="w-full bg-white rounded-3xl border border-slate-200 shadow-sm p-3 sm:p-4 mb-4">
+      <div className="w-full bg-white rounded-3xl border border-slate-200 shadow-sm p-3 sm:p-4 mb-4 no-print">
         
         {/* Header Bar */}
         <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-100">
@@ -1620,183 +1656,275 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
       {currentStep === 4 && (
         <div className="w-full space-y-4 animate-in fade-in">
           
-          {/* Main Action Control Center Bar */}
-          <div className="w-full bg-slate-900 text-white rounded-3xl border border-slate-800 p-4 sm:p-5 shadow-2xl space-y-4">
+          {/* Main Action Control Center Bar (sin textos invasivos ni botones innecesarios, no-print) */}
+          <div className="w-full bg-slate-900 text-white rounded-2xl border border-slate-800 p-3 sm:p-4 shadow-xl no-print space-y-3">
             
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
-              <div className="flex items-center gap-2">
-                <span className="w-8 h-8 rounded-xl bg-emerald-500 text-slate-950 font-black text-base flex items-center justify-center">
-                  ✓
-                </span>
-                <div>
-                  <h3 className="font-black text-base sm:text-lg text-white leading-tight">
-                    Documentos Listos para Emisión
-                  </h3>
-                  <span className="text-xs text-emerald-300 font-medium">
-                    Paciente: <strong>{recipe.patientName || 'Sin nombre'}</strong> · {recipe.date || 'Hoy'}
-                  </span>
-                </div>
-              </div>
-
-              {/* Selector de Pestaña de Vista Previa Limpia Individual */}
-              <div className="flex items-center gap-1.5 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-2.5">
+              {/* Selector de Documento: Récipe vs Indicaciones */}
+              <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
                 <button
                   type="button"
                   onClick={() => setFinalPreviewTab('recipe')}
-                  className={`px-4 py-2 rounded-xl font-black text-xs transition-all cursor-pointer flex items-center gap-2 ${
+                  className={`px-3.5 py-1.5 rounded-lg font-black text-xs transition-all cursor-pointer flex items-center gap-1.5 ${
                     finalPreviewTab === 'recipe'
-                      ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-400/30'
+                      ? 'bg-blue-600 text-white shadow-xs'
                       : 'text-slate-400 hover:text-white'
                   }`}
                 >
                   <Pill className="w-4 h-4 text-cyan-300" />
-                  <span>1. Récipe Médico (Hoja Limpia)</span>
+                  <span>Récipe Médico</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setFinalPreviewTab('indications')}
-                  className={`px-4 py-2 rounded-xl font-black text-xs transition-all cursor-pointer flex items-center gap-2 ${
+                  className={`px-3.5 py-1.5 rounded-lg font-black text-xs transition-all cursor-pointer flex items-center gap-1.5 ${
                     finalPreviewTab === 'indications'
-                      ? 'bg-indigo-600 text-white shadow-md ring-2 ring-indigo-400/30'
+                      ? 'bg-indigo-600 text-white shadow-xs'
                       : 'text-slate-400 hover:text-white'
                   }`}
                 >
                   <ClipboardList className="w-4 h-4 text-indigo-200" />
-                  <span>2. Hoja de Indicaciones (A Parte)</span>
+                  <span>Indicaciones Médicas</span>
+                </button>
+              </div>
+
+              {/* Selector de Tamaño del Récipe (1/4 Hoja Carta vs Media Carta vs Hoja Entera) */}
+              {finalPreviewTab === 'recipe' && (
+                <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
+                  <span className="text-[11px] font-bold text-slate-400 px-1.5 flex items-center gap-1">
+                    <span>📐 Tamaño:</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setRecipeSize('quarter')}
+                    className={`px-2.5 py-1 rounded-lg font-bold text-xs transition-all cursor-pointer ${
+                      recipeSize === 'quarter'
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                    title="Tamaño pequeño compacto (1/4 de hoja carta: caben 4 por hoja)"
+                  >
+                    1/4 Hoja (Caben 4)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRecipeSize('half')}
+                    className={`px-2.5 py-1 rounded-lg font-bold text-xs transition-all cursor-pointer ${
+                      recipeSize === 'half'
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                    title="Media carta horizontal (caben 2 por hoja)"
+                  >
+                    Media Carta (Caben 2)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRecipeSize('letter')}
+                    className={`px-2.5 py-1 rounded-lg font-bold text-xs transition-all cursor-pointer ${
+                      recipeSize === 'letter'
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                    title="Hoja carta completa"
+                  >
+                    Hoja Entera
+                  </button>
+                </div>
+              )}
+
+              {/* Botón de volver a editar prescripción */}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep(finalPreviewTab === 'indications' ? 3 : 2)}
+                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl transition-colors cursor-pointer flex items-center gap-1 text-xs"
+                >
+                  <Edit3 className="w-3.5 h-3.5 text-blue-400" />
+                  <span>Editar {finalPreviewTab === 'indications' ? 'Indicaciones' : 'Prescripción'}</span>
                 </button>
               </div>
             </div>
 
-            {/* Direct Instant Action Buttons */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-              
-              {/* 1. Descargar Récipe PDF */}
-              <button
-                type="button"
-                onClick={handleDownloadRecipePdfDirect}
-                disabled={isExporting}
-                className="p-3 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white rounded-2xl font-black text-xs flex flex-col items-center justify-center gap-1.5 shadow-lg shadow-blue-900/40 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-blue-400/40"
-              >
-                <Download className="w-5 h-5 text-cyan-200" />
-                <span>Descargar PDF Récipe</span>
-              </button>
-
-              {/* 2. Descargar Indicaciones PDF */}
-              <button
-                type="button"
-                onClick={handleDownloadIndicationsPdfDirect}
-                disabled={isExporting}
-                className="p-3 bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 hover:to-purple-800 text-white rounded-2xl font-black text-xs flex flex-col items-center justify-center gap-1.5 shadow-lg shadow-indigo-900/40 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-indigo-400/40"
-              >
-                <Download className="w-5 h-5 text-indigo-200" />
-                <span>Descargar PDF Indicaciones</span>
-              </button>
-
-              {/* 3. Imprimir Documento Actual */}
-              <button
-                type="button"
-                onClick={() => handlePrintSpecific(finalPreviewTab)}
-                className="p-3 bg-slate-800 hover:bg-slate-700 text-white rounded-2xl font-black text-xs flex flex-col items-center justify-center gap-1.5 shadow-md transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-slate-700"
-              >
-                <Printer className="w-5 h-5 text-cyan-300" />
-                <span>Imprimir ({finalPreviewTab === 'recipe' ? 'Récipe' : 'Indicaciones'})</span>
-              </button>
-
-              {/* 4. Finalizar Consulta / Nuevo Paciente */}
-              <button
-                type="button"
-                onClick={() => {
-                  if (onSavePatientOnly) onSavePatientOnly();
-                  if (onClearRecipeToBlank) onClearRecipeToBlank();
-                  setCurrentStep(1);
-                }}
-                className="p-3 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white rounded-2xl font-black text-xs flex flex-col items-center justify-center gap-1.5 shadow-lg shadow-emerald-950/40 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-emerald-400/40"
-                title="Guardar consulta en el historial y dejar los formatos en blanco para el próximo paciente"
-              >
-                <Check className="w-5 h-5 text-emerald-200" />
-                <span>Finalizar Consulta (Nuevo Paciente)</span>
-              </button>
-
-            </div>
-
-            {/* Extra Row: WhatsApp, Correo, Guardar Paciente y Edición */}
-            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800/80 text-xs">
-              <div className="flex items-center gap-2 flex-wrap">
+            {/* Action Buttons for Recipe View */}
+            {finalPreviewTab === 'recipe' && (
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                {/* Enviar por WhatsApp */}
                 <button
                   type="button"
-                  onClick={() => { 
-                    setWhatsAppDocType(finalPreviewTab === 'indications' ? 'indications' : 'recipe'); 
-                    setIsWhatsAppModalOpen(true); 
+                  onClick={() => {
+                    exportAndSendWhatsAppBusiness(
+                      printableRecipeRef.current,
+                      recipe.patientName || 'Carlos leal',
+                      'Récipe Médico',
+                      recipe.date || '14/10/26',
+                      recipe.patientPhone
+                    );
                   }}
-                  className="px-3.5 py-2 bg-emerald-600/90 hover:bg-emerald-500 text-white font-black rounded-xl flex items-center gap-1.5 transition-all cursor-pointer border border-emerald-400/30"
-                  title="Enviar documento PDF firmado y sellado por WhatsApp"
+                  className="p-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black text-xs flex flex-col items-center justify-center gap-1 shadow-md transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-emerald-400/40"
+                  title="Generar PDF, descargarlo localmente y abrir WhatsApp Business"
                 >
-                  <Share2 className="w-4 h-4" />
-                  <span>Enviar por WhatsApp</span>
+                  <span className="text-base">📱</span>
+                  <span>Enviar WhatsApp</span>
                 </button>
+
+                {/* Imprimir Récipe Individual */}
+                <button
+                  type="button"
+                  onClick={() => handlePrintSpecific('recipe', false)}
+                  className="p-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-black text-xs flex flex-col items-center justify-center gap-1 shadow-xs transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-slate-700"
+                  title="Imprimir récipe individual en su impresora física"
+                >
+                  <Printer className="w-4 h-4 text-cyan-300" />
+                  <span>Imprimir Récipe</span>
+                </button>
+
+                {/* 3. Imprimir 4 en 1 Hoja Carta (Para recortar) */}
+                <button
+                  type="button"
+                  onClick={() => handlePrintSpecific('recipe', true)}
+                  className="p-2.5 bg-gradient-to-r from-amber-600 to-orange-700 hover:from-amber-700 hover:to-orange-800 text-white rounded-xl font-black text-xs flex flex-col items-center justify-center gap-1 shadow-md transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-amber-400/40"
+                  title="Imprimir 4 copias en 1 sola hoja carta con líneas para recortar"
+                >
+                  <Scissors className="w-4 h-4 text-amber-200" />
+                  <span>📑 4 en 1 Hoja Carta</span>
+                </button>
+
+                {/* 4. Continuar a Indicaciones */}
+                <button
+                  type="button"
+                  onClick={() => setFinalPreviewTab('indications')}
+                  className="p-2.5 bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 hover:to-purple-800 text-white rounded-xl font-black text-xs flex flex-col items-center justify-center gap-1 shadow-md transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-indigo-400/40"
+                >
+                  <ArrowRight className="w-4 h-4 text-cyan-200" />
+                  <span>Ver Indicaciones ➔</span>
+                </button>
+
+                {/* 5. Finalizar Consulta / Nuevo Paciente */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (onSavePatientOnly) onSavePatientOnly();
+                    if (onClearRecipeToBlank) onClearRecipeToBlank();
+                    setCurrentStep(1);
+                  }}
+                  className="p-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white rounded-xl font-black text-xs flex flex-col items-center justify-center gap-1 shadow-md transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-emerald-400/40 col-span-2 sm:col-span-1"
+                  title="Guardar consulta y dejar récipe en blanco para el próximo paciente"
+                >
+                  <Check className="w-4 h-4 text-emerald-200" />
+                  <span>Nuevo Paciente</span>
+                </button>
+              </div>
+            )}
+
+            {/* Action Buttons for Indications View */}
+            {finalPreviewTab === 'indications' && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+
+                {/* 2. Imprimir Indicaciones */}
+                <button
+                  type="button"
+                  onClick={() => handlePrintSpecific('indications')}
+                  className="p-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-black text-xs flex flex-col items-center justify-center gap-1 shadow-xs transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-slate-700"
+                >
+                  <Printer className="w-4 h-4 text-cyan-300" />
+                  <span>Imprimir Indicaciones</span>
+                </button>
+
+                {/* 3. Volver al Récipe */}
+                <button
+                  type="button"
+                  onClick={() => setFinalPreviewTab('recipe')}
+                  className="p-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-black text-xs flex flex-col items-center justify-center gap-1 shadow-xs transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-slate-700"
+                >
+                  <ArrowLeft className="w-4 h-4 text-blue-300" />
+                  <span>⬅ Volver al Récipe</span>
+                </button>
+
+                {/* 4. Finalizar Consulta / Nuevo Paciente */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (onSavePatientOnly) onSavePatientOnly();
+                    if (onClearRecipeToBlank) onClearRecipeToBlank();
+                    setCurrentStep(1);
+                  }}
+                  className="p-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white rounded-xl font-black text-xs flex flex-col items-center justify-center gap-1 shadow-md transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-emerald-400/40"
+                  title="Guardar consulta y dejar récipe en blanco para el próximo paciente"
+                >
+                  <Check className="w-4 h-4 text-emerald-200" />
+                  <span>Nuevo Paciente</span>
+                </button>
+              </div>
+            )}
+
+            {/* Extra Row: Correo y Guardar Paciente */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800/80 text-xs">
+              <div className="flex items-center gap-2 flex-wrap">
 
                 <button
                   type="button"
                   onClick={() => setIsEmailModalOpen(true)}
-                  className="px-3.5 py-2 bg-indigo-600/90 hover:bg-indigo-500 text-white font-black rounded-xl flex items-center gap-1.5 transition-all cursor-pointer border border-indigo-400/30"
-                  title="Enviar documento PDF firmado y sellado por correo electrónico"
+                  className="px-3 py-1.5 bg-indigo-600/90 hover:bg-indigo-500 text-white font-black rounded-xl flex items-center gap-1.5 transition-all cursor-pointer border border-indigo-400/30"
+                  title="Enviar documento por correo electrónico"
                 >
-                  <Mail className="w-4 h-4" />
-                  <span>Enviar por Correo</span>
+                  <Mail className="w-3.5 h-3.5" />
+                  <span>Correo</span>
                 </button>
 
                 {onSavePatientOnly && (
                   <button
                     type="button"
                     onClick={onSavePatientOnly}
-                    className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer border border-slate-700"
+                    className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer border border-slate-700"
                   >
-                    <Save className="w-4 h-4 text-blue-400" />
+                    <Save className="w-3.5 h-3.5 text-blue-400" />
                     <span>Guardar Paciente</span>
                   </button>
                 )}
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setCurrentStep(2)}
-                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl transition-colors cursor-pointer flex items-center gap-1"
-                >
-                  <Edit3 className="w-3.5 h-3.5 text-blue-400" />
-                  <span>Editar Récipe</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCurrentStep(3)}
-                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl transition-colors cursor-pointer flex items-center gap-1"
-                >
-                  <Edit3 className="w-3.5 h-3.5 text-indigo-400" />
-                  <span>Editar Indicaciones</span>
-                </button>
               </div>
             </div>
 
           </div>
 
-
-
           {/* ========================================================= */}
           {/* VISTA 2: DOCUMENTO DE RÉCIPE INDIVIDUAL                   */}
           {/* ========================================================= */}
-          <div className={`w-full flex justify-center py-2 ${finalPreviewTab === 'recipe' ? 'block' : 'hidden'}`}>
+          <div className={`w-full flex flex-col items-center py-2 ${finalPreviewTab === 'recipe' ? 'block' : 'hidden'}`}>
+            
+            {/* Aviso informativo de formato */}
+            <div className="mb-2 text-center text-xs font-semibold text-slate-400 no-print">
+              {recipeSize === 'quarter' && (
+                <span>📐 Récipe en <strong>1/4 de Hoja Carta</strong> (Formato compacto: 4 caben en una hoja carta).</span>
+              )}
+              {recipeSize === 'half' && (
+                <span>📐 Récipe en <strong>Media Carta Horizontal</strong> (2 caben en una hoja carta).</span>
+              )}
+              {recipeSize === 'letter' && (
+                <span>📐 Récipe en <strong>Hoja Carta Completa</strong> (1 récipe por página entera).</span>
+              )}
+            </div>
+
+            {/* Tarjeta del Récipe */}
             <div
               ref={printableRecipeRef}
-              id="recipe-single-print-container"
-              className={`relative w-full max-w-[816px] bg-white shadow-2xl p-4 sm:p-7 md:p-8 rounded-2xl transition-all recipe-single-card print-container border border-slate-200/90 ${textureClass} ${
+              id={recipeSize === 'quarter' ? 'recipe-quarter-print-container' : 'recipe-single-print-container'}
+              data-recipe-size={recipeSize}
+              className={`relative w-full ${
+                recipeSize === 'quarter'
+                  ? 'max-w-[420px] p-3.5 sm:p-4 recipe-size-quarter'
+                  : recipeSize === 'half'
+                  ? 'max-w-[800px] p-4 sm:p-6'
+                  : 'max-w-[800px] p-6 sm:p-8'
+              } bg-white shadow-2xl rounded-2xl transition-all recipe-single-card print-container border border-slate-200/90 ${textureClass} ${
                 config.enforcePureBlackText ? 'enforce-pure-black' : ''
               }`}
               style={{
                 backgroundColor: config.tonePapel || '#ffffff',
                 border: borderStyle,
                 borderRadius: config.docCornerRadius || '16px',
-                minHeight: '760px',
+                minHeight: recipeSize === 'quarter' ? '520px' : recipeSize === 'half' ? '460px' : '860px',
                 boxSizing: 'border-box',
               }}
             >
@@ -1816,72 +1944,162 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
                 </div>
               )}
 
-              <div className="relative z-10 flex flex-col justify-between h-full min-h-[720px]">
+              <div className={`relative z-10 flex flex-col justify-between h-full ${recipeSize === 'quarter' ? 'min-h-[490px]' : recipeSize === 'half' ? 'min-h-[430px]' : 'min-h-[800px]'}`}>
                 <div>
                   <DocumentHeader
                     config={config}
-                    compact={false}
-                    editableInline={false}
+                    compact={recipeSize !== 'letter'}
+                    hideHeader={false}
+                    editableInline={true}
+                    onUpdateField={(field, val) => onUpdateConfig?.({ [field]: val })}
                   />
 
-                  <div className="my-2.5 pb-1 border-b border-slate-200 flex items-center justify-between">
-                    <span 
-                      className="text-base sm:text-lg font-black tracking-wide uppercase font-serif"
-                      style={{ color: config.primaryDocColor }}
-                    >
-                      RÉCIPE MÉDICO OFICIAL
-                    </span>
-                    <span className="text-xs font-mono font-bold text-slate-500">
-                      Fecha: {recipe.date || 'Hoy'}
-                    </span>
-                  </div>
-
-                  <div className="bg-slate-50 border border-slate-200/90 rounded-xl p-2.5 mb-3 text-xs">
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      <div className="sm:col-span-2">
-                        <span className="text-slate-400 font-bold block text-[10px] uppercase">Paciente:</span>
-                        <strong className="text-slate-900 text-xs sm:text-sm truncate block">{recipe.patientName || 'Paciente General'}</strong>
+                  {/* Barra Oficial de Paciente y Fecha */}
+                  <div className={`my-2 p-2 bg-slate-50/90 rounded-xl border border-slate-200/90 ${recipeSize === 'quarter' ? 'text-[10px]' : 'text-xs'}`}>
+                    {recipeSize === 'quarter' ? (
+                      /* Layout compacto 2 columnas para 1/4 de hoja carta */
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-slate-700 uppercase text-[9px] shrink-0">Paciente:</span>
+                          <input
+                            type="text"
+                            value={recipe.patientName || 'Carlos leal'}
+                            onChange={(e) => onChangeRecipe({ patientName: e.target.value })}
+                            placeholder="Carlos leal"
+                            className="w-full bg-transparent font-black text-slate-900 border-b border-dashed border-slate-300 focus:border-blue-600 outline-none text-xs"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          <div className="flex items-center gap-1">
+                            <span className="font-bold text-slate-700 uppercase text-[9px] shrink-0">C.I.:</span>
+                            <input
+                              type="text"
+                              value={recipe.patientCI || 'V-18.456.789'}
+                              onChange={(e) => onChangeRecipe({ patientCI: e.target.value })}
+                              placeholder="Cédula"
+                              className="w-full bg-transparent font-bold text-slate-900 border-b border-dashed border-slate-300 focus:border-blue-600 outline-none text-[10px]"
+                            />
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="font-bold text-slate-700 uppercase text-[9px] shrink-0">Edad:</span>
+                            <input
+                              type="text"
+                              value={recipe.patientAge || '35 años'}
+                              onChange={(e) => onChangeRecipe({ patientAge: e.target.value })}
+                              placeholder="Edad"
+                              className="w-full bg-transparent font-bold text-slate-900 border-b border-dashed border-slate-300 focus:border-blue-600 outline-none text-[10px]"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between gap-1 pt-1 border-t border-slate-200/60">
+                          <div className="flex items-center gap-1 flex-1 truncate">
+                            <span className="font-bold text-slate-700 uppercase text-[9px] shrink-0">Dx:</span>
+                            <input
+                              type="text"
+                              value={recipe.diagnosis || ''}
+                              onChange={(e) => onChangeRecipe({ diagnosis: e.target.value })}
+                              placeholder="Diagnóstico (opcional)"
+                              className="w-full bg-transparent font-semibold text-slate-800 border-b border-dashed border-slate-300 focus:border-blue-600 outline-none text-[10px] truncate"
+                            />
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <span className="font-bold text-slate-700 uppercase text-[9px]">Fecha:</span>
+                            <input
+                              type="text"
+                              value={recipe.date || '14/10/26'}
+                              onChange={(e) => onChangeRecipe({ date: e.target.value })}
+                              placeholder="14/10/26"
+                              className="w-20 bg-transparent font-black text-slate-900 border-b border-dashed border-slate-300 focus:border-blue-600 outline-none text-[10px] text-right"
+                            />
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <span className="text-slate-400 font-bold block text-[10px] uppercase">C.I.:</span>
-                        <span className="text-slate-900 font-bold">{recipe.patientCI || 'S/C'}</span>
-                      </div>
-                      <div>
-                        <span className="text-slate-400 font-bold block text-[10px] uppercase">Edad:</span>
-                        <span className="text-slate-900 font-bold">{recipe.patientAge || '--'}</span>
-                      </div>
-                    </div>
-                    {recipe.diagnosis && (
-                      <div className="mt-1.5 pt-1.5 border-t border-slate-200/60 flex items-center gap-1.5">
-                        <span className="text-slate-400 font-bold text-[10px] uppercase">Diagnóstico:</span>
-                        <span className="text-slate-800 font-semibold truncate">{recipe.diagnosis}</span>
+                    ) : (
+                      /* Layout extendido para Media Carta y Hoja Entera */
+                      <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
+                        <div className="sm:col-span-5 flex items-center gap-1.5">
+                          <span className="font-bold text-slate-700 uppercase text-[10px] shrink-0">Paciente:</span>
+                          <input
+                            type="text"
+                            value={recipe.patientName || 'Carlos leal'}
+                            onChange={(e) => onChangeRecipe({ patientName: e.target.value })}
+                            placeholder="Carlos leal"
+                            className="w-full bg-transparent font-black text-slate-900 border-b border-dashed border-slate-300 focus:border-blue-600 outline-none text-xs sm:text-sm"
+                          />
+                        </div>
+                        <div className="sm:col-span-3 flex items-center gap-1.5">
+                          <span className="font-bold text-slate-700 uppercase text-[10px] shrink-0">C.I.:</span>
+                          <input
+                            type="text"
+                            value={recipe.patientCI || 'V-18.456.789'}
+                            onChange={(e) => onChangeRecipe({ patientCI: e.target.value })}
+                            placeholder="Cédula"
+                            className="w-full bg-transparent font-bold text-slate-900 border-b border-dashed border-slate-300 focus:border-blue-600 outline-none text-xs"
+                          />
+                        </div>
+                        <div className="sm:col-span-2 flex items-center gap-1.5">
+                          <span className="font-bold text-slate-700 uppercase text-[10px] shrink-0">Edad:</span>
+                          <input
+                            type="text"
+                            value={recipe.patientAge || '35 años'}
+                            onChange={(e) => onChangeRecipe({ patientAge: e.target.value })}
+                            placeholder="Edad"
+                            className="w-full bg-transparent font-bold text-slate-900 border-b border-dashed border-slate-300 focus:border-blue-600 outline-none text-xs"
+                          />
+                        </div>
+                        <div className="sm:col-span-2 flex items-center gap-1.5">
+                          <span className="font-bold text-slate-700 uppercase text-[10px] shrink-0">Fecha:</span>
+                          <input
+                            type="text"
+                            value={recipe.date || '14/10/26'}
+                            onChange={(e) => onChangeRecipe({ date: e.target.value })}
+                            placeholder="14/10/26"
+                            className="w-full bg-transparent font-black text-slate-900 border-b border-dashed border-slate-300 focus:border-blue-600 outline-none text-xs text-right"
+                          />
+                        </div>
+                        {recipe.diagnosis && (
+                          <div className="sm:col-span-12 pt-1.5 mt-1 border-t border-slate-200/60 flex items-center gap-1.5">
+                            <span className="text-slate-500 font-bold text-[10px] uppercase shrink-0">Diagnóstico:</span>
+                            <input
+                              type="text"
+                              value={recipe.diagnosis || ''}
+                              onChange={(e) => onChangeRecipe({ diagnosis: e.target.value })}
+                              placeholder="Diagnóstico clínico (opcional)"
+                              className="w-full bg-transparent font-semibold text-slate-800 border-b border-dashed border-slate-300 focus:border-blue-600 outline-none text-xs truncate"
+                            />
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2 mb-2">
+                  <div className="flex items-center gap-2 mb-1.5">
                     <span 
-                      className="text-2xl font-serif font-black"
+                      className={`${recipeSize === 'quarter' ? 'text-lg' : 'text-2xl'} font-serif font-black`}
                       style={{ color: config.rxTitleColor || config.primaryDocColor }}
                     >
                       {config.rxTitle || 'Rp.'}
                     </span>
-                    <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">
+                    <span className="text-[10px] sm:text-xs text-slate-400 font-bold uppercase tracking-wider">
                       Prescripción Facultativa
                     </span>
                   </div>
 
-                  <div 
-                    className="p-3 bg-white/60 rounded-xl border border-slate-100 min-h-[260px] text-xs sm:text-sm font-semibold text-slate-900 whitespace-pre-wrap leading-relaxed"
+                  <textarea
+                    value={recipe.rp || ''}
+                    onChange={(e) => onChangeRecipe({ rp: e.target.value })}
+                    placeholder="Escriba la prescripción médica facultativa..."
+                    rows={recipeSize === 'quarter' ? 4 : 5}
+                    className={`w-full p-2.5 sm:p-3 bg-white/70 rounded-xl border border-slate-200 ${
+                      recipeSize === 'quarter' ? 'min-h-[110px] text-xs' : 'min-h-[140px] text-xs sm:text-sm'
+                    } font-semibold text-slate-900 outline-none focus:border-blue-500 leading-relaxed resize-none shadow-inner`}
                     style={{
                       fontFamily: config.rxBodyFontFamily || "'Roboto', sans-serif",
                     }}
-                  >
-                    {recipe.rp || 'Sin prescripción indicada aún.'}
-                  </div>
+                  />
                 </div>
 
-                <div className="pt-4 mt-4 border-t border-slate-200">
+                <div className="pt-2 mt-2 border-t border-slate-200">
                   <DocumentFooter
                     config={config}
                     compact={true}
@@ -1889,6 +2107,71 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
                 </div>
               </div>
             </div>
+
+            {/* HOJA CARTA COMPLETA CON 4 COPIAS EN CUADRANTES (PARA IMPRIMIR Y RECORTAR EN 4) */}
+            <div
+              ref={printableFourInSheetRef}
+              id="recipe-4copies-print-sheet"
+              className={`w-full flex justify-center print-container ${printFourInSheet ? 'block' : 'hidden print:hidden'} mt-4`}
+            >
+              <div
+                className={`relative w-[816px] max-w-[816px] min-h-[1056px] bg-white p-3.5 transition-all recipe-4en1-container ${textureClass}`}
+                style={{
+                  backgroundColor: config.tonePapel || '#ffffff',
+                  border: borderStyle,
+                  borderRadius: config.docCornerRadius || '16px',
+                  width: '816px',
+                  boxSizing: 'border-box',
+                }}
+              >
+                <div className="grid grid-cols-2 grid-rows-2 gap-2 relative z-10 min-h-[1020px] recipe-4en1-grid">
+                  {[0, 1, 2, 3].map((quadrantIdx) => (
+                    <div
+                      key={quadrantIdx}
+                      className="relative border border-slate-200/90 rounded-xl p-2.5 bg-white flex flex-col justify-between min-h-[490px] overflow-hidden recipe-quadrant-card"
+                    >
+                      <div className="relative z-10">
+                        <DocumentHeader config={config} compact={true} editableInline={false} />
+                        <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 py-0.5 px-1.5 bg-slate-50/90 border border-slate-200/80 rounded-md text-[9px] my-1 leading-tight">
+                          <div className="truncate">
+                            <span className="font-bold text-slate-700">Pac: </span>
+                            <span className="font-semibold text-slate-900">{recipe.patientName || 'Carlos leal'}</span>
+                          </div>
+                          <div className="text-right truncate">
+                            <span className="font-bold text-slate-700">C.I: </span>
+                            <span className="font-semibold text-slate-900">{recipe.patientCI || 'S/C'}</span>
+                          </div>
+                          <div className="truncate col-span-1">
+                            <span className="font-bold text-slate-700">Dx: </span>
+                            <span className="text-slate-800 font-medium">{recipe.diagnosis || '—'}</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="font-bold text-slate-700">Fecha: </span>
+                            <span className="text-slate-800">{recipe.date || '14/10/26'}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex-1 my-1 relative z-10">
+                        <span className="font-bold text-xs block text-blue-700 font-serif">℞ Rp.</span>
+                        <p className="text-[11.5px] text-slate-900 whitespace-pre-wrap leading-relaxed mt-1 font-sans font-medium">
+                          {recipe.rp || <span className="italic text-slate-400">Sin medicamentos asignados.</span>}
+                        </p>
+                      </div>
+
+                      <div className="mt-1 pt-1 border-t border-slate-200/80 relative z-10">
+                        <DocumentFooter
+                          config={config}
+                          compact={true}
+                          editableInline={false}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
           </div>
 
           {/* ========================================================= */}
@@ -1941,7 +2224,7 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
                       INDICACIONES MÉDICAS Y TRATAMIENTO
                     </span>
                     <span className="text-xs font-mono font-bold text-slate-500">
-                      Fecha: {localIndications.date || 'Hoy'}
+                      Fecha: {localIndications.date || recipe.date || new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                     </span>
                   </div>
 
@@ -1949,7 +2232,7 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                       <div className="sm:col-span-2">
                         <span className="text-indigo-950 font-bold block text-[10px] uppercase">Paciente:</span>
-                        <strong className="text-slate-900 text-xs sm:text-sm truncate block">{localIndications.patientName || 'Paciente General'}</strong>
+                        <strong className="text-slate-900 text-xs sm:text-sm truncate block">{localIndications.patientName || recipe.patientName || 'Nombre del Paciente'}</strong>
                       </div>
                       <div>
                         <span className="text-indigo-950 font-bold block text-[10px] uppercase">C.I.:</span>
@@ -2022,29 +2305,7 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
         </div>
       )}
 
-      {/* WhatsApp Share Modal */}
-      <WhatsAppShareModal
-        isOpen={isWhatsAppModalOpen}
-        onClose={() => setIsWhatsAppModalOpen(false)}
-        config={config}
-        documentType={whatsAppDocType}
-        patientName={recipe.patientName || 'Paciente'}
-        patientPhone={recipe.patientPhone || ''}
-        documentTitle={whatsAppDocType === 'recipe' ? 'Récipe Médico' : 'Hoja de Indicaciones'}
-        contentBody={whatsAppDocType === 'recipe' ? (recipe.rp || '') : (localIndications.generalInstructions || '')}
-        onUpdatePatientPhone={(newPhone) => onChangeRecipe({ patientPhone: newPhone })}
-        onOpenEmailModal={() => {
-          setIsWhatsAppModalOpen(false);
-          setIsEmailModalOpen(true);
-        }}
-        onTriggerPrintPdf={() => {
-          if (finalPreviewTab === 'indications') {
-            handleDownloadIndicationsPdfDirect();
-          } else {
-            handleDownloadRecipePdfDirect();
-          }
-        }}
-      />
+
 
       {/* Email Share Modal */}
       <EmailShareModal

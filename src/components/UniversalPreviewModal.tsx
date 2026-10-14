@@ -27,7 +27,7 @@ import {
 import { DocumentHeader } from './DocumentHeader';
 import { DocumentFooter } from './DocumentFooter';
 import { getDocumentBorderStyle, getPaperTextureClass } from '../utils/documentStyles';
-import { sharePDFViaWebShare, exportElementAsPDF, buildDocumentPdfFilename } from '../utils/exportDocument';
+import { sharePDFViaWebShare, exportElementAsPDF, buildDocumentPdfFilename, exportAndSendWhatsAppBusiness } from '../utils/exportDocument';
 
 interface UniversalPreviewModalProps {
   isOpen: boolean;
@@ -62,6 +62,7 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
 }) => {
   const previewSheetRef = useRef<HTMLDivElement>(null);
   const [selectedPreviewModule, setSelectedPreviewModule] = useState<ActiveModule>(activeModule);
+  const [recipePreviewSize, setRecipePreviewSize] = useState<'quarter' | 'half' | 'letter'>('quarter');
   const [zoom, setZoom] = useState<number>(100);
   const [isSharing, setIsSharing] = useState<boolean>(false);
   const [shareSuccessNotice, setShareSuccessNotice] = useState<string>('');
@@ -154,7 +155,7 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
       setIsSharing(true);
       const info = getDocumentPatientAndDate();
       const targetSheet = previewSheetRef.current.querySelector<HTMLElement>(
-        '.print-container, .recipe-4en1-container, .report-sheet-container, .indications-container, .rest-container, .clinical-history-container'
+        '#recipe-quarter-print-container, .recipe-size-quarter, #recipe-4en1-print-sheet, #dual-recipe-print-container, #recipe-single-print-container, #indications-print-container, #report-print-container, #rest-print-container, #history-print-container, .dual-recipe-container, .dual-recipe-sheet, .print-container, .recipe-4en1-container, .report-sheet-container, .recipe-single-container, .recipe-single-card, .indications-container, .rest-container, .clinical-history-container'
       ) || previewSheetRef.current;
 
       const res = await sharePDFViaWebShare(
@@ -225,10 +226,14 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
     switch (selectedPreviewModule) {
       case 'recipe-master':
         return {
-          name: 'Récipe Médico Normal',
-          sizeName: 'Formato Normal de Récipe (Hoja Completa / Media Carta)',
-          widthClass: 'w-[780px] min-h-[960px]',
-          sheetBadge: 'Récipe Normal Oficial',
+          name: 'Récipe Médico Oficial',
+          sizeName: recipePreviewSize === 'quarter'
+            ? '1/4 de Hoja Carta (Pequeño - 4 caben en una hoja)'
+            : recipePreviewSize === 'half'
+            ? 'Media Carta Horizontal (2 caben en una hoja)'
+            : 'Hoja Carta Completa',
+          widthClass: recipePreviewSize === 'quarter' ? 'w-[420px] max-w-[420px]' : 'w-[780px]',
+          sheetBadge: recipePreviewSize === 'quarter' ? '1/4 Hoja (4 por Hoja)' : 'Récipe Normal',
         };
       case 'recipe-4en1':
       case 'diseno':
@@ -358,23 +363,88 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
             </button>
           </div>
 
-          <button
-            onClick={handleDownloadDirectPDF}
-            className="px-3.5 py-2 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-md transition-all hover:scale-[1.02] cursor-pointer"
-            title="Descargar archivo PDF con el nombre del paciente y fecha"
-          >
-            <Download className="w-4 h-4 text-emerald-200" />
-            <span>Descargar PDF</span>
-          </button>
+          {selectedPreviewModule === 'recipe-master' && (
+            <div className="flex items-center bg-slate-800 rounded-xl p-1 border border-slate-700 text-xs gap-1">
+              <span className="text-[11px] font-bold text-slate-400 px-1">📐 Formato:</span>
+              <button
+                type="button"
+                onClick={() => setRecipePreviewSize('quarter')}
+                className={`px-2 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  recipePreviewSize === 'quarter'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                title="1/4 de hoja carta (pequeño - 4 caben en una hoja)"
+              >
+                1/4 Hoja (4)
+              </button>
+              <button
+                type="button"
+                onClick={() => setRecipePreviewSize('half')}
+                className={`px-2 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  recipePreviewSize === 'half'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                title="Media carta horizontal (2 caben en una hoja)"
+              >
+                Media Carta (2)
+              </button>
+              <button
+                type="button"
+                onClick={() => setRecipePreviewSize('letter')}
+                className={`px-2 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  recipePreviewSize === 'letter'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                title="Hoja carta completa"
+              >
+                Carta Entera
+              </button>
+            </div>
+          )}
 
+
+
+          {/* Botón WhatsApp Business */}
           <button
-            onClick={handleShareNative}
-            disabled={isSharing}
-            className="px-3.5 py-2 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-md transition-all hover:scale-[1.02] cursor-pointer"
-            title="Compartir el PDF directamente a WhatsApp o aplicaciones del teléfono"
+            onClick={() => {
+              let patientName = recipe?.patientName || 'Carlos leal';
+              let docTitle = 'Récipe Médico';
+              let dateStr = recipe?.date || '14/10/26';
+              let phoneStr = recipe?.patientPhone || '';
+
+              if (selectedPreviewModule === 'informe' || selectedPreviewModule === 'informes') {
+                patientName = currentReport?.patientName || patientName;
+                docTitle = 'Informe Médico';
+                dateStr = currentReport?.date || dateStr;
+                phoneStr = currentReport?.patientPhone || phoneStr;
+              } else if (selectedPreviewModule === 'reposo') {
+                patientName = medicalRestCert?.patientName || patientName;
+                docTitle = 'Constancia de Reposo';
+                dateStr = medicalRestCert?.date || dateStr;
+                phoneStr = medicalRestCert?.patientPhone || phoneStr;
+              } else if (selectedPreviewModule === 'indicaciones') {
+                patientName = indicationsSheet?.patientName || patientName;
+                docTitle = 'Indicaciones Médicas';
+                dateStr = indicationsSheet?.date || dateStr;
+                phoneStr = indicationsSheet?.patientPhone || phoneStr;
+              }
+
+              exportAndSendWhatsAppBusiness(
+                previewSheetRef.current,
+                patientName,
+                docTitle,
+                dateStr,
+                phoneStr
+              );
+            }}
+            className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-md transition-all hover:scale-[1.02] cursor-pointer border border-emerald-500"
+            title="Generar PDF, descargarlo localmente y abrir WhatsApp Business"
           >
-            <Share2 className="w-4 h-4 text-emerald-200" />
-            <span>{isSharing ? 'Generando...' : '📱 Enviar a WhatsApp'}</span>
+            <span className="text-sm">📱</span>
+            <span>Enviar por WhatsApp</span>
           </button>
 
           <button
@@ -434,13 +504,19 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
 
             return (
               <div
-                className={`relative ${specs.widthClass} bg-white shadow-2xl p-6 sm:p-8 rounded-2xl transition-all print-container recipe-single-card flex flex-col justify-between ${textureClass} ${
+                data-recipe-size={recipePreviewSize}
+                className={`relative ${
+                  recipePreviewSize === 'quarter' 
+                    ? 'w-[420px] max-w-[420px] p-3.5 sm:p-4 recipe-size-quarter' 
+                    : `${specs.widthClass} p-6 sm:p-8`
+                } bg-white shadow-2xl rounded-2xl transition-all print-container recipe-single-card flex flex-col justify-between ${textureClass} ${
                   config.enforcePureBlackText ? 'enforce-pure-black' : ''
                 }`}
                 style={{
                   backgroundColor: config.tonePapel || '#ffffff',
                   border: borderStyle,
                   borderRadius: config.docCornerRadius || '16px',
+                  minHeight: recipePreviewSize === 'quarter' ? '520px' : '860px',
                   boxSizing: 'border-box',
                 }}
               >
@@ -460,58 +536,85 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
                   </div>
                 )}
 
-                <div className="relative z-10 flex flex-col justify-between h-full flex-1">
+                <div className={`relative z-10 flex flex-col justify-between h-full flex-1 ${recipePreviewSize === 'quarter' ? 'min-h-[490px]' : ''}`}>
                   <div>
-                    <DocumentHeader config={config} compact={false} editableInline={false} />
+                    <DocumentHeader config={config} compact={recipePreviewSize === 'quarter'} editableInline={false} />
 
                     {/* Title */}
-                    <div className="my-2.5 pb-1 border-b border-slate-200 flex items-center justify-between">
+                    <div className="my-2 pb-1 border-b border-slate-200 flex items-center justify-between">
                       <span 
-                        className="text-base sm:text-lg font-black tracking-wide uppercase font-serif"
+                        className={`${recipePreviewSize === 'quarter' ? 'text-xs sm:text-sm' : 'text-base sm:text-lg'} font-black tracking-wide uppercase font-serif`}
                         style={{ color: config.primaryDocColor }}
                       >
                         RÉCIPE MÉDICO OFICIAL
                       </span>
-                      <span className="text-xs font-semibold text-slate-500">
+                      <span className="text-[10px] sm:text-xs font-semibold text-slate-500">
                         Fecha: <strong className="text-slate-800">{currentRec.date || '—'}</strong>
                       </span>
                     </div>
 
                     {/* Patient Bar */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-2.5 bg-slate-50/90 border border-slate-200/90 rounded-xl mb-3 text-xs shadow-2xs">
-                      <div className="col-span-2">
-                        <span className="font-bold text-slate-700">Paciente: </span>
-                        <strong className="text-slate-900">{currentRec.patientName || '—'}</strong>
-                      </div>
-                      <div>
-                        <span className="font-bold text-slate-700">C.I.: </span>
-                        <span className="text-slate-900 font-semibold">{currentRec.patientCI || '—'}</span>
-                      </div>
-                      <div>
-                        <span className="font-bold text-slate-700">Edad: </span>
-                        <span className="text-slate-900 font-semibold">{currentRec.patientAge || '—'}</span>
-                      </div>
-                      {currentRec.diagnosis && (
-                        <div className="col-span-2 sm:col-span-4 pt-1 border-t border-slate-200/60">
-                          <span className="font-bold text-slate-700">Diagnóstico (CIE): </span>
-                          <span className="text-slate-900 font-medium">{currentRec.diagnosis}</span>
+                    {recipePreviewSize === 'quarter' ? (
+                      <div className="p-2 bg-slate-50/90 border border-slate-200/90 rounded-xl mb-2 text-[10px] shadow-2xs space-y-1">
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="font-bold text-slate-700">Pac: </span>
+                          <strong className="text-slate-900 truncate">{currentRec.patientName || 'Carlos leal'}</strong>
                         </div>
-                      )}
-                    </div>
+                        <div className="grid grid-cols-2 gap-1 text-[9.5px]">
+                          <div>
+                            <span className="font-bold text-slate-700">C.I: </span>
+                            <span className="text-slate-900 font-semibold">{currentRec.patientCI || '—'}</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="font-bold text-slate-700">Edad: </span>
+                            <span className="text-slate-900 font-semibold">{currentRec.patientAge || '—'}</span>
+                          </div>
+                        </div>
+                        {currentRec.diagnosis && (
+                          <div className="pt-0.5 border-t border-slate-200/60 truncate">
+                            <span className="font-bold text-slate-700">Dx: </span>
+                            <span className="text-slate-900">{currentRec.diagnosis}</span>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-2.5 bg-slate-50/90 border border-slate-200/90 rounded-xl mb-3 text-xs shadow-2xs">
+                        <div className="col-span-2">
+                          <span className="font-bold text-slate-700">Paciente: </span>
+                          <strong className="text-slate-900">{currentRec.patientName || '—'}</strong>
+                        </div>
+                        <div>
+                          <span className="font-bold text-slate-700">C.I.: </span>
+                          <span className="text-slate-900 font-semibold">{currentRec.patientCI || '—'}</span>
+                        </div>
+                        <div>
+                          <span className="font-bold text-slate-700">Edad: </span>
+                          <span className="text-slate-900 font-semibold">{currentRec.patientAge || '—'}</span>
+                        </div>
+                        {currentRec.diagnosis && (
+                          <div className="col-span-2 sm:col-span-4 pt-1 border-t border-slate-200/60">
+                            <span className="font-bold text-slate-700">Diagnóstico (CIE): </span>
+                            <span className="text-slate-900 font-medium">{currentRec.diagnosis}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* Rp Section */}
-                    <div className="my-3 flex flex-col">
+                    <div className="my-2 flex flex-col">
                       <span 
-                        className="text-2xl sm:text-3xl font-black italic tracking-wide mb-2"
+                        className={`${recipePreviewSize === 'quarter' ? 'text-xl' : 'text-2xl sm:text-3xl'} font-black italic tracking-wide mb-1`}
                         style={{ color: config.primaryDocColor, fontFamily: "'Playfair Display', serif" }}
                       >
                         Rp.
                       </span>
                       <div 
-                        className="p-4 rounded-xl bg-slate-50/40 border border-slate-200 text-slate-900 whitespace-pre-wrap leading-relaxed min-h-[300px]"
+                        className={`p-3 rounded-xl bg-slate-50/40 border border-slate-200 text-slate-900 whitespace-pre-wrap leading-relaxed ${
+                          recipePreviewSize === 'quarter' ? 'min-h-[140px] text-xs' : 'min-h-[300px] text-sm'
+                        }`}
                         style={{
                           fontFamily: config.rxBodyFontFamily || "'Roboto', sans-serif",
-                          fontSize: config.bodyFontSize || '14px',
+                          fontSize: recipePreviewSize === 'quarter' ? '12px' : (config.bodyFontSize || '14px'),
                         }}
                       >
                         {currentRec.rp || <span className="text-slate-400 italic">Sin prescripción médica registrada.</span>}
@@ -520,10 +623,10 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
                   </div>
 
                   {/* Document Footer */}
-                  <div className="mt-4 pt-2 border-t border-slate-200">
+                  <div className="mt-2 pt-2 border-t border-slate-200">
                     <DocumentFooter
                       config={config}
-                      compact={false}
+                      compact={recipePreviewSize === 'quarter'}
                       notesText={currentRec.indicationsNotes || config.footerNotesText}
                       editableInline={false}
                     />
@@ -603,19 +706,19 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
                         <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 py-0.5 px-1.5 bg-slate-50/90 border border-slate-200/80 rounded-md text-[9px] my-1 leading-tight">
                           <div className="truncate">
                             <span className="font-bold text-slate-700">Pac: </span>
-                            <span className="font-semibold text-slate-900">{rec?.patientName || '—'}</span>
+                            <span className="font-semibold text-slate-900">{rec?.patientName || recipe?.patientName || 'Paciente'}</span>
                           </div>
                           <div className="text-right truncate">
                             <span className="font-bold text-slate-700">C.I: </span>
-                            <span className="font-semibold text-slate-900">{rec?.patientCI || '—'}</span>
+                            <span className="font-semibold text-slate-900">{rec?.patientCI || recipe?.patientCI || 'S/C'}</span>
                           </div>
                           <div className="truncate col-span-1">
                             <span className="font-bold text-slate-700">Dx: </span>
-                            <span className="text-slate-800 font-medium">{rec?.diagnosis || '—'}</span>
+                            <span className="text-slate-800 font-medium">{rec?.diagnosis || recipe?.diagnosis || '—'}</span>
                           </div>
                           <div className="text-right">
                             <span className="font-bold text-slate-700">Fecha: </span>
-                            <span className="text-slate-800">{rec?.date || '—'}</span>
+                            <span className="text-slate-800">{rec?.date || recipe?.date || new Intl.DateTimeFormat('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date())}</span>
                           </div>
                         </div>
                       </div>

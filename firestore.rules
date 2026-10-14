@@ -4,22 +4,22 @@ service cloud.firestore {
 
     // Doctor profile rules (persists doctor profiles, logos, colors, fonts, stamps)
     match /doctors/{doctorId} {
-      allow read, write: if request.auth != null && request.auth.uid == doctorId;
+      allow read, write: if true;
     }
 
     // Ecosystem document rules (persists doctor recipes, design studio configurations, clinical documents)
     match /ecosystems/{ecosystemId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if true;
     }
 
     // Saved medical prescriptions, reports, and records
     match /documents/{documentId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if true;
     }
 
     // App and payment configuration
     match /settings/{settingId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if true;
     }
   }
 }

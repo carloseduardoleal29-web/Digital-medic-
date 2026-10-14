@@ -2,9 +2,9 @@ import React, { useState, useRef, useEffect } from 'react';
 import { DoctorConfig, MedicalReport, SavedPatientEntry } from '../types';
 import { DocumentHeader } from './DocumentHeader';
 import { DocumentFooter } from './DocumentFooter';
-import { WhatsAppShareModal } from './WhatsAppShareModal';
 import { EmailShareModal } from './EmailShareModal';
 import { getDocumentBorderStyle, getPaperTextureClass } from '../utils/documentStyles';
+import { exportAndSendWhatsAppBusiness } from '../utils/exportDocument';
 import { 
   FileText, 
   Printer, 
@@ -97,7 +97,6 @@ export const ReportsModule: React.FC<ReportsModuleProps> = ({
 }) => {
   const printableReportRef = useRef<HTMLDivElement>(null);
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
-  const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
 
@@ -773,39 +772,27 @@ export const ReportsModule: React.FC<ReportsModuleProps> = ({
             </div>
 
             {/* Direct Instant Action Buttons */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               
-              {/* 1. Descargar PDF */}
+              {/* Botón WhatsApp Business */}
               <button
                 type="button"
-                onClick={handleDownloadReportPdf}
-                className="p-3 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black text-xs flex flex-col items-center justify-center gap-1.5 shadow-lg shadow-blue-900/40 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-blue-400/40"
-              >
-                <Download className="w-5 h-5 text-cyan-200" />
-                <span>Descargar PDF</span>
-              </button>
-
-              {/* 2. Enviar por WhatsApp */}
-              <button
-                type="button"
-                onClick={() => setIsWhatsAppModalOpen(true)}
+                onClick={() => {
+                  exportAndSendWhatsAppBusiness(
+                    printableReportRef.current,
+                    safeReport.patientName || 'Carlos leal',
+                    'Informe Médico',
+                    safeReport.date || '14/10/26',
+                    safeReport.patientPhone
+                  );
+                }}
                 className="p-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl font-black text-xs flex flex-col items-center justify-center gap-1.5 shadow-lg shadow-emerald-900/40 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-emerald-400/40"
               >
-                <Share2 className="w-5 h-5 text-emerald-200" />
+                <span className="text-xl">📱</span>
                 <span>Enviar por WhatsApp</span>
               </button>
 
-              {/* 3. Enviar por Correo */}
-              <button
-                type="button"
-                onClick={() => setIsEmailModalOpen(true)}
-                className="p-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black text-xs flex flex-col items-center justify-center gap-1.5 shadow-lg shadow-indigo-900/40 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-indigo-400/40"
-              >
-                <Mail className="w-5 h-5 text-indigo-200" />
-                <span>Enviar por Correo</span>
-              </button>
-
-              {/* 4. Imprimir Directamente */}
+              {/* Imprimir Directamente */}
               <button
                 type="button"
                 onClick={handlePrintSpecificReport}
@@ -813,6 +800,16 @@ export const ReportsModule: React.FC<ReportsModuleProps> = ({
               >
                 <Printer className="w-5 h-5 text-cyan-300" />
                 <span>Imprimir Documento</span>
+              </button>
+
+              {/* Enviar por Correo */}
+              <button
+                type="button"
+                onClick={() => setIsEmailModalOpen(true)}
+                className="p-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black text-xs flex flex-col items-center justify-center gap-1.5 shadow-lg shadow-indigo-900/40 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-indigo-400/40"
+              >
+                <Mail className="w-5 h-5 text-indigo-200" />
+                <span>Enviar por Correo</span>
               </button>
 
             </div>
@@ -908,24 +905,24 @@ export const ReportsModule: React.FC<ReportsModuleProps> = ({
                   <div className="bg-slate-50 border border-slate-200/90 rounded-xl p-3 mb-4 text-xs">
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                       <div className="sm:col-span-2">
-                        <span className="text-slate-400 font-bold block text-[10px] uppercase">Paciente:</span>
-                        <strong className="text-slate-900 text-xs sm:text-sm truncate block">{safeReport.patientName || 'Paciente General'}</strong>
+                        <span className="text-slate-500 font-bold block text-[10px] uppercase">Paciente:</span>
+                        <strong className="text-slate-900 text-xs sm:text-sm truncate block">{safeReport.patientName || 'Paciente'}</strong>
                       </div>
                       <div>
-                        <span className="text-slate-400 font-bold block text-[10px] uppercase">C.I. / Doc:</span>
+                        <span className="text-slate-500 font-bold block text-[10px] uppercase">C.I. / Doc:</span>
                         <span className="text-slate-900 font-bold">{safeReport.patientCI || 'S/C'}</span>
                       </div>
                       <div>
-                        <span className="text-slate-400 font-bold block text-[10px] uppercase">Edad:</span>
-                        <span className="text-slate-900 font-bold">{safeReport.patientAge || '--'}</span>
+                        <span className="text-slate-500 font-bold block text-[10px] uppercase">Edad:</span>
+                        <span className="text-slate-900 font-bold">{safeReport.patientAge || '—'}</span>
                       </div>
                       <div>
-                        <span className="text-slate-400 font-bold block text-[10px] uppercase">Teléfono:</span>
-                        <span className="text-slate-900 font-bold">{safeReport.patientPhone || '--'}</span>
+                        <span className="text-slate-500 font-bold block text-[10px] uppercase">Teléfono:</span>
+                        <span className="text-slate-900 font-bold">{safeReport.patientPhone || '—'}</span>
                       </div>
                       <div>
-                        <span className="text-slate-400 font-bold block text-[10px] uppercase">Fecha Emisión:</span>
-                        <span className="text-slate-900 font-bold">{safeReport.date || '--'}</span>
+                        <span className="text-slate-500 font-bold block text-[10px] uppercase">Fecha Emisión:</span>
+                        <span className="text-slate-900 font-bold">{safeReport.date || new Intl.DateTimeFormat('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date())}</span>
                       </div>
                     </div>
                   </div>
@@ -1033,20 +1030,6 @@ export const ReportsModule: React.FC<ReportsModuleProps> = ({
               </div>
             </div>
           </div>
-
-      {/* WhatsApp Share Modal */}
-      <WhatsAppShareModal
-        isOpen={isWhatsAppModalOpen}
-        onClose={() => setIsWhatsAppModalOpen(false)}
-        config={safeConfig}
-        documentType="report"
-        patientName={safeReport.patientName || 'Paciente'}
-        patientPhone={safeReport.patientPhone || ''}
-        documentTitle="Informe Médico"
-        contentBody={reportBodyForWhatsApp}
-        onTriggerPrintPdf={handleDownloadReportPdf}
-        onOpenEmailModal={() => setIsEmailModalOpen(true)}
-      />
 
       {/* Email Share Modal */}
       <EmailShareModal

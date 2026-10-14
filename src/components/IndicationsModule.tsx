@@ -2,9 +2,9 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { DoctorConfig, IndicationsSheet, RecipeItem, SavedPatientEntry } from '../types';
 import { DocumentHeader } from './DocumentHeader';
 import { DocumentFooter } from './DocumentFooter';
-import { WhatsAppShareModal } from './WhatsAppShareModal';
 import { EmailShareModal } from './EmailShareModal';
 import { getDocumentBorderStyle, getPaperTextureClass } from '../utils/documentStyles';
+import { exportAndSendWhatsAppBusiness } from '../utils/exportDocument';
 import { DEFAULT_DRUGS, SPECIALTY_LABELS, DrugItem, getAllDrugs, searchDrugs } from '../data/drugDatabase';
 import { 
   ClipboardList, 
@@ -51,6 +51,7 @@ interface IndicationsModuleProps {
   onOpenPreview?: () => void;
   onUpdateConfig?: (updated: Partial<DoctorConfig>) => void;
   onBackToHome?: () => void;
+  onSwitchToRecipe?: () => void;
   recipes?: RecipeItem[];
   activeRecipeIndex?: number;
 }
@@ -67,12 +68,12 @@ export const IndicationsModule: React.FC<IndicationsModuleProps> = ({
   onOpenPreview,
   onUpdateConfig,
   onBackToHome,
+  onSwitchToRecipe,
   recipes = [],
   activeRecipeIndex = 0,
 }) => {
   const printableSheetRef = useRef<HTMLDivElement>(null);
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
-  const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
 
@@ -286,11 +287,18 @@ export const IndicationsModule: React.FC<IndicationsModuleProps> = ({
   const pdfFilename = buildDocumentPdfFilename('Indicaciones_Medicas', safeIndications.patientName, todayDateStr);
 
   const handleDownloadIndicationsPdf = async () => {
+    if (currentStep !== 4) {
+      setCurrentStep(4);
+      await new Promise(r => setTimeout(r, 200));
+    }
     await exportElementAsPDF(printableSheetRef.current, pdfFilename);
   };
 
   const handlePrintSpecificIndications = () => {
-    window.print();
+    setCurrentStep(4);
+    setTimeout(() => {
+      window.print();
+    }, 150);
   };
 
   return (
@@ -303,7 +311,7 @@ export const IndicationsModule: React.FC<IndicationsModuleProps> = ({
         
         {/* Header Bar */}
         <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-100">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {onBackToHome && (
               <button
                 type="button"
@@ -314,10 +322,20 @@ export const IndicationsModule: React.FC<IndicationsModuleProps> = ({
                 <span>Inicio</span>
               </button>
             )}
+            {onSwitchToRecipe && (
+              <button
+                type="button"
+                onClick={onSwitchToRecipe}
+                className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold rounded-xl flex items-center gap-1.5 text-xs transition-colors cursor-pointer border border-blue-200"
+              >
+                <Pill className="w-3.5 h-3.5 text-blue-600" />
+                <span>Volver al Récipe</span>
+              </button>
+            )}
             <div className="flex items-center gap-1.5">
               <span className="px-2.5 py-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-xs font-black shadow-xs flex items-center gap-1">
                 <Sparkles className="w-3.5 h-3.5 text-cyan-200" />
-                <span>Asistente de Indicaciones Médicas</span>
+                <span>Indicaciones Médicas</span>
               </span>
               <span className="text-xs text-slate-500 font-bold hidden md:inline">
                 {safeConfig.doctorName}
@@ -1076,39 +1094,27 @@ export const IndicationsModule: React.FC<IndicationsModuleProps> = ({
             </div>
 
             {/* Direct Instant Action Buttons */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               
-              {/* 1. Descargar PDF */}
+              {/* Botón WhatsApp Business */}
               <button
                 type="button"
-                onClick={handleDownloadIndicationsPdf}
-                className="p-3 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black text-xs flex flex-col items-center justify-center gap-1.5 shadow-lg shadow-blue-900/40 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-blue-400/40"
-              >
-                <Download className="w-5 h-5 text-cyan-200" />
-                <span>Descargar PDF</span>
-              </button>
-
-              {/* 2. Enviar por WhatsApp */}
-              <button
-                type="button"
-                onClick={() => setIsWhatsAppModalOpen(true)}
+                onClick={() => {
+                  exportAndSendWhatsAppBusiness(
+                    printableSheetRef.current,
+                    safeIndications.patientName || 'Carlos leal',
+                    'Indicaciones Médicas',
+                    safeIndications.date || '14/10/26',
+                    safeIndications.patientPhone
+                  );
+                }}
                 className="p-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl font-black text-xs flex flex-col items-center justify-center gap-1.5 shadow-lg shadow-emerald-900/40 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-emerald-400/40"
               >
-                <Share2 className="w-5 h-5 text-emerald-200" />
+                <span className="text-xl">📱</span>
                 <span>Enviar por WhatsApp</span>
               </button>
 
-              {/* 3. Enviar por Correo */}
-              <button
-                type="button"
-                onClick={() => setIsEmailModalOpen(true)}
-                className="p-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black text-xs flex flex-col items-center justify-center gap-1.5 shadow-lg shadow-indigo-900/40 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-indigo-400/40"
-              >
-                <Mail className="w-5 h-5 text-indigo-200" />
-                <span>Enviar por Correo</span>
-              </button>
-
-              {/* 4. Imprimir Directamente */}
+              {/* Imprimir Directamente */}
               <button
                 type="button"
                 onClick={handlePrintSpecificIndications}
@@ -1116,6 +1122,16 @@ export const IndicationsModule: React.FC<IndicationsModuleProps> = ({
               >
                 <Printer className="w-5 h-5 text-cyan-300" />
                 <span>Imprimir Documento</span>
+              </button>
+
+              {/* Enviar por Correo */}
+              <button
+                type="button"
+                onClick={() => setIsEmailModalOpen(true)}
+                className="p-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black text-xs flex flex-col items-center justify-center gap-1.5 shadow-lg shadow-indigo-900/40 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-indigo-400/40"
+              >
+                <Mail className="w-5 h-5 text-indigo-200" />
+                <span>Enviar por Correo</span>
               </button>
 
             </div>
@@ -1155,7 +1171,7 @@ export const IndicationsModule: React.FC<IndicationsModuleProps> = ({
       {/* ========================================================= */}
       {/* VISTA PREVIA REAL DE INDICACIONES EN FORMATO CARTA        */}
       {/* ========================================================= */}
-      <div className={currentStep === 4 ? "w-full flex justify-center py-2" : "hidden"}>
+      <div className={`w-full flex justify-center py-2 ${currentStep === 4 ? 'block' : 'hidden print:block'}`}>
         <div
           ref={printableSheetRef}
           id="indications-print-container"
@@ -1315,29 +1331,7 @@ export const IndicationsModule: React.FC<IndicationsModuleProps> = ({
       {/* ========================================================= */}
       {/* SHARING MODALS                                            */}
       {/* ========================================================= */}
-      <WhatsAppShareModal
-        isOpen={isWhatsAppModalOpen}
-        onClose={() => setIsWhatsAppModalOpen(false)}
-        config={safeConfig}
-        documentType="indications"
-        patientName={safeIndications.patientName}
-        patientPhone={safeIndications.patientPhone || ''}
-        documentTitle="Indicaciones Médicas y Posología"
-        contentBody={
-          `INDICACIONES MÉDICAS Y POSOLOGÍA\n` +
-          `Paciente: ${safeIndications.patientName || 'Paciente'}\n` +
-          `Fecha: ${safeIndications.date}\n\n` +
-          (safeIndications.medicationSchedule ? `💊 MEDICAMENTOS:\n${safeIndications.medicationSchedule.slice(0, 300)}...\n\n` : '') +
-          (safeIndications.dietAndRest ? `🥦 DIETA/REPOSO:\n${safeIndications.dietAndRest.slice(0, 150)}...\n\n` : '') +
-          `Siga detalladamente las indicaciones en el archivo PDF.`
-        }
-        onUpdatePatientPhone={(ph) => onChangeIndications({ patientPhone: ph })}
-        onTriggerPrintPdf={handleDownloadIndicationsPdf}
-        onOpenEmailModal={() => {
-          setIsWhatsAppModalOpen(false);
-          setIsEmailModalOpen(true);
-        }}
-      />
+
 
       <EmailShareModal
         isOpen={isEmailModalOpen}

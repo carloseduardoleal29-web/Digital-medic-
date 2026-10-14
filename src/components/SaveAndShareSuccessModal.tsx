@@ -215,6 +215,7 @@ export interface SavedDocumentRecord {
   doctorMPPS: string;
   doctorCI: string;
   institution?: string;
+  pdfUrl?: string;
   rawPayload?: any;
 }
 
@@ -255,10 +256,62 @@ export const SaveAndShareSuccessModal: React.FC<SaveAndShareSuccessModalProps> =
   const [qrType, setQrType] = useState<'whatsapp' | 'pdf'>('whatsapp');
 
   // Auto PDF Upload state
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(record?.pdfUrl || null);
   const [isUploading, setIsUploading] = useState(false);
   const [useShortMessage, setUseShortMessage] = useState(true);
   const [linkCopied, setLinkCopied] = useState(false);
+
+  // Auto generate & upload PDF in background for instant cloud link
+  React.useEffect(() => {
+    if (!isOpen || !record) return;
+
+    const activeRec = record;
+    async function autoGenerateAndUpload() {
+      try {
+        setIsUploading(true);
+        const targetElement = document.querySelector<HTMLElement>(
+          '#dual-recipe-print-container, #recipe-single-print-container, #indications-print-container, .dual-recipe-container, .dual-recipe-sheet, .print-container, .recipe-4en1-container, .report-sheet-container, .recipe-single-container, .recipe-single-card, .indications-container, .rest-container, .clinical-history-container'
+        );
+        const blob = await generatePDFBlob(targetElement);
+        if (blob) {
+          const reader = new FileReader();
+          reader.readAsDataURL(blob);
+          reader.onloadend = async () => {
+            if (!activeRec) return;
+            const base64 = reader.result as string;
+            try {
+              const cleanPatient = (activeRec.patientName || 'Paciente').replace(/[^a-zA-Z0-9]/g, '_');
+              const cleanDoc = (activeRec.documentType || 'Recipe').replace(/[^a-zA-Z0-9]/g, '_');
+              const filename = `${cleanDoc}_${cleanPatient}.pdf`;
+              const res = await fetch('/api/pdf/upload', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pdfBase64: base64, filename })
+              });
+              const data = await res.json();
+              if (data.success && data.url) {
+                setPdfUrl(data.url);
+                activeRec.pdfUrl = data.url;
+              }
+            } catch (err) {
+              console.warn('[SaveModal Upload Error]:', err);
+            } finally {
+              setIsUploading(false);
+            }
+          };
+        } else {
+          setIsUploading(false);
+        }
+      } catch (e) {
+        console.warn('[SaveModal PDF Blob Error]:', e);
+        setIsUploading(false);
+      }
+    }
+
+    if (!pdfUrl) {
+      autoGenerateAndUpload();
+    }
+  }, [isOpen, record]);
 
   // Sync phone and email if record changes
   React.useEffect(() => {
@@ -326,14 +379,17 @@ export const SaveAndShareSuccessModal: React.FC<SaveAndShareSuccessModalProps> =
     const cleanDate = record.date || new Intl.DateTimeFormat('es-VE').format(new Date());
     const pdfFilename = record.pdfFileName || buildDocumentPdfFilename(record.documentType || 'Recipe', record.patientName, cleanDate);
 
+    const effectivePdfUrl = pdfUrl || record.pdfUrl || `${window.location.origin}/?doc=${record.id}`;
+    const pdfLine = `📥 *ENLACE DE DESCARGA DIRECTA DE SU PDF OFICIAL:*\n${effectivePdfUrl}\n\n`;
+
     let msg = `Estimado(a) *${record.patientName || 'Paciente'}*,\n\n` +
       `Le saluda el/la *Dr(a). ${record.doctorName || config.doctorName}* (${record.doctorSpecialty || config.specialty || 'Médico Especialista'}).\n\n` +
       `📄 *${docName.toUpperCase()} OFICIAL*\n\n` +
-      `📎 *INSTRUCCIÓN:* Se ha descargado automáticamente en su dispositivo el archivo PDF oficial (*${pdfFilename}*) con fecha *${cleanDate}*, firmado y sellado digitalmente con plena validez legal. Por favor adjunte o presente el archivo PDF descargado para su presentación en farmacias y centros asistenciales.\n\n` +
+      pdfLine +
       (record.contentBody ? `📋 *RESUMEN DE PRESCRIPCIÓN / INDICACIÓN:*\n${record.contentBody.length > 500 ? record.contentBody.slice(0, 480) + '...' : record.contentBody}\n\n` : '') +
       `*M.P.P.S:* ${record.doctorMPPS || config.mpps || '00.000'} · *C.I:* ${record.doctorCI || config.ci || 'V-00.000.000'}\n` +
       (config.phone ? `*Contacto / Consultas:* ${config.phone}\n` : '') +
-      `\n_Por favor cumpla las indicaciones especificadas en su documento oficial en PDF. ¡Que tenga una pronta y satisfactoria recuperación! ✨_`;
+      `\n_Documento médico legal firmado y sellado digitalmente con plena validez para farmacias. ¡Que tenga una pronta recuperación! ✨_`;
 
     return msg;
   };
@@ -483,7 +539,7 @@ export const SaveAndShareSuccessModal: React.FC<SaveAndShareSuccessModalProps> =
       const pdfFilename = record.pdfFileName || buildDocumentPdfFilename(record.documentType || 'Recipe', record.patientName, cleanDate);
 
       const targetElement = document.querySelector<HTMLElement>(
-        '#recipe-4en1-print-sheet, .recipe-4en1-container, .print-container, .report-sheet-container, .recipe-single-container, .recipe-single-card, .indications-container, .rest-container, .clinical-history-container'
+        '#recipe-quarter-print-container, .recipe-size-quarter, #recipe-4en1-print-sheet, #dual-recipe-print-container, #recipe-single-print-container, #indications-print-container, #report-print-container, #rest-print-container, #history-print-container, .dual-recipe-container, .dual-recipe-sheet, .print-container, .recipe-4en1-container, .report-sheet-container, .recipe-single-container, .recipe-single-card, .indications-container, .rest-container, .clinical-history-container'
       );
 
       await sharePDFViaWebShare(
@@ -575,15 +631,9 @@ export const SaveAndShareSuccessModal: React.FC<SaveAndShareSuccessModalProps> =
                 <span className="text-slate-400 block text-[10px]">Fecha de Emisión:</span>
                 <strong className="text-slate-800">{record.date}</strong>
               </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-slate-400 block text-[10px]">Archivo PDF:</span>
-                <button
-                  onClick={onDownloadPdf}
-                  className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] font-bold flex items-center gap-1.5 transition-all shadow-xs w-fit"
-                >
-                  <Download className="w-3 h-3" />
-                  <span>Descargar de nuevo</span>
-                </button>
+              <div>
+                <span className="text-slate-400 block text-[10px]">Documento:</span>
+                <strong className="text-slate-800">{record.documentTitle}</strong>
               </div>
             </div>
 
@@ -677,150 +727,9 @@ export const SaveAndShareSuccessModal: React.FC<SaveAndShareSuccessModalProps> =
             </div>
           )}
 
-          {/* SELECTOR DE CANAL: SOLUCIÓN PARA MÉDICOS EN PC / LAPTOP Y CELULAR */}
-          <div className="bg-slate-100 p-1.5 rounded-2xl border border-slate-200 grid grid-cols-1 sm:grid-cols-3 gap-1">
-            <button
-              type="button"
-              onClick={() => setChannelMode('qr-phone')}
-              className={`py-2 px-2 rounded-xl text-center font-bold text-xs flex items-center justify-center gap-1 transition-all cursor-pointer ${
-                channelMode === 'qr-phone'
-                  ? 'bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-500'
-                  : 'text-slate-700 hover:bg-white/80'
-              }`}
-            >
-              <Smartphone className="w-3.5 h-3.5 shrink-0 text-emerald-300" />
-              <span>📱 Celular (QR)</span>
-            </button>
 
-            <button
-              type="button"
-              onClick={() => setChannelMode('pc-whatsapp')}
-              className={`py-2 px-2 rounded-xl text-center font-bold text-xs flex items-center justify-center gap-1 transition-all cursor-pointer ${
-                channelMode === 'pc-whatsapp'
-                  ? 'bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-500'
-                  : 'text-slate-700 hover:bg-white/80'
-              }`}
-            >
-              <Laptop className="w-3.5 h-3.5 shrink-0 text-emerald-300" />
-              <span>💻 WhatsApp Web</span>
-            </button>
 
-            <button
-              type="button"
-              onClick={() => setChannelMode('email')}
-              className={`py-2 px-2 rounded-xl text-center font-bold text-xs flex items-center justify-center gap-1 transition-all cursor-pointer ${
-                channelMode === 'email'
-                  ? 'bg-indigo-600 text-white shadow-sm ring-1 ring-indigo-500'
-                  : 'text-slate-700 hover:bg-white/80'
-              }`}
-            >
-              <Mail className="w-3.5 h-3.5 shrink-0 text-indigo-300" />
-              <span>📧 Correo Paciente</span>
-            </button>
-          </div>
 
-          {/* CANAL 1: CÓDIGO QR PARA ESCANEAR CON EL CELULAR DEL MÉDICO */}
-          {channelMode === 'qr-phone' && (
-            <div className="bg-gradient-to-br from-emerald-50 via-teal-50/50 to-white border-2 border-emerald-300 rounded-3xl p-4 sm:p-5 text-center space-y-3.5 shadow-sm">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-600 text-white text-[11px] font-black uppercase tracking-wider shadow-xs">
-                <Smartphone className="w-3.5 h-3.5" />
-                <span>Solución si estás en PC o Laptop</span>
-              </div>
-
-              <div>
-                <h3 className="text-base font-black text-emerald-950 leading-tight">
-                  ¡Apunta la cámara de tu teléfono a la pantalla!
-                </h3>
-                <p className="text-xs text-slate-600 max-w-md mx-auto mt-1 leading-relaxed">
-                  No necesitas tener WhatsApp en esta computadora. Al escanear este código con tu celular, 
-                  <strong> se abrirá WhatsApp en tu teléfono</strong> con el chat de {record.patientName} y el saludo formal listo.
-                </p>
-              </div>
-
-              {/* QR Container */}
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 py-2">
-                <div className="bg-white p-3.5 rounded-3xl border-2 border-emerald-400 shadow-md inline-block relative overflow-hidden">
-                  {isUploading ? (
-                    <div className="w-44 h-44 flex flex-col items-center justify-center text-slate-500 text-xs font-bold space-y-2 p-2 bg-slate-50 rounded-2xl animate-pulse">
-                      <RefreshCw className="w-8 h-8 text-emerald-600 animate-spin" />
-                      <span className="text-center text-[10px]">Generando y subiendo PDF oficial en la nube...</span>
-                    </div>
-                  ) : qrCodeDataUrl ? (
-                    <img 
-                      src={qrType === 'whatsapp' ? qrCodeDataUrl : phoneDownloadQrUrl} 
-                      alt="Código QR para celular" 
-                      className="w-44 h-44 object-contain mx-auto transition-transform hover:scale-105"
-                    />
-                  ) : (
-                    <div className="w-44 h-44 flex items-center justify-center text-slate-400 text-xs font-bold">
-                      Generando Código QR...
-                    </div>
-                  )}
-                </div>
-
-                <div className="text-left space-y-2 max-w-[230px]">
-                  <div className="bg-white p-2.5 rounded-2xl border border-emerald-200 text-[11px] shadow-2xs space-y-0.5">
-                    <span className="font-bold text-emerald-900 flex items-center gap-1">
-                      <Check className="w-3.5 h-3.5 text-emerald-600" /> Paso 1: Abre tu cámara
-                    </span>
-                    <p className="text-[10px] text-slate-500">
-                      Apunta tu teléfono (iPhone o Android) hacia este código QR.
-                    </p>
-                  </div>
-
-                  <div className="bg-white p-2.5 rounded-2xl border border-emerald-200 text-[11px] shadow-2xs space-y-0.5">
-                    <span className="font-bold text-emerald-900 flex items-center gap-1">
-                      <Check className="w-3.5 h-3.5 text-emerald-600" /> Paso 2: Toca el enlace
-                    </span>
-                    <p className="text-[10px] text-slate-500">
-                      Tu teléfono abrirá WhatsApp con el paciente y el récipe listo.
-                    </p>
-                  </div>
-
-                  {/* Selector de modo QR */}
-                  <div className="pt-1 flex gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setQrType('whatsapp')}
-                      className={`flex-1 px-2.5 py-1.5 rounded-xl text-[11px] font-bold border transition-all cursor-pointer ${
-                        qrType === 'whatsapp'
-                          ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs'
-                          : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
-                      }`}
-                    >
-                      QR WhatsApp
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setQrType('pdf')}
-                      className={`flex-1 px-2.5 py-1.5 rounded-xl text-[11px] font-bold border transition-all cursor-pointer ${
-                        qrType === 'pdf'
-                          ? 'bg-blue-600 text-white border-blue-700 shadow-xs'
-                          : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
-                      }`}
-                      title="Escanear para ver y descargar el documento en tu teléfono"
-                    >
-                      QR Ver PDF
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Teléfono configurado para el QR */}
-              <div className="bg-white/80 border border-emerald-200 rounded-2xl p-2.5 flex items-center justify-between text-xs">
-                <span className="text-slate-600 text-[11px]">
-                  Teléfono configurado: <strong className="text-emerald-950 font-black">{phoneNumber || 'Sin número'}</strong>
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setChannelMode('pc-whatsapp')}
-                  className="text-emerald-700 hover:text-emerald-900 font-bold text-[11px] underline cursor-pointer"
-                >
-                  Cambiar número / operadora
-                </button>
-              </div>
-            </div>
-          )}
 
           {/* CANAL 2: WHATSAPP WEB EN ESTA PC / LAPTOP (SIN INSTALAR NADA) */}
           {channelMode === 'pc-whatsapp' && (
@@ -938,40 +847,43 @@ export const SaveAndShareSuccessModal: React.FC<SaveAndShareSuccessModalProps> =
               </form>
 
               {/* Información y Envío de PDF en WhatsApp */}
-              <div className="bg-white/90 border border-emerald-200 rounded-xl p-2.5 text-xs text-slate-700 space-y-1.5 shadow-2xs">
-                <div className="flex items-center gap-1.5 font-bold text-emerald-900 text-[11px]">
-                  <FileText className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>¿Cómo adjuntar el PDF en WhatsApp Web?</span>
+              <div className="bg-emerald-50 border border-emerald-300 rounded-xl p-2.5 text-xs text-slate-800 space-y-1.5 shadow-2xs">
+                <div className="flex items-center justify-between font-bold text-emerald-950 text-[11px]">
+                  <div className="flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Envío Inteligente con Enlace al PDF Directo</span>
+                  </div>
+                  {pdfUrl && (
+                    <span className="text-[10px] bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded-full font-bold">
+                      PDF en Nube Listo
+                    </span>
+                  )}
                 </div>
-                <p className="text-[10px] text-slate-600 leading-snug">
-                  El archivo PDF oficial (<strong>{record.pdfFileName}</strong>) ya se descargó en esta computadora. 
-                  Al presionar <strong>Abrir WhatsApp Web</strong> se abrirá el chat con el saludo oficial. 
-                  Luego presione el icono del clip (<strong>📎</strong>) en WhatsApp para adjuntar el PDF ya descargado.
+                <p className="text-[10.5px] text-emerald-900 leading-snug">
+                  Al presionar <strong>Abrir WhatsApp</strong>, el mensaje incluye automáticamente el <strong>enlace de descarga directa del PDF oficial</strong> con su firma y sello. El paciente solo debe tocar el enlace en su WhatsApp para abrir y guardar su documento al instante.
                 </p>
               </div>
 
               {/* Quick Actions for WhatsApp */}
-              <div className="flex items-center justify-between gap-2 pt-1 border-t border-emerald-200/60">
+              <div className="flex items-center justify-between gap-2 pt-1 border-t border-emerald-200/60 flex-wrap">
                 <button
                   type="button"
                   onClick={handleCopyMessage}
                   className="px-2.5 py-1 bg-white hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
                 >
                   {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                  <span>{copied ? 'Mensaje Copiado' : 'Copiar Saludo Corto'}</span>
+                  <span>{copied ? 'Mensaje Copiado' : 'Copiar Texto y Enlace'}</span>
                 </button>
 
-                {typeof navigator !== 'undefined' && 'share' in navigator && (
-                  <button
-                    type="button"
-                    onClick={handleNativeShare}
-                    className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
-                    title="Compartir directamente en el celular"
-                  >
-                    <Share2 className="w-3.5 h-3.5" />
-                    <span>Compartir en Celular</span>
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={handleNativeShare}
+                  className="px-3 py-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-[11px] font-bold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                  title="Adjuntar el archivo PDF directamente en WhatsApp (Celulares Android / iPhone)"
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                  <span>📲 Adjuntar PDF Directo (Móvil)</span>
+                </button>
               </div>
             </div>
           )}

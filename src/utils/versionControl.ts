@@ -25,16 +25,13 @@ export function checkAndApplyVersionUpdate(): VersionCheckResult {
     localStorage.removeItem('digital_medic_payment_config');
     localStorage.removeItem('digital_medic_payment_accounts_v1');
 
-    // Limpieza de perfiles residuales que contengan correos o datos personales
+    // Sanitizar posibles registros nulos o corruptos
     const savedColleagues = localStorage.getItem('digital_medic_colleagues_v2');
     if (savedColleagues) {
       try {
         const parsed = JSON.parse(savedColleagues);
         if (Array.isArray(parsed)) {
-          const sanitized = parsed.filter((d: any) => 
-            !d.email?.includes('carloseduardoleal29') && 
-            !d.doctorName?.includes('Carlos E. Leal')
-          );
+          const sanitized = parsed.filter((d: any) => d && (d.id || d.email || d.doctorName));
           localStorage.setItem('digital_medic_colleagues_v2', JSON.stringify(sanitized));
         }
       } catch (_) {}

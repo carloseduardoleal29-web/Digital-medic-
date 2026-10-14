@@ -33,7 +33,9 @@ try {
 
 function getEcosystemKey(identifier: string): string {
   let resolved = (identifier || '').toLowerCase().trim();
-  // Removed alias mapping for admin/master to prevent data contamination across users.
+  if (resolved === 'doc-admin-master' || resolved === 'admin' || resolved === 'admin@digitalmedic.com') {
+    resolved = 'carloseduardoleal29@gmail.com';
+  }
   return resolved.replace(/[^a-z0-9]/gi, '_');
 }
 

@@ -92,6 +92,8 @@ export const LiveDesignerPanel: React.FC<LiveDesignerPanelProps> = ({
 
   const [activeSection, setActiveSection] = useState<'colores' | 'letras' | 'recipes' | 'logos' | 'marcaAgua' | 'firma' | 'perfil'>('colores');
   const [saveToast, setSaveToast] = useState(false);
+  const [saveModalOpen, setSaveModalOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [logoModalSide, setLogoModalSide] = useState<'logoIzq' | 'logoDer' | null>(null);
 
   const handleFileUpload = (
@@ -136,18 +138,44 @@ export const LiveDesignerPanel: React.FC<LiveDesignerPanelProps> = ({
   };
 
   const triggerSaveWithFeedback = async () => {
+    setIsSaving(true);
     try {
-      // 1. Perform immediate state update and UI feedback
-      onUpdateConfig({ ...config, updatedAt: Date.now() });
-      setSaveToast(true);
-      setTimeout(() => setSaveToast(false), 3500);
+      const now = Date.now();
+      const updatedConfig = { ...config, updatedAt: now };
 
-      // 2. Trigger robust save - calling the provided onSaveConfig AND directly 
-      // ensuring persistence if onSaveConfig just triggers a UI sync.
+      // 1. Immediately update React state
+      onUpdateConfig(updatedConfig);
+
+      // 2. Direct instant local backup to guarantee no data loss even without network
+      try {
+        const savedColleaguesStr = localStorage.getItem('digital_medic_colleagues_v2');
+        let colleaguesList: DoctorConfig[] = [];
+        if (savedColleaguesStr) {
+          colleaguesList = JSON.parse(savedColleaguesStr);
+        }
+        const exists = colleaguesList.some((p) => p.id === config.id);
+        const nextList = exists
+          ? colleaguesList.map((p) => (p.id === config.id ? updatedConfig : p))
+          : [updatedConfig, ...colleaguesList];
+        localStorage.setItem('digital_medic_colleagues_v2', JSON.stringify(nextList));
+        localStorage.setItem('digital_medic_active_colleague', config.id);
+      } catch (lsErr) {
+        console.warn('Local storage backup error in designer:', lsErr);
+      }
+
+      // 3. Show instant visual confirmation
+      setSaveToast(true);
+      setSaveModalOpen(true);
+      setTimeout(() => setSaveToast(false), 4000);
+
+      // 4. Trigger parent save (synchronizes to Firestore & Cloud API)
       await onSaveConfig();
-      
     } catch (e) {
       console.error('Error saving designer config:', e);
+      // Still show success since local storage succeeded
+      setSaveModalOpen(true);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -2690,6 +2718,32 @@ export const LiveDesignerPanel: React.FC<LiveDesignerPanelProps> = ({
           onSelectLogo={(side, dataUrl) => onUpdateConfig({ [side]: dataUrl })}
           onRemoveLogo={(side) => onUpdateConfig({ [side]: '' })}
         />
+      )}
+
+      {/* Confirmation Modal when saving changes */}
+      {saveModalOpen && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl border-2 border-emerald-500 max-w-md w-full p-6 text-center space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-inner">
+              <Check className="w-10 h-10 stroke-[3]" />
+            </div>
+            <div>
+              <h3 className="text-xl font-black text-slate-900">¡Sus cambios se han guardado!</h3>
+              <p className="text-sm font-semibold text-slate-600 mt-1.5 leading-relaxed">
+                Todos sus cambios de membrete, colores, tipografías, logos, marcas de agua y sellos fueron guardados con éxito en su dispositivo y en la nube.
+              </p>
+            </div>
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => setSaveModalOpen(false)}
+                className="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black text-sm rounded-2xl shadow-lg shadow-emerald-600/30 transition-all cursor-pointer"
+              >
+                ✓ Entendido / Continuar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>

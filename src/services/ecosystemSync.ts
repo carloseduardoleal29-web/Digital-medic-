@@ -51,41 +51,122 @@ export async function saveEcosystemToCloud(ecosystem: Partial<UserEcosystem>): P
   return savedDirectFirestore || savedServer;
 }
 
+// Cache en memoria a corto plazo para evitar sobrecargar conexiones y llamadas concurrentes
+const ecosystemCache = new Map<string, { data: UserEcosystem; timestamp: number }>();
+const inFlightFetches = new Map<string, Promise<UserEcosystem | null>>();
+const CACHE_TTL_MS = 15000; // 15 segundos
+
 /**
  * Obtiene el ecosistema completo del usuario desde el servidor en la nube o directo desde Firestore.
+ * Incluye protección estricta contra cuelgues (timeout de 3.5s) y reutilización de promesas en vuelo.
  */
 export async function fetchEcosystemFromCloud(identifier: string): Promise<UserEcosystem | null> {
   if (!identifier) return null;
-  let serverEco: UserEcosystem | null = null;
-  let firestoreEco: UserEcosystem | null = null;
+  const key = identifier.toLowerCase().trim();
 
-  // 1. Obtener desde servidor
-  try {
-    const res = await fetch(`/api/ecosystem/${encodeURIComponent(identifier.trim())}`);
-    if (res.ok) {
-      const data = await res.json();
-      if (data && data.success && data.ecosystem) {
-        serverEco = data.ecosystem as UserEcosystem;
+  // 1. Comprobar si hay un resultado reciente en caché
+  const cached = ecosystemCache.get(key);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    return cached.data;
+  }
+
+  // 2. Comprobar si ya hay una petición en curso para este usuario
+  if (inFlightFetches.has(key)) {
+    return inFlightFetches.get(key)!;
+  }
+
+  const fetchPromise = (async (): Promise<UserEcosystem | null> => {
+    let serverEco: UserEcosystem | null = null;
+    let firestoreEco: UserEcosystem | null = null;
+
+    // Timeout helper con AbortController
+    const abortController = new AbortController();
+    const timeoutTimer = setTimeout(() => {
+      try {
+        abortController.abort();
+      } catch (_) {}
+    }, 3500);
+
+    // 1. Obtener desde servidor con timeout estricto de 3.5 segundos
+    try {
+      const res = await fetch(`/api/ecosystem/${encodeURIComponent(key)}`, {
+        signal: abortController.signal,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.success && data.ecosystem) {
+          serverEco = data.ecosystem as UserEcosystem;
+        }
       }
+    } catch (err: any) {
+      if (err?.name !== 'AbortError') {
+        console.warn('[EcosystemSync] Petición a servidor omitida o en espera:', err?.message || err);
+      }
+    } finally {
+      clearTimeout(timeoutTimer);
     }
-  } catch (err) {
-    console.warn('[EcosystemSync] No se pudo obtener ecosistema del servidor:', err);
-  }
 
-  // 2. Obtener directo desde Firestore
+    // 2. Solo consultar Firestore si el servidor no respondió o si se necesita verificar
+    // Con timeout de 3.5s mediante Promise.race para evitar que el socket de Firebase cuelgue la app
+    try {
+      const firestorePromise = fetchDirectFromFirestore(key);
+      const timeoutFallback = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3500));
+      firestoreEco = await Promise.race([firestorePromise, timeoutFallback]);
+    } catch (err) {
+      console.warn('[EcosystemSync] Firestore timeout o error:', err);
+    }
+
+    let result: UserEcosystem | null = null;
+
+    if (serverEco && firestoreEco) {
+      const serverTime = serverEco.updatedAt || 0;
+      const firestoreTime = firestoreEco.updatedAt || 0;
+      const primary = firestoreTime >= serverTime ? firestoreEco : serverEco;
+      const secondary = firestoreTime >= serverTime ? serverEco : firestoreEco;
+
+      // Merge patient banks non-destructively
+      const mergedBank = [...(primary.patientBank || [])];
+      for (const p of (secondary.patientBank || [])) {
+        if (!mergedBank.some(m => m.id === p.id || (m.patientName && p.patientName && m.patientName.toLowerCase().trim() === p.patientName.toLowerCase().trim()))) {
+          mergedBank.push(p);
+        }
+      }
+
+      // Merge doctor config preserving stamp & signature
+      const mergedDoc = {
+        ...(secondary.doctorConfig || {}),
+        ...(primary.doctorConfig || {}),
+        firmaImg: primary.doctorConfig?.firmaImg || secondary.doctorConfig?.firmaImg || '',
+        selloImg: primary.doctorConfig?.selloImg || secondary.doctorConfig?.selloImg || '',
+        selloFirma: primary.doctorConfig?.selloFirma || secondary.doctorConfig?.selloFirma || '',
+        marcaAgua: primary.doctorConfig?.marcaAgua || secondary.doctorConfig?.marcaAgua || '',
+      };
+
+      result = {
+        ...secondary,
+        ...primary,
+        doctorConfig: mergedDoc,
+        patientBank: mergedBank,
+        updatedAt: Math.max(serverTime, firestoreTime),
+      };
+    } else {
+      result = firestoreEco || serverEco;
+    }
+
+    if (result) {
+      ecosystemCache.set(key, { data: result, timestamp: Date.now() });
+    }
+
+    return result;
+  })();
+
+  inFlightFetches.set(key, fetchPromise);
   try {
-    firestoreEco = await fetchDirectFromFirestore(identifier);
-  } catch (err) {
-    console.warn('[EcosystemSync] No se pudo obtener ecosistema de Firestore directo:', err);
+    const res = await fetchPromise;
+    return res;
+  } finally {
+    inFlightFetches.delete(key);
   }
-
-  if (serverEco && firestoreEco) {
-    const serverTime = serverEco.updatedAt || 0;
-    const firestoreTime = firestoreEco.updatedAt || 0;
-    return firestoreTime >= serverTime ? firestoreEco : serverEco;
-  }
-
-  return firestoreEco || serverEco;
 }
 
 /**

@@ -40,8 +40,19 @@ if (!fs.existsSync(PDFS_DIR)) {
   fs.mkdirSync(PDFS_DIR, { recursive: true });
 }
 
-// Serve PDFs statically
+// Serve PDFs statically and with explicit inline PDF route
 app.use('/pdf', express.static(PDFS_DIR));
+app.get('/pdf/:filename', (req, res) => {
+  const safeFilename = path.basename(req.params.filename);
+  const filePath = path.join(PDFS_DIR, safeFilename);
+  if (fs.existsSync(filePath)) {
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${safeFilename}"`);
+    return res.sendFile(filePath);
+  }
+  return res.status(404).send('PDF no encontrado');
+});
+
 
 // Initialize Firebase Firestore SDK with API Key & Project Config
 let firestoreDb: any = null;
@@ -626,26 +637,35 @@ app.post('/api/ecosystem/save', async (req, res) => {
 
 // --- Métodos de Cobro y Tasa Binance del Día (Solo Pago Móvil en Bs, Binance USDT y Zinli) ---
 async function readPaymentConfig() {
+  let diskConfig: any = null;
+  try {
+    if (fs.existsSync(PAYMENT_CONFIG_FILE)) {
+      const data = fs.readFileSync(PAYMENT_CONFIG_FILE, 'utf-8');
+      diskConfig = JSON.parse(data);
+    }
+  } catch (err) {
+    console.warn('Error reading payment_config.json:', err);
+  }
+
   if (firestoreDb && firestoreAvailable) {
     try {
       const snap = await getDoc(doc(firestoreDb, 'settings', 'payment_config'));
       if (snap.exists()) {
-        return snap.data();
+        const fireData = snap.data();
+        if (fireData && (fireData.pagoMovil?.telefono || fireData.binance?.payId || fireData.zinli?.email || fireData.tasaBinanceUsd > 0)) {
+          return fireData;
+        }
       }
     } catch (err) {
       console.warn('[Firestore Web SDK] Error reading payment config, falling back to disk:', err);
     }
   }
 
-  try {
-    if (fs.existsSync(PAYMENT_CONFIG_FILE)) {
-      const data = fs.readFileSync(PAYMENT_CONFIG_FILE, 'utf-8');
-      return JSON.parse(data);
-    }
-  } catch (err) {
-    console.warn('Error reading payment_config.json:', err);
+  if (diskConfig && (diskConfig.pagoMovil?.telefono || diskConfig.binance?.payId || diskConfig.zinli?.email || diskConfig.tasaBinanceUsd > 0)) {
+    return diskConfig;
   }
-  return {
+
+  return diskConfig || {
     pagoMovil: {
       banco: '',
       telefono: '',

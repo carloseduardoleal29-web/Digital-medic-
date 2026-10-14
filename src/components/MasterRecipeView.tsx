@@ -4,7 +4,7 @@ import { DocumentHeader } from './DocumentHeader';
 import { DocumentFooter } from './DocumentFooter';
 import { WhatsAppShareModal } from './WhatsAppShareModal';
 import { getDocumentBorderStyle, getPaperTextureClass } from '../utils/documentStyles';
-import { CheckCircle2, MessageSquare, Printer, Download, Save, Trash2, Plus, ArrowLeft, Scissors, Eye, Mail } from 'lucide-react';
+import { CheckCircle2, MessageSquare, Printer, Download, Save, Trash2, Plus, ArrowLeft, ArrowRight, Scissors, Eye, Mail } from 'lucide-react';
 
 interface MasterRecipeViewProps {
   config: DoctorConfig;
@@ -24,6 +24,7 @@ interface MasterRecipeViewProps {
   onBackToHome?: () => void;
   onSwitchTo4In1?: () => void;
   onOpenPreview?: () => void;
+  onNavigateToIndications?: () => void;
 }
 
 export const MasterRecipeView: React.FC<MasterRecipeViewProps> = ({
@@ -53,11 +54,11 @@ export const MasterRecipeView: React.FC<MasterRecipeViewProps> = ({
   onBackToHome,
   onSwitchTo4In1,
   onOpenPreview,
+  onNavigateToIndications,
 }) => {
   const printableSheetRef = useRef<HTMLDivElement>(null);
   const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
   const [showCutGuides, setShowCutGuides] = useState(true);
-  const [hideHeader, setHideHeader] = useState(false);
 
   const borderStyle = getDocumentBorderStyle(config.borderStyle, config.primaryDocColor);
   const textureClass = getPaperTextureClass(config.paperTexture);
@@ -83,16 +84,6 @@ export const MasterRecipeView: React.FC<MasterRecipeViewProps> = ({
               📄 Formato Hoja Carta · 1 Récipe (Cuadrante 1)
             </span>
           </div>
-
-          <button
-            type="button"
-            onClick={() => setHideHeader(!hideHeader)}
-            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors cursor-pointer flex items-center gap-1 ${
-              hideHeader ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200'
-            }`}
-          >
-            <span>{hideHeader ? '👁️ Mostrar Encabezado' : '🚫 Ocultar Encabezado'}</span>
-          </button>
 
           <button
             type="button"
@@ -223,7 +214,7 @@ export const MasterRecipeView: React.FC<MasterRecipeViewProps> = ({
               <DocumentHeader
                 config={config}
                 compact={true}
-                hideHeader={hideHeader}
+                hideHeader={false}
                 onUpdateField={(field, val) => onUpdateConfig?.({ [field]: val })}
                 editableInline={true}
               />
@@ -232,13 +223,16 @@ export const MasterRecipeView: React.FC<MasterRecipeViewProps> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    if (onBackToHome) onBackToHome(); // I need to pass indications navigation prop if I want to switch module.
-                    // Actually, I can't easily switch module from MasterRecipeView without a prop.
-                    // I will look at how to trigger navigation to indications.
+                    if (onNavigateToIndications) {
+                      onNavigateToIndications();
+                    } else if (onBackToHome) {
+                      onBackToHome();
+                    }
                   }}
-                  className="px-3 py-1 bg-blue-600 text-white text-xs font-bold rounded-lg"
+                  className="px-3.5 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-black rounded-xl shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
                 >
-                  Continuar con Indicaciones ➔
+                  <span>Continuar con Indicaciones</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
 
