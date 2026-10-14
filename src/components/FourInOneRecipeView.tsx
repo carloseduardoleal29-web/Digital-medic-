@@ -4,7 +4,6 @@ import { DocumentHeader } from './DocumentHeader';
 import { DocumentFooter } from './DocumentFooter';
 import { getDocumentBorderStyle, getPaperTextureClass } from '../utils/documentStyles';
 import { exportAndSendWhatsAppBusiness } from '../utils/exportDocument';
-import { WhatsAppSendGuideModal } from './WhatsAppSendGuideModal';
 import { 
   Copy, 
   RefreshCw, 
@@ -68,9 +67,8 @@ export const FourInOneRecipeView: React.FC<FourInOneRecipeViewProps> = ({
 }) => {
   const printableSheetRef = useRef<HTMLDivElement>(null);
   const printableSingleRef = useRef<HTMLDivElement>(null);
-  // Modo de vista: 'grid' (Hoja completa 4 en 1 con cuadrantes) por defecto
-  const [viewMode, setViewMode] = useState<'single' | 'grid'>('grid');
-  const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
+  // Modo de vista: 'single' (Solo Récipe individual editable) o 'grid' (Hoja completa 4 en 1 con cuadrantes)
+  const [viewMode, setViewMode] = useState<'single' | 'grid'>('single');
 
   // Tamaño en Solo Récipe:
   // 'quarter': 1/4 Hoja Carta (Pequeño, 4 caben en una hoja carta) -> POR DEFECTO como solicitó el usuario
@@ -177,12 +175,29 @@ export const FourInOneRecipeView: React.FC<FourInOneRecipeViewProps> = ({
         {/* Derecha: Botones de Acción (WhatsApp Business, Imprimir, Vista Previa, Guardar) */}
         <div className="flex items-center gap-1.5 flex-wrap">
 
-          {/* Botón Envío por WhatsApp con Guía Paso a Paso */}
+          {/* Botón Envío por WhatsApp (Lee el récipe, envía con herramienta nativa o plan de emergencia) */}
           <button
             type="button"
-            onClick={() => setIsWhatsAppModalOpen(true)}
+            onClick={() => {
+              const targetNode = printableSheetRef.current;
+              const treatment = [
+                activeRecipe.rp?.trim(),
+                activeRecipe.indicationsNotes?.trim(),
+              ].filter(Boolean).join('\n\n');
+
+              exportAndSendWhatsAppBusiness({
+                element: targetNode,
+                patientName: activeRecipe.patientName || 'Carlos leal',
+                documentTitle: 'Récipe Médico',
+                dateStr: activeRecipe.date || '14/10/26',
+                patientPhone: activeRecipe.patientPhone,
+                doctorName: config.doctorName || 'Dr. Carlos Leal',
+                treatmentDetails: treatment,
+                documentType: 'recipe',
+              });
+            }}
             className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow-xs hover:scale-105 active:scale-95 transition-all cursor-pointer border border-emerald-500 animate-pulse hover:animate-none"
-            title="Enviar récipe por WhatsApp (Descarga PDF, abre WhatsApp y explica cómo adjuntarlo)"
+            title="Enviar récipe por WhatsApp con PDF y detalle de tratamiento"
           >
             <span className="text-sm">📱</span>
             <span>Enviar por WhatsApp</span>
@@ -662,147 +677,12 @@ export const FourInOneRecipeView: React.FC<FourInOneRecipeViewProps> = ({
       )}
 
       {/* ========================================================= */}
-      {/* 4. VISTA: HOJA CARTA 4 EN 1 COMPLETA (4 RÉCIPES IDÉNTICOS)  */}
+      {/* 4. VISTA 2: HOJA CARTA 4 EN 1 COMPLETA (CUADRANTES)        */}
       {/* ========================================================= */}
-
-      {/* PANEL DE REDACCIÓN RÁPIDA: Edita y se refleja en los 4 cuadrantes idénticos */}
-      {viewMode === 'grid' && (
-        <div className="w-full max-w-[816px] bg-white border-2 border-blue-200/80 rounded-2xl p-4 mb-4 shadow-sm space-y-3 no-print">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-            <span className="font-black text-slate-800 text-xs sm:text-sm flex items-center gap-1.5">
-              <span className="text-base">✍️</span>
-              <span>Redactar Récipe (Se refleja en los 4 cuadrantes idénticos):</span>
-            </span>
-            <span className="text-[11px] font-bold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200">
-              Hoja Carta · 4 Cuadrantes Idénticos
-            </span>
-          </div>
-
-          {/* Fila 1: Paciente, Cédula, Edad, Fecha */}
-          <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
-            <div className="sm:col-span-4">
-              <label className="text-[10px] font-bold text-slate-500 uppercase block mb-0.5">Paciente:</label>
-              <input
-                type="text"
-                value={activeRecipe.patientName || ''}
-                onChange={(e) => {
-                  onChangeRecipeItem(activeRecipeIndex, { patientName: e.target.value });
-                  onSyncPatientToAll();
-                }}
-                placeholder="Nombre del paciente"
-                className="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-900 focus:bg-white focus:ring-1 focus:ring-blue-500 outline-none"
-              />
-            </div>
-            <div className="sm:col-span-3">
-              <label className="text-[10px] font-bold text-slate-500 uppercase block mb-0.5">Cédula / DNI:</label>
-              <input
-                type="text"
-                value={activeRecipe.patientCI || ''}
-                onChange={(e) => {
-                  onChangeRecipeItem(activeRecipeIndex, { patientCI: e.target.value });
-                  onSyncPatientToAll();
-                }}
-                placeholder="V-18.456.789"
-                className="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-900 focus:bg-white focus:ring-1 focus:ring-blue-500 outline-none"
-              />
-            </div>
-            <div className="sm:col-span-2">
-              <label className="text-[10px] font-bold text-slate-500 uppercase block mb-0.5">Edad:</label>
-              <input
-                type="text"
-                value={activeRecipe.patientAge || ''}
-                onChange={(e) => {
-                  onChangeRecipeItem(activeRecipeIndex, { patientAge: e.target.value });
-                  onSyncPatientToAll();
-                }}
-                placeholder="35 años"
-                className="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-900 focus:bg-white focus:ring-1 focus:ring-blue-500 outline-none"
-              />
-            </div>
-            <div className="sm:col-span-3">
-              <label className="text-[10px] font-bold text-slate-500 uppercase block mb-0.5">Fecha:</label>
-              <input
-                type="text"
-                value={activeRecipe.date || ''}
-                onChange={(e) => {
-                  onChangeRecipeItem(activeRecipeIndex, { date: e.target.value });
-                  onSyncPatientToAll();
-                }}
-                placeholder="14/10/26"
-                className="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-900 focus:bg-white focus:ring-1 focus:ring-blue-500 outline-none"
-              />
-            </div>
-          </div>
-
-          {/* Fila 2: Teléfono y Diagnóstico */}
-          <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
-            <div className="sm:col-span-4">
-              <label className="text-[10px] font-bold text-slate-500 uppercase block mb-0.5">Teléfono WhatsApp:</label>
-              <input
-                type="text"
-                value={activeRecipe.patientPhone || ''}
-                onChange={(e) => {
-                  onChangeRecipeItem(activeRecipeIndex, { patientPhone: e.target.value });
-                  onSyncPatientToAll();
-                }}
-                placeholder="Ej. 04141234567"
-                className="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-900 focus:bg-white focus:ring-1 focus:ring-blue-500 outline-none"
-              />
-            </div>
-            <div className="sm:col-span-8">
-              <label className="text-[10px] font-bold text-slate-500 uppercase block mb-0.5">Diagnóstico Clínico (Opcional):</label>
-              <input
-                type="text"
-                value={activeRecipe.diagnosis || ''}
-                onChange={(e) => {
-                  onChangeRecipeItem(activeRecipeIndex, { diagnosis: e.target.value });
-                  onSyncPatientToAll();
-                }}
-                placeholder="Ej. Faringoamigdalitis aguda bacteriana"
-                className="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-900 focus:bg-white focus:ring-1 focus:ring-blue-500 outline-none"
-              />
-            </div>
-          </div>
-
-          {/* Fila 3: Prescripción Médica (Rp.) y Notas/Indicaciones */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            <div>
-              <label className="text-[11px] font-black text-blue-700 uppercase flex items-center gap-1 mb-1">
-                <span>℞ Prescripción Médica (Medicamentos y Dosis):</span>
-              </label>
-              <textarea
-                value={activeRecipe.rp || ''}
-                onChange={(e) => {
-                  onChangeRecipeItem(activeRecipeIndex, { rp: e.target.value });
-                }}
-                placeholder="1. Amoxicilina 500mg - 1 cápsula cada 8 horas por 7 días&#10;2. Paracetamol 500mg - 1 tableta cada 6 horas..."
-                rows={4}
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none leading-relaxed resize-y min-h-[90px]"
-              />
-            </div>
-
-            <div>
-              <label className="text-[11px] font-black text-slate-700 uppercase flex items-center gap-1 mb-1">
-                <span>📋 Indicaciones de toma / Notas de pie:</span>
-              </label>
-              <textarea
-                value={activeRecipe.indicationsNotes || ''}
-                onChange={(e) => {
-                  onChangeRecipeItem(activeRecipeIndex, { indicationsNotes: e.target.value });
-                }}
-                placeholder="Tomar medicamentos después de cada comida con abundante agua. No suspender antes de 7 días..."
-                rows={4}
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-xs text-slate-900 font-semibold focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none leading-relaxed resize-y min-h-[90px]"
-              />
-            </div>
-          </div>
-        </div>
-      )}
-
       <div 
         ref={printableSheetRef}
         id="recipe-4en1-print-sheet"
-        className={`w-full flex justify-center print-container ${viewMode === 'grid' ? 'block mb-8' : 'block mb-8'}`}
+        className={`w-full flex justify-center print-container ${viewMode === 'grid' ? 'block mb-8' : 'hidden print:block'}`}
       >
         {/* Contenedor principal con proporciones exactas de Hoja Carta (Letter: 8.5" x 11" / 816px x 1056px) */}
         <div
