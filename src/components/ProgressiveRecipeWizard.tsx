@@ -2115,12 +2115,13 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
               className={`w-full flex justify-center print-container ${printFourInSheet ? 'block' : 'hidden print:hidden'} mt-4`}
             >
               <div
-                className={`relative w-[816px] max-w-[816px] min-h-[1056px] bg-white p-3.5 transition-all recipe-4en1-container ${textureClass}`}
+                className={`relative w-full max-w-[816px] min-h-[1056px] bg-white p-3.5 transition-all recipe-4en1-container ${textureClass}`}
                 style={{
                   backgroundColor: config.tonePapel || '#ffffff',
                   border: borderStyle,
                   borderRadius: config.docCornerRadius || '16px',
-                  width: '816px',
+                  width: '100%',
+                  maxWidth: '816px',
                   boxSizing: 'border-box',
                 }}
               >

@@ -240,14 +240,14 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
         return {
           name: 'Hoja Carta de Récipes Médicos (4 en 1)',
           sizeName: 'Hoja Carta Real (21.6 x 27.9 cm) con 4 Récipes en Cuadrantes',
-          widthClass: 'w-[816px] min-h-[1056px]',
+          widthClass: 'w-full max-w-[816px] min-h-[1056px]',
           sheetBadge: 'Récipes 4 en 1',
         };
       case 'informes':
         return {
           name: 'Informe Médico Oficial',
           sizeName: 'Hoja Carta Completa (1 Sola Página Oficial 21.6 x 27.9 cm)',
-          widthClass: 'w-[780px] min-h-[1050px]',
+          widthClass: 'w-full max-w-[780px] min-h-[1050px]',
           sheetBadge: '1 Sola Hoja Carta Completa',
         };
       case 'reposo':
@@ -641,14 +641,15 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
           {/* ========================================================= */}
           {(selectedPreviewModule === 'recipe-4en1' || selectedPreviewModule === 'diseno') && (
             <div
-              className={`relative w-[816px] max-w-[816px] min-h-[1056px] bg-white shadow-2xl p-4 transition-all print-container recipe-4en1-container ${textureClass} ${
+              className={`relative w-full max-w-[816px] min-h-[1056px] bg-white shadow-2xl p-4 transition-all print-container recipe-4en1-container ${textureClass} ${
                 config.enforcePureBlackText ? 'enforce-pure-black' : ''
               }`}
               style={{
                 backgroundColor: config.tonePapel || '#ffffff',
                 border: borderStyle,
                 borderRadius: config.docCornerRadius || '16px',
-                width: '816px',
+                width: '100%',
+                maxWidth: '816px',
                 minHeight: '1056px',
                 boxSizing: 'border-box',
               }}

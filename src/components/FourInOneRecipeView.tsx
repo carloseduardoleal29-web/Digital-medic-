@@ -665,14 +665,15 @@ export const FourInOneRecipeView: React.FC<FourInOneRecipeViewProps> = ({
         className={`w-full flex justify-center print-container ${viewMode === 'grid' ? 'block mb-8' : 'hidden print:block'}`}
       >
         <div
-          className={`relative w-[816px] max-w-[816px] min-h-[1056px] bg-white p-3.5 sm:p-4 transition-all recipe-4en1-container shadow-2xl rounded-2xl border border-slate-200 ${textureClass} ${
+          className={`relative w-full max-w-[816px] min-h-[1056px] bg-white p-3.5 sm:p-4 transition-all recipe-4en1-container shadow-2xl rounded-2xl border border-slate-200 ${textureClass} ${
             config.enforcePureBlackText ? 'enforce-pure-black' : ''
           }`}
           style={{
             backgroundColor: config.tonePapel || '#ffffff',
             border: borderStyle,
             borderRadius: config.docCornerRadius || '16px',
-            width: '816px',
+            width: '100%',
+            maxWidth: '816px',
             minHeight: '1056px',
             boxSizing: 'border-box',
           }}

@@ -38,7 +38,7 @@ export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
     <div className="fixed inset-0 z-50 flex flex-col bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-150">
       
       {/* Top Action Bar */}
-      <div className="h-16 px-6 bg-slate-900 border-b border-slate-800 flex items-center justify-between text-white shrink-0 shadow-lg">
+      <div className="min-h-16 px-3 sm:px-6 py-2 bg-slate-900 border-b border-slate-800 flex items-center justify-between text-white shrink-0 shadow-lg flex-wrap gap-2">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-xs">
             <Eye className="w-5 h-5" />
@@ -126,7 +126,7 @@ export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
         >
           {/* Exact Real Paper Sheet */}
           <div
-            className={`relative w-[640px] min-h-[860px] bg-white shadow-2xl p-7 transition-all flex flex-col justify-between print-container recipe-single-container ${textureClass}`}
+            className={`relative w-full max-w-[640px] min-h-[860px] bg-white shadow-2xl p-4 sm:p-7 transition-all flex flex-col justify-between print-container recipe-single-container ${textureClass}`}
             style={{
               backgroundColor: config.tonePapel || '#ffffff',
               border: borderStyle,

@@ -57,6 +57,46 @@ app.get('/pdf/:filename', (req, res) => {
 // Initialize Firebase Firestore SDK with API Key & Project Config
 let firestoreDb: any = null;
 let firestoreAvailable = true;
+let firestoreQuotaExceeded = false;
+let lastQuotaExceededTime = 0;
+const QUOTA_COOLDOWN_MS = 10 * 60 * 1000; // 10 minutes cache before re-checking cloud Firestore
+
+function handleFirestoreError(err: any, context: string) {
+  const errMsg = String(err?.message || err || '');
+  if (
+    errMsg.includes('Quota limit exceeded') || 
+    errMsg.includes('Quota exceeded') || 
+    errMsg.includes('RESOURCE_EXHAUSTED') ||
+    errMsg.includes('free tier database')
+  ) {
+    if (!firestoreQuotaExceeded) {
+      firestoreQuotaExceeded = true;
+      lastQuotaExceededTime = Date.now();
+      console.warn(
+        `\n================================================================================\n` +
+        `[Firestore Web SDK] QUOTA LIMIT EXCEEDED in '${context}'.\n` +
+        `Falling back seamlessly to local disk persistence (JSON files).\n` +
+        `To reset quota or enable billing for project 'composite-order-tghtt', visit:\n` +
+        `https://console.firebase.google.com/project/composite-order-tghtt/firestore/databases/ai-studio-digitalmedic-3b596a49-07f8-410e-b854-30ce833afcb2/data?openUpgradeDialog=true\n` +
+        `================================================================================\n`
+      );
+    }
+  } else {
+    console.warn(`[Firestore Web SDK] ${context} warning:`, errMsg);
+  }
+}
+
+function isFirestoreReady(): boolean {
+  if (!firestoreDb || !firestoreAvailable) return false;
+  if (firestoreQuotaExceeded) {
+    if (Date.now() - lastQuotaExceededTime > QUOTA_COOLDOWN_MS) {
+      firestoreQuotaExceeded = false;
+      return true;
+    }
+    return false;
+  }
+  return true;
+}
 
 try {
   const configPath = path.join(__dirname, 'firebase-applet-config.json');
@@ -227,7 +267,7 @@ function readUserEcosystemLocal(identifier: string): any | null {
 
 async function readDoctors(): Promise<any[]> {
   const localList = readDoctorsLocal();
-  if (firestoreDb && firestoreAvailable) {
+  if (isFirestoreReady()) {
     try {
       const snap = await getDocs(collection(firestoreDb, 'doctors'));
       if (!snap.empty) {
@@ -247,7 +287,7 @@ async function readDoctors(): Promise<any[]> {
         return merged;
       }
     } catch (err) {
-      console.warn('[Firestore Web SDK] readDoctors warning:', err);
+      handleFirestoreError(err, 'readDoctors');
     }
   }
   return localList;
@@ -260,7 +300,7 @@ async function writeDoctors(doctors: any[]): Promise<boolean> {
     console.error('Error writing doctors file:', err);
   }
 
-  if (firestoreDb && firestoreAvailable) {
+  if (isFirestoreReady()) {
     try {
       for (const d of doctors) {
         if (!d || !d.id) continue;
@@ -268,14 +308,14 @@ async function writeDoctors(doctors: any[]): Promise<boolean> {
       }
       return true;
     } catch (err) {
-      console.warn('[Firestore Web SDK] writeDoctors warning:', err);
+      handleFirestoreError(err, 'writeDoctors');
     }
   }
   return true;
 }
 
 async function readDocuments(): Promise<any[]> {
-  if (firestoreDb && firestoreAvailable) {
+  if (isFirestoreReady()) {
     try {
       const snap = await getDocs(collection(firestoreDb, 'documents'));
       if (!snap.empty) {
@@ -284,7 +324,7 @@ async function readDocuments(): Promise<any[]> {
         return list;
       }
     } catch (err) {
-      console.warn('[Firestore Web SDK] readDocuments warning:', err);
+      handleFirestoreError(err, 'readDocuments');
     }
   }
   return readDocumentsLocal();
@@ -297,7 +337,7 @@ async function writeDocuments(docs: any[]): Promise<boolean> {
     console.error('Error writing documents file:', err);
   }
 
-  if (firestoreDb && firestoreAvailable) {
+  if (isFirestoreReady()) {
     try {
       for (const d of docs) {
         if (!d || !d.id) continue;
@@ -305,7 +345,7 @@ async function writeDocuments(docs: any[]): Promise<boolean> {
       }
       return true;
     } catch (err) {
-      console.warn('[Firestore Web SDK] writeDocuments warning:', err);
+      handleFirestoreError(err, 'writeDocuments');
     }
   }
   return true;
@@ -321,7 +361,7 @@ async function readUserEcosystem(identifier: string): Promise<any | null> {
   const localEco = readUserEcosystemLocal(resolvedIdent);
 
   let firestoreEco: any = null;
-  if (firestoreDb && firestoreAvailable) {
+  if (isFirestoreReady()) {
     try {
       const snap = await getDoc(doc(firestoreDb, 'ecosystems', rawKey));
       if (snap.exists()) {
@@ -334,7 +374,7 @@ async function readUserEcosystem(identifier: string): Promise<any | null> {
         }
       }
     } catch (err) {
-      console.warn('[Firestore Web SDK] readUserEcosystem warning:', err);
+      handleFirestoreError(err, 'readUserEcosystem');
     }
   }
 
@@ -402,7 +442,7 @@ async function writeUserEcosystem(payload: any): Promise<any | null> {
     }
 
     // Save to Firestore with payload safety check (preventing 1MB document rejection)
-    if (firestoreDb && firestoreAvailable) {
+    if (isFirestoreReady()) {
       try {
         let firestorePayload = { ...dataToSave };
         if (firestorePayload.colleagueProfiles && Array.isArray(firestorePayload.colleagueProfiles)) {
@@ -414,7 +454,7 @@ async function writeUserEcosystem(payload: any): Promise<any | null> {
         await setDoc(doc(firestoreDb, 'ecosystems', rawKey), firestorePayload, { merge: true });
         console.log(`[Firestore Web SDK] Ecosystem for ${rawKey} saved to Firestore successfully!`);
       } catch (err) {
-        console.error('[Firestore Web SDK] writeUserEcosystem error:', err);
+        handleFirestoreError(err, 'writeUserEcosystem');
       }
     }
 
@@ -647,7 +687,7 @@ async function readPaymentConfig() {
     console.warn('Error reading payment_config.json:', err);
   }
 
-  if (firestoreDb && firestoreAvailable) {
+  if (isFirestoreReady()) {
     try {
       const snap = await getDoc(doc(firestoreDb, 'settings', 'payment_config'));
       if (snap.exists()) {
@@ -657,7 +697,7 @@ async function readPaymentConfig() {
         }
       }
     } catch (err) {
-      console.warn('[Firestore Web SDK] Error reading payment config, falling back to disk:', err);
+      handleFirestoreError(err, 'readPaymentConfig');
     }
   }
 
@@ -697,12 +737,12 @@ async function writePaymentConfig(config: any) {
     console.error('Error writing payment_config.json:', err);
   }
 
-  if (firestoreDb && firestoreAvailable) {
+  if (isFirestoreReady()) {
     try {
       await setDoc(doc(firestoreDb, 'settings', 'payment_config'), config, { merge: true });
       return true;
     } catch (err) {
-      console.error('[Firestore Web SDK] Error writing payment config:', err);
+      handleFirestoreError(err, 'writePaymentConfig');
     }
   }
   return true;
@@ -1041,12 +1081,12 @@ app.delete('/api/doctors/:id', async (req, res) => {
   const filtered = current.filter((d: any) => d.id !== id);
 
   // Explicitly delete from Firestore to prevent deleted doctor from syncing back
-  if (firestoreDb && firestoreAvailable) {
+  if (isFirestoreReady()) {
     try {
       await deleteDoc(doc(firestoreDb, 'doctors', id));
       console.log(`[Firestore Web SDK] Deleted doctor with ID ${id} from cloud database`);
     } catch (err) {
-      console.error('[Firestore Web SDK] Error deleting doctor:', err);
+      handleFirestoreError(err, 'deleteDoctor');
     }
   }
 
