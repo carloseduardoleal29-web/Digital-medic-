@@ -4,6 +4,7 @@ import { DocumentHeader } from './DocumentHeader';
 import { DocumentFooter } from './DocumentFooter';
 import { WhatsAppShareModal } from './WhatsAppShareModal';
 import { getDocumentBorderStyle, getPaperTextureClass } from '../utils/documentStyles';
+import { exportAndSendWhatsAppBusiness } from '../utils/exportDocument';
 import { CheckCircle2, MessageSquare, Printer, Download, Save, Trash2, Plus, ArrowLeft, ArrowRight, Scissors, Eye, Mail } from 'lucide-react';
 
 interface MasterRecipeViewProps {
@@ -131,11 +132,38 @@ export const MasterRecipeView: React.FC<MasterRecipeViewProps> = ({
             <span>💾 Guardar Paciente</span>
           </button>
 
+          {/* Enviar por WhatsApp */}
+          <button
+            type="button"
+            onClick={() => {
+              const treatment = [
+                recipe.rp?.trim(),
+                recipe.indicationsNotes?.trim(),
+              ].filter(Boolean).join('\n\n');
+
+              exportAndSendWhatsAppBusiness({
+                element: printableSheetRef.current,
+                patientName: recipe.patientName || 'Carlos leal',
+                documentTitle: 'Récipe Médico',
+                dateStr: recipe.date || '14/10/26',
+                patientPhone: recipe.patientPhone,
+                doctorName: config.doctorName || 'Dr. Carlos Leal',
+                treatmentDetails: treatment,
+                documentType: 'recipe',
+              });
+            }}
+            className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-sm hover:scale-105 active:scale-95 transition-all cursor-pointer border border-emerald-500"
+            title="Enviar récipe por WhatsApp con PDF y tratamiento"
+          >
+            <span className="text-sm">📱</span>
+            <span>Enviar por WhatsApp</span>
+          </button>
+
           {onDownloadPdf && (
             <button
               type="button"
               onClick={onDownloadPdf}
-              className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-sm hover:scale-105 active:scale-95 transition-all cursor-pointer"
+              className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-sm hover:scale-105 active:scale-95 transition-all cursor-pointer border border-slate-700"
               title="Descargar archivo PDF con el nombre del paciente y fecha"
             >
               <Download className="w-3.5 h-3.5 text-white" />

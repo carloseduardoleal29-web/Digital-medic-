@@ -1096,17 +1096,25 @@ export const IndicationsModule: React.FC<IndicationsModuleProps> = ({
             {/* Direct Instant Action Buttons */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               
-              {/* Botón WhatsApp Business */}
+              {/* Botón WhatsApp */}
               <button
                 type="button"
                 onClick={() => {
-                  exportAndSendWhatsAppBusiness(
-                    printableSheetRef.current,
-                    safeIndications.patientName || 'Carlos leal',
-                    'Indicaciones Médicas',
-                    safeIndications.date || '14/10/26',
-                    safeIndications.patientPhone
-                  );
+                  const treatment = [
+                    safeIndications.medicationSchedule?.trim(),
+                    safeIndications.dietAndRest?.trim(),
+                  ].filter(Boolean).join('\n\n');
+
+                  exportAndSendWhatsAppBusiness({
+                    element: printableSheetRef.current,
+                    patientName: safeIndications.patientName || 'Carlos leal',
+                    documentTitle: 'Indicaciones Médicas',
+                    dateStr: safeIndications.date || '14/10/26',
+                    patientPhone: safeIndications.patientPhone,
+                    doctorName: config.doctorName || 'Dr. Carlos Leal',
+                    treatmentDetails: treatment,
+                    documentType: 'indications',
+                  });
                 }}
                 className="p-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl font-black text-xs flex flex-col items-center justify-center gap-1.5 shadow-lg shadow-emerald-900/40 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-emerald-400/40"
               >

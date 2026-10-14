@@ -36,6 +36,7 @@ import {
   ChevronUp,
   DollarSign,
   Handshake,
+  Trash2,
   X
 } from 'lucide-react';
 import { DoctorConfig } from '../types';
@@ -45,10 +46,13 @@ import {
   createCalligraphicSignatureSVG, 
   CalligraphicStyle,
   DIGITAL_MEDIC_OFFICIAL_LOGO_SVG, 
-  MEDICINE_EMBLEM_ESCULAPIO_SVG 
+  MEDICINE_EMBLEM_ESCULAPIO_SVG,
+  BASIC_MEDICAL_LOGOS,
+  BasicMedicalLogo
 } from '../data/defaultAssets';
 import { removeDarkBackgroundAndEnhanceInk } from '../utils/imageCleanup';
 import { createTrialConfig, getDoctorTrialStatus } from '../utils/trialHelper';
+import { BasicLogoSelectorModal } from './BasicLogoSelectorModal';
 
 const Instagram: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
   <svg
@@ -268,6 +272,7 @@ export const DoctorOnboardingWizard: React.FC<DoctorOnboardingWizardProps> = ({
   const sigFileInputRef = useRef<HTMLInputElement | null>(null);
   const logoFileInputRef = useRef<HTMLInputElement | null>(null);
   const [customLogoImg, setCustomLogoImg] = useState<string | null>(null);
+  const [isLogoModalOpen, setIsLogoModalOpen] = useState(false);
 
   const handleLogoFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -609,9 +614,9 @@ export const DoctorOnboardingWizard: React.FC<DoctorOnboardingWizardProps> = ({
       watermarkOpacity: 0.16,
       watermarkScale: 55,
       watermarkRotation: 0,
-      logoIzq: customLogoImg || '',
-      logoDer: '',
-      marcaAgua: customLogoImg || '',
+      logoIzq: DIGITAL_MEDIC_OFFICIAL_LOGO_SVG,
+      logoDer: customLogoImg || '',
+      marcaAgua: customLogoImg || DIGITAL_MEDIC_OFFICIAL_LOGO_SVG,
       firmaImg: finalSignature,
       selloImg: finalStamp,
       selloFirma: finalStamp,
@@ -2397,44 +2402,113 @@ export const DoctorOnboardingWizard: React.FC<DoctorOnboardingWizardProps> = ({
                   />
                 </div>
 
-                {/* Logotipo del Consultorio / Clínica (Opcional) */}
-                <div className="bg-slate-900/60 p-4 rounded-2xl border border-slate-800 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                      <ImageIcon className="w-4 h-4 text-blue-400" />
-                      <span>Logotipo Médico o de Clínica (Opcional):</span>
+                {/* Logotipo del Consultorio / Clínica / Especialidad (Formato Básico) */}
+                <div className="bg-slate-900/60 p-4 sm:p-5 rounded-2xl border border-slate-800 space-y-4">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <span className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5">
+                      <ImageIcon className="w-4 h-4 text-cyan-400" />
+                      <span>Logotipo para Encabezado Básico de Récipe:</span>
                     </span>
                     {customLogoImg && (
                       <button
                         type="button"
                         onClick={() => setCustomLogoImg(null)}
-                        className="text-[11px] text-rose-400 hover:text-rose-300 font-bold"
+                        className="text-[11px] text-rose-400 hover:text-rose-300 font-bold flex items-center gap-1"
                       >
-                        Quitar Logo
+                        <Trash2 className="w-3 h-3" />
+                        Quitar Logo Derecho
                       </button>
                     )}
                   </div>
 
-                  <div className="flex items-center gap-3">
-                    <div className="w-14 h-14 rounded-xl bg-white p-1 flex items-center justify-center border border-slate-700 overflow-hidden shrink-0">
-                      {customLogoImg ? (
-                        <img src={customLogoImg} alt="Logo" className="w-full h-full object-contain" />
-                      ) : (
-                        <span className="text-[10px] text-slate-400 font-bold text-center leading-tight">Sin logo</span>
-                      )}
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    En el formato básico de su récipe, el <strong>Logo Oficial de Digital Médic</strong> se posiciona en el margen <strong>izquierdo</strong>. En el margen <strong>derecho</strong>, puede elegir el logo de su <strong>Especialidad Médica</strong> de nuestro catálogo o subir el logotipo personalizado de su clínica:
+                  </p>
+
+                  {/* Previsualizador Visual del Encabezado Básico */}
+                  <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 flex items-center justify-between gap-2 overflow-x-auto">
+                    {/* Logo Izquierdo: Digital Médic */}
+                    <div className="flex items-center gap-2 p-2 bg-slate-900/80 rounded-lg border border-slate-800 shrink-0">
+                      <div className="w-9 h-9 rounded-md bg-white p-1 flex items-center justify-center shrink-0">
+                        <img src={DIGITAL_MEDIC_OFFICIAL_LOGO_SVG} alt="Digital Medic" className="w-full h-full object-contain" />
+                      </div>
+                      <div className="text-[10px]">
+                        <span className="text-cyan-400 font-bold block">Izquierda</span>
+                        <span className="text-slate-300 font-medium">Digital Médic (Oficial)</span>
+                      </div>
                     </div>
-                    <div className="flex-1 space-y-1">
-                      <button
-                        type="button"
-                        onClick={() => logoFileInputRef.current?.click()}
-                        className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
-                      >
-                        <Upload className="w-3.5 h-3.5 text-blue-400" />
-                        <span>{customLogoImg ? 'Cambiar Logotipo' : 'Subir Logotipo'}</span>
-                      </button>
-                      <p className="text-[10px] text-slate-400">
-                        Se posicionará en el margen izquierdo del encabezado de sus documentos.
-                      </p>
+
+                    {/* Leyenda Centro */}
+                    <div className="text-center hidden sm:block shrink-0 px-2">
+                      <span className="text-[10px] text-slate-500 uppercase font-black tracking-wider block">Encabezado Básico</span>
+                      <span className="text-[9px] text-slate-400 font-medium">Membrete Profesional</span>
+                    </div>
+
+                    {/* Logo Derecho: Especialidad o Personalizado */}
+                    <div className="flex items-center gap-2 p-2 bg-slate-900/80 rounded-lg border border-slate-800 shrink-0">
+                      <div className="w-9 h-9 rounded-md bg-white p-1 flex items-center justify-center shrink-0">
+                        {customLogoImg ? (
+                          <img src={customLogoImg} alt="Logo Derecho" className="w-full h-full object-contain" />
+                        ) : (
+                          <span className="text-[9px] text-slate-500 font-bold text-center leading-none">Opcional</span>
+                        )}
+                      </div>
+                      <div className="text-[10px]">
+                        <span className="text-indigo-400 font-bold block">Derecha</span>
+                        <span className="text-slate-300 font-medium truncate max-w-[110px] block">
+                          {customLogoImg ? 'Logo Seleccionado' : 'Sin logo (Opcional)'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Botones de Acción */}
+                  <div className="flex items-center gap-2 flex-wrap pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setIsLogoModalOpen(true)}
+                      className="px-3.5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md transition-all cursor-pointer"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                      <span>Elegir Logo por Especialidad (Catálogo Completo)</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => logoFileInputRef.current?.click()}
+                      className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                    >
+                      <Upload className="w-3.5 h-3.5 text-blue-400" />
+                      <span>{customLogoImg ? 'Cambiar por Imagen Propia' : 'Subir Mi Imagen Propia'}</span>
+                    </button>
+                  </div>
+
+                  {/* Galería Rápida de Logos por Especialidad */}
+                  <div className="space-y-1.5 pt-1">
+                    <span className="text-[11px] font-bold text-slate-300 block">
+                      Logos de Especialidad para el Lado Derecho:
+                    </span>
+                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 max-h-48 overflow-y-auto pr-1">
+                      {BASIC_MEDICAL_LOGOS.map((bLogo: BasicMedicalLogo) => (
+                        <button
+                          key={bLogo.id}
+                          type="button"
+                          onClick={() => setCustomLogoImg(bLogo.svgDataUri)}
+                          className={`p-2 rounded-xl border flex flex-col items-center gap-1 transition-all cursor-pointer ${
+                            customLogoImg === bLogo.svgDataUri
+                              ? 'border-cyan-400 bg-cyan-500/20 shadow-md ring-2 ring-cyan-500/30'
+                              : 'border-slate-800 bg-slate-950/80 hover:border-slate-700 hover:bg-slate-900'
+                          }`}
+                          title={bLogo.name}
+                        >
+                          <div className="w-8 h-8 rounded-lg bg-white p-1 flex items-center justify-center shrink-0">
+                            <img src={bLogo.svgDataUri} alt={bLogo.name} className="w-full h-full object-contain" />
+                          </div>
+                          <span className="text-[9px] text-slate-200 font-semibold truncate w-full text-center">
+                            {bLogo.name.split(' ')[0]}
+                          </span>
+                        </button>
+                      ))}
                     </div>
                   </div>
 
@@ -3558,6 +3632,24 @@ export const DoctorOnboardingWizard: React.FC<DoctorOnboardingWizardProps> = ({
           setPayConfig(updated);
         }}
       />
+
+      {/* Modal Selector de Logo por Especialidad */}
+      {isLogoModalOpen && (
+        <BasicLogoSelectorModal
+          isOpen={isLogoModalOpen}
+          onClose={() => setIsLogoModalOpen(false)}
+          side="logoDer"
+          currentLogo={customLogoImg || undefined}
+          onSelectLogo={(_, dataUrl) => {
+            setCustomLogoImg(dataUrl);
+            setIsLogoModalOpen(false);
+          }}
+          onRemoveLogo={() => {
+            setCustomLogoImg(null);
+            setIsLogoModalOpen(false);
+          }}
+        />
+      )}
 
     </div>
   );

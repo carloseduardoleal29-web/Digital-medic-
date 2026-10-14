@@ -1754,19 +1754,28 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
                 <button
                   type="button"
                   onClick={() => {
-                    exportAndSendWhatsAppBusiness(
-                      printableRecipeRef.current,
-                      recipe.patientName || 'Carlos leal',
-                      'Récipe Médico',
-                      recipe.date || '14/10/26',
-                      recipe.patientPhone
-                    );
+                    const treatment = [
+                      recipe.rp?.trim(),
+                      recipe.indicationsNotes?.trim(),
+                      indications?.medicationSchedule?.trim(),
+                    ].filter(Boolean).join('\n\n');
+
+                    exportAndSendWhatsAppBusiness({
+                      element: printableRecipeRef.current,
+                      patientName: recipe.patientName || 'Carlos leal',
+                      documentTitle: 'Récipe Médico',
+                      dateStr: recipe.date || '14/10/26',
+                      patientPhone: recipe.patientPhone,
+                      doctorName: config.doctorName || 'Dr. Carlos Leal',
+                      treatmentDetails: treatment,
+                      documentType: 'recipe',
+                    });
                   }}
                   className="p-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black text-xs flex flex-col items-center justify-center gap-1 shadow-md transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-emerald-400/40"
-                  title="Generar PDF, descargarlo localmente y abrir WhatsApp Business"
+                  title="Enviar récipe por WhatsApp con PDF y tratamiento"
                 >
                   <span className="text-base">📱</span>
-                  <span>Enviar WhatsApp</span>
+                  <span>Enviar por WhatsApp</span>
                 </button>
 
                 {/* Imprimir Récipe Individual */}
@@ -2115,21 +2124,48 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
               className={`w-full flex justify-center print-container ${printFourInSheet ? 'block' : 'hidden print:hidden'} mt-4`}
             >
               <div
-                className={`relative w-full max-w-[816px] min-h-[1056px] bg-white p-3.5 transition-all recipe-4en1-container ${textureClass}`}
+                className={`relative w-full max-w-[816px] h-[1056px] min-h-[1056px] max-h-[1056px] bg-white transition-all recipe-4en1-container shadow-2xl rounded-2xl border border-slate-200 ${textureClass}`}
                 style={{
                   backgroundColor: config.tonePapel || '#ffffff',
                   border: borderStyle,
                   borderRadius: config.docCornerRadius || '16px',
                   width: '100%',
                   maxWidth: '816px',
+                  height: '1056px',
+                  minHeight: '1056px',
+                  maxHeight: '1056px',
                   boxSizing: 'border-box',
+                  padding: '15px',
+                  overflow: 'hidden',
                 }}
               >
-                <div className="grid grid-cols-2 grid-rows-2 gap-2 relative z-10 min-h-[1020px] recipe-4en1-grid">
+                <div 
+                  className="recipe-4en1-grid"
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(2, 1fr)',
+                    gridTemplateRows: 'repeat(2, 1fr)',
+                    gap: '15px',
+                    width: '100%',
+                    height: '100%',
+                    boxSizing: 'border-box',
+                  }}
+                >
                   {[0, 1, 2, 3].map((quadrantIdx) => (
                     <div
                       key={quadrantIdx}
-                      className="relative border border-slate-200/90 rounded-xl p-2.5 bg-white flex flex-col justify-between min-h-[490px] overflow-hidden recipe-quadrant-card"
+                      className="relative border border-slate-200/90 rounded-xl p-3 bg-white shadow-2xs flex flex-col justify-between overflow-hidden recipe-quadrant-card"
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        boxSizing: 'border-box',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        overflow: 'hidden',
+                        transform: 'none',
+                        margin: 0,
+                      }}
                     >
                       <div className="relative z-10">
                         <DocumentHeader config={config} compact={true} editableInline={false} />
@@ -2153,9 +2189,19 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
                         </div>
                       </div>
 
-                      <div className="flex-1 my-1 relative z-10">
-                        <span className="font-bold text-xs block text-blue-700 font-serif">℞ Rp.</span>
-                        <p className="text-[11.5px] text-slate-900 whitespace-pre-wrap leading-relaxed mt-1 font-sans font-medium">
+                      <div className="flex-1 my-1 relative z-10 overflow-hidden flex flex-col justify-start">
+                        <span 
+                          className="font-black text-xs block font-serif"
+                          style={{ color: config.primaryDocColor || '#2563eb' }}
+                        >
+                          ℞ {config.rxTitle || 'Rp.'}
+                        </span>
+                        <p 
+                          className="text-[10.5px] text-slate-900 whitespace-pre-wrap leading-relaxed mt-0.5 font-sans font-medium line-clamp-6"
+                          style={{
+                            fontFamily: config.rxBodyFontFamily || "'Roboto', sans-serif",
+                          }}
+                        >
                           {recipe.rp || <span className="italic text-slate-400">Sin medicamentos asignados.</span>}
                         </p>
                       </div>

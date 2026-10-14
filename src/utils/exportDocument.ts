@@ -182,6 +182,63 @@ function prepareClonedElement(clonedElement: HTMLElement) {
     }
   });
 
+  // 1-0. HOJA CARTA COMPLETA 4 EN 1: Exactamente 4 Récipes en Cuadrícula 2x2 (816px x 1056px / Letter)
+  const isRecipe4en1 =
+    clonedElement.id === 'recipe-4en1-print-sheet' ||
+    clonedElement.id === 'recipe-4copies-print-sheet' ||
+    clonedElement.classList.contains('recipe-4en1-container') ||
+    clonedElement.classList.contains('recipe-4en1-sheet') ||
+    clonedElement.querySelector('#recipe-4en1-print-sheet, #recipe-4copies-print-sheet, .recipe-4en1-container, .recipe-4en1-grid') !== null;
+
+  if (isRecipe4en1) {
+    const targetDoc = (clonedElement.id === 'recipe-4en1-print-sheet' ||
+      clonedElement.id === 'recipe-4copies-print-sheet' ||
+      clonedElement.classList.contains('recipe-4en1-container'))
+      ? clonedElement
+      : (clonedElement.querySelector<HTMLElement>('#recipe-4en1-print-sheet, #recipe-4copies-print-sheet, .recipe-4en1-container') || clonedElement);
+
+    targetDoc.style.width = '816px';
+    targetDoc.style.minWidth = '816px';
+    targetDoc.style.maxWidth = '816px';
+    targetDoc.style.height = '1056px';
+    targetDoc.style.minHeight = '1056px';
+    targetDoc.style.maxHeight = '1056px';
+    targetDoc.style.overflow = 'hidden';
+    targetDoc.style.boxSizing = 'border-box';
+    targetDoc.style.padding = '15px';
+    targetDoc.style.display = 'block';
+    targetDoc.style.margin = '0 auto';
+    targetDoc.style.transform = 'none';
+    targetDoc.style.zoom = '1';
+
+    const gridEl = targetDoc.querySelector<HTMLElement>('.recipe-4en1-grid');
+    if (gridEl) {
+      gridEl.style.display = 'grid';
+      gridEl.style.gridTemplateColumns = 'repeat(2, 1fr)';
+      gridEl.style.gridTemplateRows = 'repeat(2, 1fr)';
+      gridEl.style.gap = '15px';
+      gridEl.style.width = '100%';
+      gridEl.style.height = '100%';
+      gridEl.style.boxSizing = 'border-box';
+      gridEl.style.overflow = 'hidden';
+    }
+
+    targetDoc.querySelectorAll<HTMLElement>('.recipe-quadrant-card').forEach((card) => {
+      card.style.width = '100%';
+      card.style.height = '100%';
+      card.style.maxWidth = '100%';
+      card.style.maxHeight = '100%';
+      card.style.boxSizing = 'border-box';
+      card.style.transform = 'none';
+      card.style.margin = '0';
+      card.style.display = 'flex';
+      card.style.flexDirection = 'column';
+      card.style.justifyContent = 'space-between';
+      card.style.overflow = 'hidden';
+    });
+    return;
+  }
+
   // 1-A. RÉCIPE INDIVIDUAL COMPACTO: 1/4 de Hoja Carta (4.25" x 5.5" = 408px x 528px, 4 caben en una hoja carta)
   const isRecipeQuarter =
     clonedElement.id === 'recipe-quarter-print-container' ||
@@ -281,11 +338,19 @@ function prepareClonedElement(clonedElement: HTMLElement) {
  * a resolución 100% fiel libre de interferencias de zoom de pantalla o modales.
  */
 function createCleanOffscreenCaptureNode(sourceElement: HTMLElement): { container: HTMLElement; targetNode: HTMLElement; cleanup: () => void; isRecipeSingle: boolean; isRecipeQuarter: boolean } {
-  const isRecipeSingle =
+  const isRecipe4en1 =
+    sourceElement.id === 'recipe-4en1-print-sheet' ||
+    sourceElement.id === 'recipe-4copies-print-sheet' ||
+    sourceElement.classList.contains('recipe-4en1-container') ||
+    sourceElement.classList.contains('recipe-4en1-sheet') ||
+    sourceElement.querySelector('#recipe-4en1-print-sheet, #recipe-4copies-print-sheet, .recipe-4en1-container, .recipe-4en1-grid') !== null;
+
+  const isRecipeSingle = !isRecipe4en1 && (
     sourceElement.id === 'recipe-single-print-container' ||
     sourceElement.classList.contains('recipe-single-card') ||
     sourceElement.classList.contains('recipe-single-container') ||
-    sourceElement.querySelector('#recipe-single-print-container, .recipe-single-card, .recipe-single-container') !== null;
+    sourceElement.querySelector('#recipe-single-print-container, .recipe-single-card, .recipe-single-container') !== null
+  );
 
   const container = document.createElement('div');
   container.style.position = 'fixed';
@@ -343,11 +408,12 @@ function createCleanOffscreenCaptureNode(sourceElement: HTMLElement): { containe
   container.appendChild(clone);
   document.body.appendChild(container);
 
-  const isRecipeQuarter =
+  const isRecipeQuarter = !isRecipe4en1 && (
     sourceElement.id === 'recipe-quarter-print-container' ||
     sourceElement.classList.contains('recipe-size-quarter') ||
     sourceElement.getAttribute('data-recipe-size') === 'quarter' ||
-    sourceElement.querySelector('.recipe-size-quarter, #recipe-quarter-print-container, [data-recipe-size="quarter"]') !== null;
+    sourceElement.querySelector('.recipe-size-quarter, #recipe-quarter-print-container, [data-recipe-size="quarter"]') !== null
+  );
 
   return {
     container,
@@ -839,6 +905,9 @@ export async function sharePDFViaWebShare(
     // 1. Descargar el archivo PDF automáticamente al ordenador
     downloadBlobAsFile(blob, finalFilename);
 
+    // Alerta en pantalla requerida: PDF descargado + clip
+    showWhatsAppClipAlert('PDF descargado. Recuerda tocar el ícono del clip 📎 en WhatsApp para adjuntarlo al paciente');
+
     // 2. Abrir WhatsApp con el texto preparado de inmediato
     const cleanDigits = (patientPhone || '').replace(/\D/g, '');
     const encodedText = encodeURIComponent(shareText);
@@ -987,80 +1056,349 @@ export async function getElementImageBlob(
 }
 
 /**
- * Genera el PDF del documento actual, lo descarga localmente en el teléfono/dispositivo del usuario
- * e inmediatamente abre la API de WhatsApp (https://wa.me/) con el número del paciente
- * y el mensaje predefinido para que el médico solo tenga que adjuntar el PDF descargado.
- * Si navigator.share con canShare está disponible en el móvil, también abre la hoja nativa para WhatsApp.
+ * Parámetros para construir el mensaje completo de WhatsApp.
  */
-export async function exportAndSendWhatsAppBusiness(
-  element: HTMLElement | null,
-  patientName: string = 'Paciente',
-  documentTitle: string = 'Récipe Médico',
-  dateStr?: string,
-  patientPhone?: string,
-  customMessage?: string
-): Promise<boolean> {
-  try {
-    const fileName = buildDocumentPdfFilename(documentTitle, patientName, dateStr);
-    const targetElement = element || document.querySelector<HTMLElement>(
-      '#recipe-quarter-print-container, .recipe-size-quarter, #recipe-4en1-print-sheet, #dual-recipe-print-container, #recipe-single-print-container, #indications-print-container, #report-print-container, #rest-print-container, #clinical-history-print-container, .dual-recipe-container, .dual-recipe-sheet, .print-container, .recipe-4en1-container, .report-sheet-container, .recipe-single-container, .recipe-single-card, .indications-container, .rest-container, .clinical-history-container'
-    );
+export interface WhatsAppTreatmentMessageParams {
+  doctorName?: string;
+  documentType?: string;
+  patientName?: string;
+  treatmentDetails?: string;
+  customMessage?: string;
+}
 
-    // 1. Generar el PDF del documento actual
-    const blob = await generatePDFBlob(targetElement);
-    if (blob) {
-      // 2. Descargarlo localmente en el dispositivo
-      downloadBlobAsFile(blob, fileName);
+/**
+ * Arma un mensaje completo leyendo los datos del récipe/documento médico:
+ * 'Hola, soy el Dr. Carlos Leal. Te envío tu [Récipe / Informe / Constancia] en formato PDF. Detalle de tu tratamiento: [Lista de medicamentos y cómo tomárselos]'
+ */
+export function buildWhatsAppTreatmentMessage({
+  doctorName = 'Dr. Carlos Leal',
+  documentType = 'Récipe',
+  treatmentDetails = '',
+  customMessage,
+}: WhatsAppTreatmentMessageParams): string {
+  if (customMessage && customMessage.trim()) {
+    return customMessage.trim();
+  }
+
+  // Nombre del doctor con título formal
+  let cleanDocName = (doctorName || '').trim();
+  if (!cleanDocName) {
+    cleanDocName = 'Dr. Carlos Leal';
+  } else if (!/^dr(\(a\))?\.?/i.test(cleanDocName)) {
+    cleanDocName = `Dr. ${cleanDocName}`;
+  }
+
+  // Tipo de documento: [Récipe / Informe / Constancia]
+  let docTypeLabel = 'Récipe';
+  const lowerDoc = (documentType || '').toLowerCase();
+  if (lowerDoc.includes('informe') || lowerDoc.includes('report')) {
+    docTypeLabel = 'Informe';
+  } else if (lowerDoc.includes('reposo') || lowerDoc.includes('constancia') || lowerDoc.includes('rest')) {
+    docTypeLabel = 'Constancia';
+  } else if (lowerDoc.includes('indicaci')) {
+    docTypeLabel = 'Indicaciones';
+  } else if (lowerDoc.includes('historia')) {
+    docTypeLabel = 'Historia Clínica';
+  } else {
+    docTypeLabel = 'Récipe';
+  }
+
+  // Detalle del tratamiento (lista de medicamentos e indicaciones)
+  let cleanTreatment = (treatmentDetails || '').trim();
+  if (!cleanTreatment) {
+    cleanTreatment = 'Prescripción médica detallada en el archivo PDF adjunto.';
+  }
+
+  // Estructura exacta solicitada por el usuario:
+  // 'Hola, soy el Dr. Carlos Leal. Te envío tu [Récipe / Informe / Constancia] en formato PDF. Detalle de tu tratamiento: [Lista de medicamentos y cómo tomárselos]'
+  return `Hola, soy el ${cleanDocName}. Te envío tu ${docTypeLabel} en formato PDF.\n\nDetalle de tu tratamiento:\n${cleanTreatment}`;
+}
+
+/**
+ * Muestra la alerta en pantalla solicitada:
+ * 'PDF descargado. Recuerda tocar el ícono del clip 📎 en WhatsApp para adjuntarlo al paciente'
+ */
+export function showWhatsAppClipAlert(
+  customMessage: string = 'PDF descargado. Recuerda tocar el ícono del clip 📎 en WhatsApp para adjuntarlo al paciente'
+): void {
+  try {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('app-toast', { detail: customMessage }));
     }
 
-    // 3. Probar navigator.share con canShare si el navegador móvil lo admite nativamente
+    if (typeof document === 'undefined') return;
+
+    // Eliminar alerta previa si existe
+    const existing = document.getElementById('digital-medic-clip-alert');
+    if (existing) {
+      existing.remove();
+    }
+
+    // Asegurar estilos de animación
+    if (!document.getElementById('dm-alert-styles')) {
+      const styleTag = document.createElement('style');
+      styleTag.id = 'dm-alert-styles';
+      styleTag.textContent = `
+        @keyframes dmClipFadeUp {
+          from { opacity: 0; transform: translate(-50%, 25px) scale(0.95); }
+          to { opacity: 1; transform: translate(-50%, 0) scale(1); }
+        }
+        @keyframes dmClipFadeDown {
+          from { opacity: 1; transform: translate(-50%, 0) scale(1); }
+          to { opacity: 0; transform: translate(-50%, 25px) scale(0.95); }
+        }
+      `;
+      document.head.appendChild(styleTag);
+    }
+
+    const alertEl = document.createElement('div');
+    alertEl.id = 'digital-medic-clip-alert';
+    alertEl.setAttribute('role', 'alert');
+    alertEl.style.cssText = `
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 9999999;
+      max-width: calc(100vw - 32px);
+      width: 540px;
+      background: linear-gradient(135deg, #064e3b 0%, #065f46 100%);
+      color: #ffffff;
+      padding: 14px 18px;
+      border-radius: 16px;
+      box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.45), 0 0 0 1.5px rgba(52, 211, 153, 0.45);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 13px;
+      line-height: 1.4;
+      font-weight: 600;
+      animation: dmClipFadeUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      pointer-events: auto;
+    `;
+
+    alertEl.innerHTML = `
+      <div style="width: 36px; height: 36px; border-radius: 10px; background: rgba(255, 255, 255, 0.2); display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0;">
+        📎
+      </div>
+      <div style="flex: 1; text-shadow: 0 1px 2px rgba(0,0,0,0.25);">
+        ${customMessage}
+      </div>
+      <button type="button" id="dm-close-clip-alert" style="background: none; border: none; color: #a7f3d0; font-size: 18px; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; line-height: 1;" title="Cerrar">
+        ✕
+      </button>
+    `;
+
+    document.body.appendChild(alertEl);
+
+    let isDismissed = false;
+    const dismiss = () => {
+      if (isDismissed) return;
+      isDismissed = true;
+      alertEl.style.animation = 'dmClipFadeDown 0.25s forwards';
+      setTimeout(() => {
+        if (alertEl.parentNode) alertEl.parentNode.removeChild(alertEl);
+      }, 250);
+    };
+
+    const closeBtn = alertEl.querySelector('#dm-close-clip-alert');
+    if (closeBtn) closeBtn.addEventListener('click', dismiss);
+    setTimeout(dismiss, 9500);
+  } catch (e) {
+    console.warn('[WhatsApp Clip Alert Error]:', e);
+  }
+}
+
+/**
+ * Opciones completas para exportar y enviar por WhatsApp.
+ */
+export interface WhatsAppExportOptions {
+  element?: HTMLElement | null;
+  patientName?: string;
+  documentTitle?: string;
+  dateStr?: string;
+  patientPhone?: string;
+  doctorName?: string;
+  treatmentDetails?: string;
+  customMessage?: string;
+  documentType?: string;
+}
+
+/**
+ * Función principal para el botón de 'Enviar por WhatsApp'.
+ * 1. Lee los datos del récipe (Doctor, Tipo de Documento, Tratamiento detallado).
+ * 2. Enviar el PDF: Usa la herramienta nativa de compartir del teléfono para mandar el texto y el archivo PDF juntos de una sola vez.
+ * 3. Plan de emergencia: Si el teléfono no lo permite o bloquea el envío, descarga el PDF automáticamente,
+ *    abre WhatsApp con el texto ya escrito y muestra la alerta:
+ *    'PDF descargado. Recuerda tocar el ícono del clip 📎 en WhatsApp para adjuntarlo al paciente'
+ */
+export async function exportAndSendWhatsAppBusiness(
+  elementOrOptions: HTMLElement | null | WhatsAppExportOptions,
+  patientNameArg?: string,
+  documentTitleArg?: string,
+  dateStrArg?: string,
+  patientPhoneArg?: string,
+  customMessageArg?: string,
+  doctorNameArg?: string,
+  treatmentDetailsArg?: string,
+  documentTypeArg?: string
+): Promise<boolean> {
+  try {
+    let element: HTMLElement | null = null;
+    let patientName = 'Carlos leal';
+    let documentTitle = 'Récipe Médico';
+    let dateStr: string | undefined = undefined;
+    let patientPhone: string | undefined = undefined;
+    let customMessage: string | undefined = undefined;
+    let doctorName = 'Dr. Carlos Leal';
+    let treatmentDetails = '';
+    let documentType = 'recipe';
+
+    if (elementOrOptions && typeof elementOrOptions === 'object' && !(elementOrOptions instanceof HTMLElement)) {
+      const opts = elementOrOptions as WhatsAppExportOptions;
+      element = opts.element || null;
+      patientName = opts.patientName || 'Carlos leal';
+      documentTitle = opts.documentTitle || 'Récipe Médico';
+      dateStr = opts.dateStr;
+      patientPhone = opts.patientPhone;
+      customMessage = opts.customMessage;
+      doctorName = opts.doctorName || 'Dr. Carlos Leal';
+      treatmentDetails = opts.treatmentDetails || '';
+      documentType = opts.documentType || 'recipe';
+    } else {
+      element = (elementOrOptions as HTMLElement | null) || null;
+      patientName = patientNameArg || 'Carlos leal';
+      documentTitle = documentTitleArg || 'Récipe Médico';
+      dateStr = dateStrArg;
+      patientPhone = patientPhoneArg;
+      customMessage = customMessageArg;
+      doctorName = doctorNameArg || 'Dr. Carlos Leal';
+      treatmentDetails = treatmentDetailsArg || '';
+      documentType = documentTypeArg || 'recipe';
+    }
+
+    const targetElement = element || document.querySelector<HTMLElement>(
+      '#recipe-4en1-print-sheet, .recipe-4en1-container, #recipe-quarter-print-container, .recipe-size-quarter, #dual-recipe-print-container, #recipe-single-print-container, #indications-print-container, #report-print-container, #rest-print-container, #clinical-history-print-container, .dual-recipe-container, .dual-recipe-sheet, .print-container, .report-sheet-container, .recipe-single-container, .recipe-single-card, .indications-container, .rest-container, .clinical-history-container'
+    );
+
+    // Fallback inteligente: si no pasaron tratamiento, extraerlo del DOM del récipe
+    if (!treatmentDetails && targetElement) {
+      try {
+        const textareas = targetElement.querySelectorAll<HTMLTextAreaElement>('textarea');
+        const extracted: string[] = [];
+        textareas.forEach((ta) => {
+          if (ta.value && ta.value.trim().length > 3) {
+            extracted.push(ta.value.trim());
+          }
+        });
+        if (extracted.length > 0) {
+          treatmentDetails = extracted.join('\n\n');
+        } else {
+          const rxBody = targetElement.querySelector<HTMLElement>('.recipe-rx-body, [data-field="rp"]');
+          if (rxBody && rxBody.textContent) {
+            treatmentDetails = rxBody.textContent.trim();
+          }
+        }
+      } catch (_) {}
+    }
+
+    // Fallback inteligente: si no pasaron doctorName o es genérico, leerlo de la configuración almacenada
+    if ((!doctorName || doctorName === 'Dr. Carlos Leal') && typeof localStorage !== 'undefined') {
+      try {
+        const storedDoc = localStorage.getItem('digital_medic_doctor_config_v2');
+        if (storedDoc) {
+          const parsed = JSON.parse(storedDoc);
+          if (parsed?.doctorName) {
+            doctorName = parsed.doctorName;
+          }
+        }
+      } catch (_) {}
+    }
+
+    // 1. Armar el mensaje completo y profesional
+    const messageText = customMessage || buildWhatsAppTreatmentMessage({
+      doctorName,
+      documentType,
+      patientName,
+      treatmentDetails,
+    });
+
+    const fileName = buildDocumentPdfFilename(documentTitle, patientName, dateStr);
+
+    // Generar el archivo PDF del documento
+    const blob = await generatePDFBlob(targetElement);
+
     const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+    let nativeShareSuccess = false;
+
+    // 2. ENVIAR EL PDF: Usar la herramienta nativa de compartir del teléfono para mandar el texto y el archivo PDF juntos de una sola vez
     if (blob && typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
       try {
         const pdfFile = new File([blob], fileName, { type: 'application/pdf' });
-        if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+        if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [pdfFile] })) {
           await navigator.share({
             files: [pdfFile],
             title: `${documentTitle} - ${patientName}`,
-            text: customMessage || `Hola ${patientName || 'paciente'}, le envío su ${documentTitle} oficial en formato PDF. Saludos.`,
+            text: messageText,
           });
+          nativeShareSuccess = true;
           return true;
         }
       } catch (shareErr: any) {
         if (shareErr && shareErr.name === 'AbortError') {
+          // El usuario abrió el menú de compartir nativo y lo cerró manualmente
           return true;
         }
+        console.warn('[Herramienta nativa de compartir falló, activando Plan de Emergencia]:', shareErr);
       }
     }
 
-    // 4. Abrir de inmediato la API de WhatsApp (https://wa.me/) con el número del paciente y mensaje predefinido
-    const cleanDigits = (patientPhone || '').replace(/\D/g, '');
-    let phoneNum = cleanDigits;
-    if (cleanDigits.startsWith('0')) {
-      phoneNum = `58${cleanDigits.substring(1)}`;
-    } else if (cleanDigits.length === 10 && !cleanDigits.startsWith('58')) {
-      phoneNum = `58${cleanDigits}`;
-    }
+    // 3. PLAN DE EMERGENCIA (Si el teléfono no lo permite o bloquea el envío):
+    if (!nativeShareSuccess) {
+      // A. Descargar el PDF automáticamente
+      if (blob) {
+        downloadBlobAsFile(blob, fileName);
+      }
 
-    const defaultMsg = customMessage || `Hola ${patientName || 'paciente'}, le envío su ${documentTitle} oficial en formato PDF. Saludos.`;
-    const encodedText = encodeURIComponent(defaultMsg);
+      // B. Mostrar alerta en pantalla con el texto exacto solicitado
+      showWhatsAppClipAlert('PDF descargado. Recuerda tocar el ícono del clip 📎 en WhatsApp para adjuntarlo al paciente');
 
-    const waUrl = phoneNum.length >= 7
-      ? `https://wa.me/${phoneNum}?text=${encodedText}`
-      : (isMobile ? `https://wa.me/?text=${encodedText}` : `https://web.whatsapp.com/send?text=${encodedText}`);
+      // C. Abrir WhatsApp con el texto ya escrito
+      const cleanDigits = (patientPhone || '').replace(/\D/g, '');
+      let phoneNum = cleanDigits;
+      if (cleanDigits.startsWith('0')) {
+        phoneNum = `58${cleanDigits.substring(1)}`;
+      } else if (cleanDigits.length === 10 && !cleanDigits.startsWith('58')) {
+        phoneNum = `58${cleanDigits}`;
+      }
 
-    if (isMobile) {
-      window.location.href = waUrl;
-    } else {
-      const link = document.createElement('a');
-      link.href = waUrl;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      document.body.appendChild(link);
-      link.click();
+      const encodedText = encodeURIComponent(messageText);
+      const waUrl = phoneNum.length >= 7
+        ? `https://wa.me/${phoneNum}?text=${encodedText}`
+        : (isMobile ? `https://wa.me/?text=${encodedText}` : `https://web.whatsapp.com/send?text=${encodedText}`);
+
       setTimeout(() => {
-        if (document.body.contains(link)) document.body.removeChild(link);
-      }, 300);
+        try {
+          if (isMobile) {
+            window.location.href = waUrl;
+          } else {
+            const link = document.createElement('a');
+            link.href = waUrl;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            document.body.appendChild(link);
+            link.click();
+            setTimeout(() => {
+              if (document.body.contains(link)) document.body.removeChild(link);
+            }, 300);
+          }
+        } catch (_) {
+          window.location.href = waUrl;
+        }
+      }, 350);
+
+      return true;
     }
 
     return true;

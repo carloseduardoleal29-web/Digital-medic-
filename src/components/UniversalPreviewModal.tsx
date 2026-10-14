@@ -415,33 +415,45 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
               let dateStr = recipe?.date || '14/10/26';
               let phoneStr = recipe?.patientPhone || '';
 
+              let treatment = [recipe?.rp?.trim(), recipe?.indicationsNotes?.trim()].filter(Boolean).join('\n\n');
+              let docType = 'recipe';
+
               if (selectedPreviewModule === 'informe' || selectedPreviewModule === 'informes') {
                 patientName = currentReport?.patientName || patientName;
                 docTitle = 'Informe Médico';
+                docType = 'report';
                 dateStr = currentReport?.date || dateStr;
                 phoneStr = currentReport?.patientPhone || phoneStr;
+                treatment = [currentReport?.diagnosticImpression ? `Diagnóstico: ${currentReport.diagnosticImpression}` : '', currentReport?.treatmentPlan ? `Plan/Tratamiento: ${currentReport.treatmentPlan}` : ''].filter(Boolean).join('\n\n');
               } else if (selectedPreviewModule === 'reposo') {
                 patientName = medicalRestCert?.patientName || patientName;
                 docTitle = 'Constancia de Reposo';
+                docType = 'rest';
                 dateStr = medicalRestCert?.date || dateStr;
                 phoneStr = medicalRestCert?.patientPhone || phoneStr;
+                treatment = `Reposo por ${medicalRestCert?.daysRest || 1} días. Diagnóstico: ${medicalRestCert?.diagnosis || 'Reposo médico'}`;
               } else if (selectedPreviewModule === 'indicaciones') {
                 patientName = indicationsSheet?.patientName || patientName;
                 docTitle = 'Indicaciones Médicas';
+                docType = 'indications';
                 dateStr = indicationsSheet?.date || dateStr;
                 phoneStr = indicationsSheet?.patientPhone || phoneStr;
+                treatment = [indicationsSheet?.medicationSchedule, indicationsSheet?.dietAndRest].filter(Boolean).join('\n\n');
               }
 
-              exportAndSendWhatsAppBusiness(
-                previewSheetRef.current,
+              exportAndSendWhatsAppBusiness({
+                element: previewSheetRef.current,
                 patientName,
-                docTitle,
+                documentTitle: docTitle,
                 dateStr,
-                phoneStr
-              );
+                patientPhone: phoneStr,
+                doctorName: config.doctorName || 'Dr. Carlos Leal',
+                treatmentDetails: treatment,
+                documentType: docType,
+              });
             }}
             className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-md transition-all hover:scale-[1.02] cursor-pointer border border-emerald-500"
-            title="Generar PDF, descargarlo localmente y abrir WhatsApp Business"
+            title="Enviar documento por WhatsApp con PDF y detalle de tratamiento"
           >
             <span className="text-sm">📱</span>
             <span>Enviar por WhatsApp</span>
@@ -639,9 +651,12 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
           {/* ========================================================= */}
           {/* CASE 2: RÉCIPES MÉDICOS 4 EN 1 (HOJA CARTA 4 CUADRANTES) */}
           {/* ========================================================= */}
+          {/* ========================================================= */}
+          {/* CASE 2: RÉCIPES MÉDICOS 4 EN 1 (HOJA CARTA 4 CUADRANTES) */}
+          {/* ========================================================= */}
           {(selectedPreviewModule === 'recipe-4en1' || selectedPreviewModule === 'diseno') && (
             <div
-              className={`relative w-full max-w-[816px] min-h-[1056px] bg-white shadow-2xl p-4 transition-all print-container recipe-4en1-container ${textureClass} ${
+              className={`relative w-full max-w-[816px] h-[1056px] min-h-[1056px] max-h-[1056px] bg-white shadow-2xl transition-all print-container recipe-4en1-container ${textureClass} ${
                 config.enforcePureBlackText ? 'enforce-pure-black' : ''
               }`}
               style={{
@@ -650,41 +665,70 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
                 borderRadius: config.docCornerRadius || '16px',
                 width: '100%',
                 maxWidth: '816px',
+                height: '1056px',
                 minHeight: '1056px',
+                maxHeight: '1056px',
                 boxSizing: 'border-box',
+                padding: '15px',
+                overflow: 'hidden',
               }}
             >
-              <div className="grid grid-cols-2 grid-rows-2 gap-3 relative z-10 min-h-[1020px] recipe-4en1-grid">
+              {/* Central Cut Guides */}
+              <div className="absolute inset-0 pointer-events-none z-0">
+                <div className="absolute top-1/2 left-3 right-3 border-t border-dashed border-slate-300 -translate-y-1/2 flex items-center justify-center">
+                  <span className="bg-white/95 px-2 py-0.5 rounded text-[9px] text-slate-400 font-mono tracking-widest flex items-center gap-1">
+                    ✂ - - - - - LÍNEA DE CORTE - - - - - ✂
+                  </span>
+                </div>
+                <div className="absolute top-3 bottom-3 left-1/2 border-l border-dashed border-slate-300 -translate-x-1/2 flex items-center justify-center">
+                  <span className="bg-white/95 px-1 py-1 rounded text-[8px] text-slate-400 font-mono [writing-mode:vertical-lr] tracking-widest">
+                    ✂ CORTE
+                  </span>
+                </div>
+              </div>
+
+              {/* Contenedor Grid Estricto: repeat(2, 1fr), repeat(2, 1fr), gap: 15px, 100% width/height */}
+              <div 
+                className="recipe-4en1-grid"
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
+                  gridTemplateRows: 'repeat(2, 1fr)',
+                  gap: '15px',
+                  width: '100%',
+                  height: '100%',
+                  boxSizing: 'border-box',
+                }}
+              >
                 {[0, 1, 2, 3].map((idx) => {
-                  const rec = recipes4en1[idx] || (idx === 0 ? recipe : null);
-                  const isSlotFilled = rec && Boolean(rec.rp?.trim() || rec.patientName?.trim() || rec.diagnosis?.trim());
-
-                  // Always show Slot 0 if recipe is present, or if rec has content
-                  const shouldRenderContent = idx === 0 ? true : isSlotFilled;
-
-                  if (!shouldRenderContent) {
-                    return (
-                      <div
-                        key={idx}
-                        className="relative border-2 border-dashed border-slate-200 rounded-xl p-4 bg-slate-50/30 flex flex-col items-center justify-center text-center text-slate-400 min-h-[490px] recipe-quadrant-empty"
-                      >
-                        <div className="space-y-1.5 opacity-60 no-print">
-                          <Scissors className="w-5 h-5 mx-auto text-slate-300" />
-                          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-                            Cuadrante {idx + 1} Libre (1/4 Carta)
-                          </span>
-                          <span className="text-[10px] text-slate-400 block max-w-[180px]">
-                            Espacio libre para corte de hoja carta.
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  }
+                  const targetRec = (recipes4en1 && recipes4en1.length > 0 && recipes4en1[0]?.rp?.trim()) 
+                    ? recipes4en1[0] 
+                    : (recipe || {
+                        id: 'rec-1',
+                        patientName: 'Carlos leal',
+                        patientAge: '35 años',
+                        patientCI: 'V-18.456.789',
+                        date: '14/10/26',
+                        diagnosis: 'Consulta médica general',
+                        rp: '',
+                        indicationsNotes: '',
+                      });
 
                   return (
                     <div
-                      key={idx}
-                      className="relative border border-slate-200/90 rounded-xl p-3.5 bg-white shadow-2xs flex flex-col justify-between min-h-[490px] overflow-hidden recipe-quadrant-card"
+                      key={`quadrant-${idx}`}
+                      className="relative border border-slate-200/90 rounded-xl p-3 bg-white shadow-2xs flex flex-col justify-between overflow-hidden recipe-quadrant-card"
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        boxSizing: 'border-box',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        overflow: 'hidden',
+                        transform: 'none',
+                        margin: 0,
+                      }}
                     >
                       {/* Watermark inside each recipe quadrant */}
                       {config.marcaAgua && !config.marcaAgua.includes('DIGITAL') && (
@@ -694,48 +738,61 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
                             alt="Marca de agua"
                             className="marca-agua-img"
                             style={{
-                              opacity: config.watermarkOpacity ?? 0.12,
-                              width: `${Math.min(65, config.watermarkScale || 55)}%`,
+                              opacity: config.watermarkOpacity ?? 0.08,
+                              width: `${Math.min(55, config.watermarkScale || 45)}%`,
                               transform: `rotate(${config.watermarkRotation || 0}deg)`,
                             }}
                           />
                         </div>
                       )}
 
+                      {/* Header */}
                       <div className="relative z-10">
                         <DocumentHeader config={config} compact={true} editableInline={false} />
                         <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 py-0.5 px-1.5 bg-slate-50/90 border border-slate-200/80 rounded-md text-[9px] my-1 leading-tight">
                           <div className="truncate">
                             <span className="font-bold text-slate-700">Pac: </span>
-                            <span className="font-semibold text-slate-900">{rec?.patientName || recipe?.patientName || 'Paciente'}</span>
+                            <span className="font-semibold text-slate-900">{targetRec?.patientName || 'Carlos leal'}</span>
                           </div>
                           <div className="text-right truncate">
                             <span className="font-bold text-slate-700">C.I: </span>
-                            <span className="font-semibold text-slate-900">{rec?.patientCI || recipe?.patientCI || 'S/C'}</span>
+                            <span className="font-semibold text-slate-900">{targetRec?.patientCI || 'V-18.456.789'}</span>
                           </div>
                           <div className="truncate col-span-1">
                             <span className="font-bold text-slate-700">Dx: </span>
-                            <span className="text-slate-800 font-medium">{rec?.diagnosis || recipe?.diagnosis || '—'}</span>
+                            <span className="text-slate-800 font-medium">{targetRec?.diagnosis || 'Consulta'}</span>
                           </div>
                           <div className="text-right">
                             <span className="font-bold text-slate-700">Fecha: </span>
-                            <span className="text-slate-800">{rec?.date || recipe?.date || new Intl.DateTimeFormat('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date())}</span>
+                            <span className="text-slate-800">{targetRec?.date || '14/10/26'}</span>
                           </div>
                         </div>
                       </div>
 
-                      <div className="flex-1 my-1 relative z-10">
-                        <span className="font-bold text-xs block text-blue-700 font-serif">℞ Rp.</span>
-                        <p className="text-[11.5px] text-slate-900 whitespace-pre-wrap leading-relaxed mt-1 font-sans font-medium">
-                          {rec?.rp || <span className="italic text-slate-400">Sin medicamentos asignados.</span>}
+                      {/* Prescription Body */}
+                      <div className="flex-1 my-1 relative z-10 overflow-hidden flex flex-col justify-start">
+                        <span 
+                          className="font-black text-xs block font-serif"
+                          style={{ color: config.primaryDocColor || '#2563eb' }}
+                        >
+                          ℞ {config.rxTitle || 'Rp.'}
+                        </span>
+                        <p 
+                          className="text-[10.5px] text-slate-900 whitespace-pre-wrap leading-relaxed mt-0.5 font-sans font-medium line-clamp-6"
+                          style={{
+                            fontFamily: config.rxBodyFontFamily || "'Roboto', sans-serif",
+                          }}
+                        >
+                          {targetRec?.rp || <span className="italic text-slate-400">Sin medicamentos asignados.</span>}
                         </p>
                       </div>
 
+                      {/* Footer */}
                       <div className="mt-1 pt-1 border-t border-slate-200/80 relative z-10">
                         <DocumentFooter
                           config={config}
                           compact={true}
-                          notesText={rec?.indicationsNotes || config.footerNotesText}
+                          notesText={targetRec?.indicationsNotes || config.footerNotesText}
                           editableInline={false}
                         />
                       </div>

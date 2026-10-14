@@ -96,7 +96,7 @@ import {
   applyEcosystemToLocalStorage 
 } from './services/ecosystemSync';
 import { saveDirectToFirestore } from './services/firebaseClient';
-import { exportElementAsPDF, sharePDFViaWebShare, generatePDFBlob, buildDocumentPdfFilename } from './utils/exportDocument';
+import { exportElementAsPDF, sharePDFViaWebShare, generatePDFBlob, buildDocumentPdfFilename, showWhatsAppClipAlert, buildWhatsAppTreatmentMessage } from './utils/exportDocument';
 
 /**
  * Helper de Fusión Inmutable No Destructiva para Diseños Médicos
@@ -824,8 +824,20 @@ export default function App() {
   // Show toast notification helper
   const showToast = (msg: string) => {
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3500);
+    setTimeout(() => setToastMessage(null), 4500);
   };
+
+  // Escuchar eventos globales de alerta / notificación
+  useEffect(() => {
+    const handleCustomToast = (e: Event) => {
+      const customEvent = e as CustomEvent<string>;
+      if (customEvent.detail) {
+        showToast(customEvent.detail);
+      }
+    };
+    window.addEventListener('app-toast', handleCustomToast);
+    return () => window.removeEventListener('app-toast', handleCustomToast);
+  }, []);
 
   // Cloud Ecosystem Synchronization State (Automático PC <-> Móvil)
   const isSyncingFromCloudRef = useRef<boolean>(false);
@@ -2515,10 +2527,13 @@ export default function App() {
     } else if (activeModule === 'historias') {
       container = document.querySelector<HTMLElement>('#clinical-history-print-container') ||
         document.querySelector<HTMLElement>('.clinical-history-sheet, .clinical-history-container');
-    } else if (activeModule === 'recipe-master' || activeModule === 'recipe' || activeModule === 'recipe-4en1') {
-      container = document.querySelector<HTMLElement>('#recipe-quarter-print-container, .recipe-size-quarter, #recipe-single-print-container, .recipe-single-card, .recipe-single-container, #recipe-4en1-print-sheet, .recipe-4en1-container');
+    } else if (activeModule === 'recipe-4en1') {
+      container = document.querySelector<HTMLElement>('#recipe-4en1-print-sheet, .recipe-4en1-container') ||
+        document.querySelector<HTMLElement>('#recipe-quarter-print-container, .recipe-single-card');
+    } else if (activeModule === 'recipe-master' || activeModule === 'recipe') {
+      container = document.querySelector<HTMLElement>('#recipe-quarter-print-container, .recipe-size-quarter, #recipe-single-print-container, .recipe-single-card, .recipe-single-container');
     } else {
-      container = document.querySelector<HTMLElement>('#recipe-quarter-print-container, .recipe-size-quarter, #recipe-4en1-print-sheet, #recipe-single-print-container, .recipe-4en1-container, .recipe-single-card');
+      container = document.querySelector<HTMLElement>('#recipe-4en1-print-sheet, .recipe-4en1-container, #recipe-quarter-print-container, .recipe-size-quarter, #recipe-single-print-container, .recipe-single-card');
     }
     
     if (!container) {
@@ -2991,7 +3006,7 @@ export default function App() {
       let generatedBlobForMobile: Blob | null = null;
       try {
         const targetElement = document.querySelector<HTMLElement>(
-          '#dual-recipe-print-container, #recipe-single-print-container, #indications-print-container, .dual-recipe-container, .dual-recipe-sheet, .print-container, .recipe-4en1-container, .report-sheet-container, .recipe-single-container, .recipe-single-card, .indications-container, .rest-container, .clinical-history-container'
+          '#recipe-4en1-print-sheet, .recipe-4en1-container, #dual-recipe-print-container, #recipe-single-print-container, #indications-print-container, .dual-recipe-container, .dual-recipe-sheet, .print-container, .report-sheet-container, .recipe-single-container, .recipe-single-card, .indications-container, .rest-container, .clinical-history-container'
         );
         const blob = await generatePDFBlob(targetElement);
         if (blob) {
@@ -3033,17 +3048,17 @@ export default function App() {
         cleanPhone = rawDigits;
       }
 
-      const effectivePdfUrl = publicPdfUrl || `${window.location.origin}/?doc=${newRecord.id}`;
-      const msg = 
-        `Estimado(a) *${patientName}*,\n\n` +
-        `Le saluda el/la *Dr(a). ${config.doctorName}* (${config.specialty || 'Médico Especialista'}).\n\n` +
-        `📄 *${docTitle.toUpperCase()} OFICIAL*\n\n` +
-        `📥 *ENLACE DE DESCARGA DIRECTA DE SU PDF OFICIAL:*\n${effectivePdfUrl}\n\n` +
-        `📋 *PRESCRIPCIÓN / INDICACIÓN MÉDICA:*\n${contentBody.length > 550 ? contentBody.slice(0, 520) + '...' : contentBody}\n\n` +
-        `*M.P.P.S:* ${config.mpps || '00.000'} | *C.I:* ${config.ci || 'V-00.000.000'}\n` +
-        (config.phone ? `*Consultorio / Contacto:* ${config.phone}\n` : '') +
-        (config.institution ? `*Centro:* ${config.institution}\n` : '') +
-        `\n_Documento médico legal firmado y sellado digitalmente. ¡Le deseamos una pronta y satisfactoria recuperación! ✨_`;
+      let docTypeCategory = 'Récipe';
+      if (mod === 'informes') docTypeCategory = 'Informe';
+      else if (mod === 'reposo') docTypeCategory = 'Constancia';
+      else if (mod === 'indicaciones') docTypeCategory = 'Indicaciones';
+
+      const msg = buildWhatsAppTreatmentMessage({
+        doctorName: config.doctorName || 'Dr. Carlos Leal',
+        documentType: docTypeCategory,
+        patientName: patientName || 'Paciente',
+        treatmentDetails: contentBody,
+      });
 
       // Dispositivos con soporte Web Share API de archivos (navigator.share / navigator.canShare): adjuntar el PDF directamente en WhatsApp
       if (generatedBlobForMobile && typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
@@ -3062,9 +3077,12 @@ export default function App() {
           if (shareErr && shareErr.name === 'AbortError') {
             return;
           }
-          console.warn('[Share Error, procediendo por URL]:', shareErr);
+          console.warn('[Share Error, activando Plan de Emergencia]:', shareErr);
         }
       }
+
+      // PLAN DE EMERGENCIA: Descargar PDF + Alerta de clip + Abrir WhatsApp con texto
+      showWhatsAppClipAlert('PDF descargado. Recuerda tocar el ícono del clip 📎 en WhatsApp para adjuntarlo al paciente');
 
       if (cleanPhone && cleanPhone.length >= 8) {
         const waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`;
@@ -3077,11 +3095,9 @@ export default function App() {
         setTimeout(() => {
           if (document.body.contains(link)) document.body.removeChild(link);
         }, 150);
-        showToast(`✓ ¡${docTitle} enviado a WhatsApp con enlace directo al PDF! 🚀`);
       } else {
         // Phone is missing: open SaveAndShareSuccessModal for phone input
         setIsSaveSuccessModalOpen(true);
-        showToast('💡 Ingrese el número de WhatsApp del paciente para enviarlo.');
       }
     } catch (err) {
       console.error('[Instant WhatsApp Error]:', err);

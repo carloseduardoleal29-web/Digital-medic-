@@ -175,35 +175,55 @@ export const FourInOneRecipeView: React.FC<FourInOneRecipeViewProps> = ({
         {/* Derecha: Botones de Acción (WhatsApp Business, Imprimir, Vista Previa, Guardar) */}
         <div className="flex items-center gap-1.5 flex-wrap">
 
-          {/* Botón Envío por WhatsApp Business (Genera PDF local y abre wa.me) */}
+          {/* Botón Envío por WhatsApp (Lee el récipe, envía con herramienta nativa o plan de emergencia) */}
           <button
             type="button"
             onClick={() => {
-              const targetNode = viewMode === 'grid' ? printableSheetRef.current : printableSingleRef.current;
-              exportAndSendWhatsAppBusiness(
-                targetNode,
-                activeRecipe.patientName || 'Carlos leal',
-                'Récipe Médico',
-                activeRecipe.date || '14/10/26',
-                activeRecipe.patientPhone
-              );
+              const targetNode = printableSheetRef.current;
+              const treatment = [
+                activeRecipe.rp?.trim(),
+                activeRecipe.indicationsNotes?.trim(),
+              ].filter(Boolean).join('\n\n');
+
+              exportAndSendWhatsAppBusiness({
+                element: targetNode,
+                patientName: activeRecipe.patientName || 'Carlos leal',
+                documentTitle: 'Récipe Médico',
+                dateStr: activeRecipe.date || '14/10/26',
+                patientPhone: activeRecipe.patientPhone,
+                doctorName: config.doctorName || 'Dr. Carlos Leal',
+                treatmentDetails: treatment,
+                documentType: 'recipe',
+              });
             }}
             className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow-xs hover:scale-105 active:scale-95 transition-all cursor-pointer border border-emerald-500 animate-pulse hover:animate-none"
-            title="Generar PDF, descargarlo localmente y abrir WhatsApp Business con el paciente"
+            title="Enviar récipe por WhatsApp con PDF y detalle de tratamiento"
           >
             <span className="text-sm">📱</span>
             <span>Enviar por WhatsApp</span>
           </button>
+
+          {onDownloadPdf && (
+            <button
+              type="button"
+              onClick={onDownloadPdf}
+              className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs flex items-center gap-1 transition-all cursor-pointer border border-blue-500 shadow-xs"
+              title="Descargar PDF en Hoja Carta (4 récipes idénticos)"
+            >
+              <Download className="w-3.5 h-3.5 text-white" />
+              <span>Descargar PDF</span>
+            </button>
+          )}
 
           {onPrint && (
             <button
               type="button"
               onClick={onPrint}
               className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-xs hover:scale-105 active:scale-95 transition-all cursor-pointer border border-slate-700"
-              title="Imprimir directamente o guardar como PDF"
+              title="Imprimir los 4 récipes en 1 sola hoja carta o guardar como PDF"
             >
               <Printer className="w-3.5 h-3.5 text-cyan-300" />
-              <span>🖨️ Imprimir</span>
+              <span>🖨️ Imprimir (4 en 1)</span>
             </button>
           )}
 
@@ -383,7 +403,7 @@ export const FourInOneRecipeView: React.FC<FourInOneRecipeViewProps> = ({
       {/* 3. VISTA 1: SOLO RÉCIPE (TAMAÑO ADAPTABLE)                 */}
       {/* ========================================================= */}
       {viewMode === 'single' && (
-        <div className="w-full flex flex-col items-center py-1">
+        <div className="w-full flex flex-col items-center py-1 print:hidden">
           {/* Aviso informativo de formato */}
           <div className="mb-2 text-center text-xs font-semibold text-slate-500 no-print">
             {recipeSize === 'quarter' && (
@@ -664,8 +684,9 @@ export const FourInOneRecipeView: React.FC<FourInOneRecipeViewProps> = ({
         id="recipe-4en1-print-sheet"
         className={`w-full flex justify-center print-container ${viewMode === 'grid' ? 'block mb-8' : 'hidden print:block'}`}
       >
+        {/* Contenedor principal con proporciones exactas de Hoja Carta (Letter: 8.5" x 11" / 816px x 1056px) */}
         <div
-          className={`relative w-full max-w-[816px] min-h-[1056px] bg-white p-3.5 sm:p-4 transition-all recipe-4en1-container shadow-2xl rounded-2xl border border-slate-200 ${textureClass} ${
+          className={`relative w-full max-w-[816px] h-[1056px] min-h-[1056px] max-h-[1056px] bg-white transition-all recipe-4en1-container shadow-2xl rounded-2xl border border-slate-200 ${textureClass} ${
             config.enforcePureBlackText ? 'enforce-pure-black' : ''
           }`}
           style={{
@@ -674,11 +695,15 @@ export const FourInOneRecipeView: React.FC<FourInOneRecipeViewProps> = ({
             borderRadius: config.docCornerRadius || '16px',
             width: '100%',
             maxWidth: '816px',
+            height: '1056px',
             minHeight: '1056px',
+            maxHeight: '1056px',
             boxSizing: 'border-box',
+            padding: '15px',
+            overflow: 'hidden',
           }}
         >
-          {/* Cut Guides */}
+          {/* Cut Guides - Centrales en el gap de 15px */}
           {showCutGuides && (
             <div className="absolute inset-0 pointer-events-none z-0">
               <div className="absolute top-1/2 left-3 right-3 border-t border-dashed border-slate-300 -translate-y-1/2 flex items-center justify-center">
@@ -694,30 +719,22 @@ export const FourInOneRecipeView: React.FC<FourInOneRecipeViewProps> = ({
             </div>
           )}
 
-          {/* 2x2 Grid: 4 Quadrants (4 en 1 hoja carta) */}
-          <div className="grid grid-cols-2 grid-rows-2 gap-3 relative z-10 min-h-[1020px] recipe-4en1-grid">
+          {/* Contenedor Grid Estricto: 2 columnas x 2 filas, gap: 15px, width y height 100% */}
+          <div 
+            className="recipe-4en1-grid"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2, 1fr)',
+              gridTemplateRows: 'repeat(2, 1fr)',
+              gap: '15px',
+              width: '100%',
+              height: '100%',
+              boxSizing: 'border-box',
+            }}
+          >
             {[0, 1, 2, 3].map((idx) => {
-              const isFilled = idx < visibleCount;
-              const rec = safeRecipes[idx] || safeRecipes[0];
-
-              if (!isFilled) {
-                return (
-                  <div
-                    key={`blank-${idx}`}
-                    className="relative border-2 border-dashed border-slate-200/80 rounded-xl p-4 bg-slate-50/20 flex flex-col items-center justify-center text-center text-slate-400 min-h-[490px] recipe-quadrant-empty"
-                  >
-                    <div className="space-y-1 opacity-50 no-print">
-                      <Scissors className="w-5 h-5 mx-auto text-slate-300" />
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                        Cuadrante #{idx + 1} Libre (1/4 Carta)
-                      </span>
-                      <span className="text-[9px] text-slate-400 block max-w-[170px]">
-                        Espacio libre para corte de hoja carta.
-                      </span>
-                    </div>
-                  </div>
-                );
-              }
+              // Exactamente cuatro (4) récipes idénticos distribuidos en la cuadrícula 2 arriba y 2 abajo
+              const rec = activeRecipe || safeRecipes[0] || fallbackRecipe;
 
               return (
                 <div
@@ -726,8 +743,19 @@ export const FourInOneRecipeView: React.FC<FourInOneRecipeViewProps> = ({
                     onSelectActiveRecipe(idx);
                     setViewMode('single');
                   }}
-                  className="relative border border-slate-200/90 rounded-xl p-3 bg-white shadow-2xs flex flex-col justify-between min-h-[490px] overflow-hidden recipe-quadrant-card cursor-pointer hover:border-blue-400 transition-colors"
-                  title="Haga clic para editar este récipe en tamaño individual"
+                  className="relative border border-slate-200/90 rounded-xl p-3 bg-white shadow-2xs flex flex-col justify-between overflow-hidden recipe-quadrant-card cursor-pointer hover:border-blue-400 transition-colors"
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    boxSizing: 'border-box',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    overflow: 'hidden',
+                    transform: 'none',
+                    margin: 0,
+                  }}
+                  title="Récipe idéntico (1/4 de Hoja Carta)"
                 >
                   {/* Watermark inside each recipe quadrant */}
                   {config.marcaAgua && !config.marcaAgua.includes('DIGITAL') && (
@@ -737,43 +765,58 @@ export const FourInOneRecipeView: React.FC<FourInOneRecipeViewProps> = ({
                         alt="Marca de agua"
                         className="marca-agua-img"
                         style={{
-                          opacity: config.watermarkOpacity ?? 0.1,
-                          width: `${Math.min(65, config.watermarkScale || 55)}%`,
+                          opacity: config.watermarkOpacity ?? 0.08,
+                          width: `${Math.min(55, config.watermarkScale || 45)}%`,
                           transform: `rotate(${config.watermarkRotation || 0}deg)`,
                         }}
                       />
                     </div>
                   )}
 
+                  {/* Cabecera del Récipe */}
                   <div className="relative z-10">
                     <DocumentHeader config={config} compact={true} editableInline={false} />
+                    
+                    {/* Barra de Datos del Paciente */}
                     <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 py-0.5 px-1.5 bg-slate-50/90 border border-slate-200/80 rounded-md text-[9px] my-1 leading-tight">
                       <div className="truncate">
                         <span className="font-bold text-slate-700">Pac: </span>
-                        <span className="font-semibold text-slate-900">{rec?.patientName || safeRecipes[0]?.patientName || 'Carlos leal'}</span>
+                        <span className="font-semibold text-slate-900">{rec?.patientName || 'Carlos leal'}</span>
                       </div>
                       <div className="text-right truncate">
                         <span className="font-bold text-slate-700">C.I: </span>
-                        <span className="font-semibold text-slate-900">{rec?.patientCI || safeRecipes[0]?.patientCI || 'V-18.456.789'}</span>
+                        <span className="font-semibold text-slate-900">{rec?.patientCI || 'V-18.456.789'}</span>
                       </div>
                       <div className="truncate col-span-1">
                         <span className="font-bold text-slate-700">Dx: </span>
-                        <span className="text-slate-800 font-medium">{rec?.diagnosis || safeRecipes[0]?.diagnosis || 'Consulta'}</span>
+                        <span className="text-slate-800 font-medium">{rec?.diagnosis || 'Consulta'}</span>
                       </div>
                       <div className="text-right">
                         <span className="font-bold text-slate-700">Fecha: </span>
-                        <span className="text-slate-800">{rec?.date || safeRecipes[0]?.date || '14/10/26'}</span>
+                        <span className="text-slate-800">{rec?.date || '14/10/26'}</span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex-1 my-1 relative z-10 overflow-hidden">
-                    <span className="font-bold text-xs block text-blue-700 font-serif">℞ Rp. #{idx + 1}</span>
-                    <p className="text-[11px] text-slate-900 whitespace-pre-wrap leading-relaxed mt-1 font-sans font-medium line-clamp-8">
+                  {/* Cuerpo de Prescripción Médica (Rp.) */}
+                  <div className="flex-1 my-1 relative z-10 overflow-hidden flex flex-col justify-start">
+                    <span 
+                      className="font-black text-xs block font-serif"
+                      style={{ color: config.primaryDocColor || '#2563eb' }}
+                    >
+                      ℞ {config.rxTitle || 'Rp.'}
+                    </span>
+                    <p 
+                      className="text-[10.5px] text-slate-900 whitespace-pre-wrap leading-relaxed mt-0.5 font-sans font-medium line-clamp-6"
+                      style={{
+                        fontFamily: config.rxBodyFontFamily || "'Roboto', sans-serif",
+                      }}
+                    >
                       {rec?.rp || <span className="italic text-slate-400">Sin medicamentos prescritos. Haga clic para redactar.</span>}
                     </p>
                   </div>
 
+                  {/* Pie de Documento con Sello y Firma */}
                   <div className="mt-1 pt-1 border-t border-slate-200/80 relative z-10">
                     <DocumentFooter
                       config={config}

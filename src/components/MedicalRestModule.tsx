@@ -676,17 +676,22 @@ export const MedicalRestModule: React.FC<MedicalRestModuleProps> = ({
             {/* Direct Instant Action Buttons */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               
-              {/* Botón WhatsApp Business */}
+              {/* Botón WhatsApp */}
               <button
                 type="button"
                 onClick={() => {
-                  exportAndSendWhatsAppBusiness(
-                    printableSheetRef.current,
-                    safeCert.patientName || 'Carlos leal',
-                    'Constancia de Reposo',
-                    safeCert.date || '14/10/26',
-                    safeCert.patientPhone
-                  );
+                  const restDetails = `Reposo por ${safeCert.daysRest || 1} días continuos (Desde ${safeCert.startDate || safeCert.date} hasta ${safeCert.endDate || 'cumplimiento'}). Diagnóstico: ${safeCert.diagnosis || 'Reposo médico'}`;
+
+                  exportAndSendWhatsAppBusiness({
+                    element: printableSheetRef.current,
+                    patientName: safeCert.patientName || 'Carlos leal',
+                    documentTitle: 'Constancia de Reposo',
+                    dateStr: safeCert.date || '14/10/26',
+                    patientPhone: safeCert.patientPhone,
+                    doctorName: config.doctorName || 'Dr. Carlos Leal',
+                    treatmentDetails: restDetails,
+                    documentType: 'rest',
+                  });
                 }}
                 className="p-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl font-black text-xs flex flex-col items-center justify-center gap-1.5 shadow-lg shadow-emerald-900/40 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-emerald-400/40"
               >

@@ -19,7 +19,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { DoctorConfig } from '../types';
-import { generatePDFBlob, exportElementAsPDF, buildDocumentPdfFilename, sharePDFViaWebShare } from '../utils/exportDocument';
+import { generatePDFBlob, exportElementAsPDF, buildDocumentPdfFilename, sharePDFViaWebShare, showWhatsAppClipAlert } from '../utils/exportDocument';
 
 interface CountryData {
   code: string;
@@ -443,6 +443,7 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
     if (targetElement) {
       try {
         exportElementAsPDF(targetElement, pdfFilename).catch((err) => console.warn('[Auto PDF Download]:', err));
+        showWhatsAppClipAlert('PDF descargado. Recuerda tocar el ícono del clip 📎 en WhatsApp para adjuntarlo al paciente');
       } catch (_) {}
     }
   };
