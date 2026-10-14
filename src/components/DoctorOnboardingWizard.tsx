@@ -1433,23 +1433,7 @@ export const DoctorOnboardingWizard: React.FC<DoctorOnboardingWizardProps> = ({
 
               </div>
 
-              {/* ---------------------------------------------------- */}
-              {/* OPCIÓN 3: 'Pago acordado con el desarrollador' */}
-              {/* ---------------------------------------------------- */}
-              <div className="p-4 rounded-2xl border border-slate-700/80 bg-slate-900/90 text-center flex flex-col items-center justify-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsAgreedPaymentLogin(true);
-                    setViewMode('login');
-                    setErrorMsg(null);
-                  }}
-                  className="w-full py-4 px-6 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-black text-sm border border-slate-700 transition-all flex items-center justify-center gap-2.5 cursor-pointer hover:scale-[1.01] active:scale-95 shadow-sm"
-                >
-                  <Handshake className="w-4.5 h-4.5 text-emerald-400" />
-                  <span>Pago acordado con el desarrollador</span>
-                </button>
-              </div>
+
 
             </div>
 
@@ -2967,13 +2951,7 @@ export const DoctorOnboardingWizard: React.FC<DoctorOnboardingWizardProps> = ({
               </div>
             )}
 
-            {/* Banner específico cuando entra por Opción 3: 'Pago acordado con el desarrollador' */}
-            {isAgreedPaymentLogin && (
-              <div className="mb-5 p-3 rounded-2xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-xs animate-in fade-in flex items-center justify-center gap-2 font-bold uppercase tracking-wider">
-                <Handshake className="w-5 h-5 text-emerald-400 shrink-0" />
-                <span>Pago Acordado con Desarrollador</span>
-              </div>
-            )}
+
 
             <form onSubmit={handleLoginSubmit} className="space-y-4 max-w-sm mx-auto">
               <div>

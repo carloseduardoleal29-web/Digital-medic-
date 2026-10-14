@@ -7,6 +7,7 @@
  */
 
 export const SESSION_STORAGE_KEY = 'digital_medic_active_doctor_session';
+export const AUTH_FLAG_KEY = 'digital_medic_authenticated';
 export const DEFAULT_MASTER_SESSION_ID = 'carloseduardoleal29@gmail.com';
 
 /**
@@ -31,17 +32,38 @@ export function isApkOrStandaloneEnvironment(): boolean {
     isUrlParamApk = params.get('platform') === 'apk' || params.get('apk') === 'true';
   } catch (e) {}
 
-  return isWebView || isCapacitor || isCordova || isAndroidApkFlag || (isAndroid && isStandalone) || isUrlParamApk;
+  return isWebView || isCapacitor || isCordova || isAndroidApkFlag || isStandalone || isUrlParamApk;
+}
+
+/**
+ * Detecta si el dispositivo es un teléfono móvil (Android, iPhone, APK o PWA móvil)
+ */
+export function isMobileDevice(): boolean {
+  if (typeof window === 'undefined') return false;
+  const ua = window.navigator.userAgent || '';
+  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+  return isMobileUA || isApkOrStandaloneEnvironment();
+}
+
+/**
+ * Detecta si el dispositivo es una Computadora / PC (Escritorio o Laptop)
+ */
+export function isPcDevice(): boolean {
+  return !isMobileDevice();
 }
 
 /**
  * Obtiene el ID de la sesión médica activa:
- * Lee de localStorage (o sessionStorage como respaldo) para mantener la sesión
- * activa entre reaperturas de la app o recargas del navegador.
- * Por defecto carga la cuenta del doctor master para evitar pantallas bloqueadas o pérdida de datos.
+ * 
+ * REGLA DE SEGURIDAD ESTRICTA:
+ * - En PC (Computadora de escritorio o laptop): La sesión NUNCA queda abierta automáticamente.
+ *   Al abrir la app o una nueva pestaña, inicia obligatoriamente CERRADA y requiere correo y contraseña.
+ *   Solo se mantiene activa durante la navegación en la pestaña actual (sessionStorage).
+ * - En Teléfono móvil: Se puede mantener en el dispositivo del médico si está autenticado,
+ *   hasta que presione "Cerrar Sesión".
  */
 export function getStoredDoctorSessionId(): string | null {
-  if (typeof window === 'undefined') return DEFAULT_MASTER_SESSION_ID;
+  if (typeof window === 'undefined') return null;
 
   try {
     const explicitLogout = localStorage.getItem('digital_medic_explicit_logout') || sessionStorage.getItem('digital_medic_explicit_logout');
@@ -49,21 +71,42 @@ export function getStoredDoctorSessionId(): string | null {
       return null;
     }
 
-    const localStored = localStorage.getItem(SESSION_STORAGE_KEY);
-    if (localStored && localStored !== 'guest' && localStored.trim() !== '') return localStored;
+    // Comportamiento en Computadora (PC):
+    if (isPcDevice()) {
+      const pcTabActive = sessionStorage.getItem('digital_medic_pc_tab_authenticated') === 'true';
+      const sessionStored = sessionStorage.getItem(SESSION_STORAGE_KEY);
+      if (pcTabActive && sessionStored && sessionStored !== 'guest' && sessionStored.trim() !== '') {
+        return sessionStored;
+      }
+      // En PC debe quedar cerrada al abrir o reiniciar y pedir correo y contraseña
+      return null;
+    }
+
+    // Comportamiento en Teléfono Móvil:
+    const isAuthenticated = 
+      sessionStorage.getItem(AUTH_FLAG_KEY) === 'true' || 
+      localStorage.getItem(AUTH_FLAG_KEY) === 'true';
+
+    if (!isAuthenticated) {
+      return null;
+    }
 
     const sessionStored = sessionStorage.getItem(SESSION_STORAGE_KEY);
     if (sessionStored && sessionStored !== 'guest' && sessionStored.trim() !== '') {
-      localStorage.setItem(SESSION_STORAGE_KEY, sessionStored);
       return sessionStored;
+    }
+
+    const localStored = localStorage.getItem(SESSION_STORAGE_KEY);
+    if (localStored && localStored !== 'guest' && localStored.trim() !== '') {
+      return localStored;
     }
   } catch (e) {}
 
-  return DEFAULT_MASTER_SESSION_ID;
+  return null;
 }
 
 /**
- * Guarda la sesión del médico autenticado de manera persistente en localStorage y sessionStorage.
+ * Guarda la sesión del médico autenticado tras verificar correo y contraseña.
  */
 export function storeDoctorSessionId(doctorId: string): void {
   if (typeof window === 'undefined' || !doctorId) return;
@@ -73,11 +116,14 @@ export function storeDoctorSessionId(doctorId: string): void {
     sessionStorage.removeItem('digital_medic_explicit_logout');
     localStorage.setItem(SESSION_STORAGE_KEY, doctorId);
     sessionStorage.setItem(SESSION_STORAGE_KEY, doctorId);
+    localStorage.setItem(AUTH_FLAG_KEY, 'true');
+    sessionStorage.setItem(AUTH_FLAG_KEY, 'true');
+    sessionStorage.setItem('digital_medic_pc_tab_authenticated', 'true');
   } catch (e) {}
 }
 
 /**
- * Cierra la sesión activa borrándola de todos los almacenamientos cuando el usuario hace clic en 'Cerrar Sesión'.
+ * Cierra la sesión activa borrándola de todos los almacenamientos cuando el médico presiona 'Cerrar Sesión'.
  */
 export function clearDoctorSessionId(): void {
   if (typeof window === 'undefined') return;
@@ -85,6 +131,8 @@ export function clearDoctorSessionId(): void {
   try {
     localStorage.setItem('digital_medic_explicit_logout', 'true');
     sessionStorage.setItem('digital_medic_explicit_logout', 'true');
+    sessionStorage.removeItem(AUTH_FLAG_KEY);
+    localStorage.removeItem(AUTH_FLAG_KEY);
     sessionStorage.removeItem(SESSION_STORAGE_KEY);
     localStorage.removeItem(SESSION_STORAGE_KEY);
     sessionStorage.removeItem('digital_medic_vip');

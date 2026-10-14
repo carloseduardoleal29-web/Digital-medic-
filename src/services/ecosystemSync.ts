@@ -14,6 +14,7 @@ export interface UserEcosystem {
   rest?: MedicalRestCert;
   records?: ClinicalRecord[];
   customDrugs?: any[];
+  paymentConfig?: any;
   updatedAt?: number;
 }
 

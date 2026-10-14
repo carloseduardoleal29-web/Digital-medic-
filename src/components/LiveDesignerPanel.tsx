@@ -148,6 +148,7 @@ export const LiveDesignerPanel: React.FC<LiveDesignerPanelProps> = ({
 
       // 2. Direct instant local backup to guarantee no data loss even without network
       try {
+        localStorage.setItem('digital_medic_current_config', JSON.stringify(updatedConfig));
         const savedColleaguesStr = localStorage.getItem('digital_medic_colleagues_v2');
         let colleaguesList: DoctorConfig[] = [];
         if (savedColleaguesStr) {
@@ -192,13 +193,13 @@ export const LiveDesignerPanel: React.FC<LiveDesignerPanelProps> = ({
             <div className="flex items-center gap-1.5">
               <h2 className="text-sm font-bold text-white tracking-tight">Estudio de Diseño (Editor Maestro)</h2>
             </div>
-            <p className="text-[11px] text-slate-400">Personalice cada aspecto visual antes de pasarlo al médico</p>
+            <p className="text-[11px] text-slate-400">Personalice cada aspecto visual (logo, colores, letras, marca de agua)</p>
           </div>
         </div>
 
         <div className="flex items-center gap-2 relative">
           {saveToast && (
-            <div className="absolute top-10 right-0 bg-emerald-600 text-white px-4 py-2 rounded-xl shadow-lg text-xs font-bold animate-in fade-in zoom-in duration-300">
+            <div className="absolute top-10 right-0 bg-emerald-600 text-white px-4 py-2 rounded-xl shadow-lg text-xs font-bold animate-in fade-in zoom-in duration-300 z-50">
               ✅ Sus cambios se han guardado
             </div>
           )}
@@ -222,6 +223,17 @@ export const LiveDesignerPanel: React.FC<LiveDesignerPanelProps> = ({
             <span>Salir del Estudio</span>
           </button>
         </div>
+      </div>
+
+      {/* Auto-save & cloud synchronization indicator */}
+      <div className="bg-emerald-50 border-b border-emerald-200 px-3.5 py-1.5 flex items-center justify-between text-[11px] text-emerald-900 font-bold">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span>Guardado automático y en la nube activo: Cada cambio se protege de inmediato.</span>
+        </div>
+        <span className="text-[10px] bg-emerald-200/80 text-emerald-950 px-2 py-0.5 rounded-full font-black">
+          ✓ En sincronía
+        </span>
       </div>
 
       {/* Colleague Profile Selector & Actions */}

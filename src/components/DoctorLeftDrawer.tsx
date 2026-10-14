@@ -778,30 +778,7 @@ export const DoctorLeftDrawer: React.FC<DoctorLeftDrawerProps> = ({
         {/* Drawer Footer Actions & Developer Branding */}
         <div className="p-4 bg-slate-900 border-t border-slate-800 space-y-2.5 shrink-0">
           
-          {/* Botón de Alternar Modo Escritorio / Modo Móvil */}
-          {onToggleDesktopMode && (
-            <button
-              type="button"
-              onClick={onToggleDesktopMode}
-              className={`w-full py-2.5 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm border ${
-                isDesktopMode
-                  ? 'bg-gradient-to-r from-blue-700 to-indigo-700 text-white border-blue-400'
-                  : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
-              }`}
-            >
-              {isDesktopMode ? (
-                <>
-                  <Smartphone className="w-4 h-4 text-cyan-300" />
-                  <span>📱 Cambiar a Vista Móvil Adaptada</span>
-                </>
-              ) : (
-                <>
-                  <Monitor className="w-4 h-4 text-blue-400" />
-                  <span>🖥️ Cambiar a Sitio de Escritorio (PC)</span>
-                </>
-              )}
-            </button>
-          )}
+
 
           {/* Botón Sincronizar Móvil / PC */}
           {onOpenSyncDevices && (

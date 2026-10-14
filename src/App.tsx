@@ -95,12 +95,76 @@ import {
   exportAllLocalData, 
   applyEcosystemToLocalStorage 
 } from './services/ecosystemSync';
+import { saveDirectToFirestore } from './services/firebaseClient';
 import { exportElementAsPDF, sharePDFViaWebShare, generatePDFBlob, buildDocumentPdfFilename } from './utils/exportDocument';
+
+/**
+ * Helper de Fusión Inmutable No Destructiva para Diseños Médicos
+ * Garantiza que logos, colores, letras, marcas de agua y firmas NUNCA se borren
+ * ni sean sobreescritos por cadenas vacías o plantillas por defecto.
+ */
+export const mergeDoctorConfigs = (base: DoctorConfig, incoming: Partial<DoctorConfig>): DoctorConfig => {
+  const result: DoctorConfig = { ...base, ...incoming };
+
+  const preserveNonEmpty = (key: keyof DoctorConfig) => {
+    const baseVal = base[key];
+    const incomingVal = incoming[key];
+    if (baseVal && typeof baseVal === 'string' && baseVal.trim().length > 0) {
+      if (!incomingVal || (typeof incomingVal === 'string' && incomingVal.trim().length === 0)) {
+        (result as any)[key] = baseVal;
+      }
+    }
+  };
+
+  // Preservación estricta de activos del estudio de diseño
+  preserveNonEmpty('logoIzq');
+  preserveNonEmpty('logoDer');
+  preserveNonEmpty('marcaAgua');
+  preserveNonEmpty('selloImg');
+  preserveNonEmpty('firmaImg');
+  preserveNonEmpty('selloFirma');
+  preserveNonEmpty('primaryDocColor');
+  preserveNonEmpty('headerColor');
+  preserveNonEmpty('fuenteHeader');
+  preserveNonEmpty('fuenteNombre');
+  preserveNonEmpty('specialty');
+  preserveNonEmpty('specialtyColor');
+  preserveNonEmpty('fuenteSpecialty');
+  preserveNonEmpty('doctorName');
+  preserveNonEmpty('ci');
+  preserveNonEmpty('mpps');
+  preserveNonEmpty('phone');
+  preserveNonEmpty('email');
+  preserveNonEmpty('rxTitle');
+  preserveNonEmpty('rxTitleColor');
+  preserveNonEmpty('rxBodyFontFamily');
+  preserveNonEmpty('bodyFontSize');
+
+  if (incoming.watermarkOpacity !== undefined && incoming.watermarkOpacity !== null) {
+    result.watermarkOpacity = incoming.watermarkOpacity;
+  } else if (base.watermarkOpacity !== undefined) {
+    result.watermarkOpacity = base.watermarkOpacity;
+  }
+
+  if (incoming.watermarkScale !== undefined && incoming.watermarkScale !== null) {
+    result.watermarkScale = incoming.watermarkScale;
+  } else if (base.watermarkScale !== undefined) {
+    result.watermarkScale = base.watermarkScale;
+  }
+
+  if (incoming.watermarkRotation !== undefined && incoming.watermarkRotation !== null) {
+    result.watermarkRotation = incoming.watermarkRotation;
+  } else if (base.watermarkRotation !== undefined) {
+    result.watermarkRotation = base.watermarkRotation;
+  }
+
+  return result;
+};
 
 export default function App() {
   // 1. Colleagues Profiles Management - Robust persistent profile state
   const [colleagueProfiles, setColleagueProfiles] = useState<DoctorConfig[]>(() => {
-    const masterAdminDefault: DoctorConfig = {
+    let masterAdminDefault: DoctorConfig = {
       ...DEFAULT_DOCTOR_CONFIG,
       id: 'doc-admin-master',
       profileName: 'Dr. Carlos E. Leal S.',
@@ -127,14 +191,26 @@ export default function App() {
       headerColor: '#1e3a8a',
     };
 
+    // Si hay un diseño guardado directamente en digital_medic_current_config, cargarlo primero
+    try {
+      const savedCurrent = localStorage.getItem('digital_medic_current_config');
+      if (savedCurrent) {
+        const parsedCurrent = JSON.parse(savedCurrent);
+        if (parsedCurrent && typeof parsedCurrent === 'object') {
+          masterAdminDefault = mergeDoctorConfigs(masterAdminDefault, parsedCurrent);
+        }
+      }
+    } catch (_) {}
+
     const saved = localStorage.getItem('digital_medic_colleagues_v2');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
           const cleaned = parsed.map((d: DoctorConfig): DoctorConfig => {
-            const cleanDoc = { ...d };
+            let cleanDoc = { ...d };
             if (cleanDoc.id === 'doc-admin-master' || cleanDoc.email === 'carloseduardoleal29@gmail.com') {
+              cleanDoc = mergeDoctorConfigs(masterAdminDefault, cleanDoc);
               return {
                 ...cleanDoc,
                 doctorName: cleanDoc.doctorName || 'Dr. Carlos E. Leal S.',
@@ -199,31 +275,61 @@ export default function App() {
     return true;
   };
 
-  // Current active doctor configuration
-  const config = colleagueProfiles.find((p) => p.id === activeColleagueId || (p.email && activeColleagueId && p.email.toLowerCase() === activeColleagueId.toLowerCase())) || colleagueProfiles[0] || DEFAULT_DOCTOR_CONFIG;
+  // Current active doctor configuration (con respaldo de digital_medic_current_config)
+  const config = (() => {
+    const found = colleagueProfiles.find((p) => p.id === activeColleagueId || (p.email && activeColleagueId && p.email.toLowerCase() === activeColleagueId.toLowerCase())) || colleagueProfiles[0] || DEFAULT_DOCTOR_CONFIG;
+    try {
+      const directSaved = localStorage.getItem('digital_medic_current_config');
+      if (directSaved) {
+        const parsed = JSON.parse(directSaved);
+        if (parsed && (parsed.id === found.id || parsed.email === found.email)) {
+          return mergeDoctorConfigs(found, parsed);
+        }
+      }
+    } catch (_) {}
+    return found;
+  })();
 
   const updateCurrentConfig = (updated: Partial<DoctorConfig>) => {
     hasUserEditedStateRef.current = true;
-    const updatedFull = { ...config, ...updated, updatedAt: Date.now() };
-    const nextProfiles = colleagueProfiles.map((p) => (p.id === config.id ? updatedFull : p));
+    const updatedFull = mergeDoctorConfigs(config, { ...updated, updatedAt: Date.now() });
 
-    setColleagueProfiles(nextProfiles);
-    try {
-      localStorage.setItem('digital_medic_colleagues_v2', JSON.stringify(nextProfiles));
-    } catch (_) {}
+    setColleagueProfiles((prev) => {
+      const exists = prev.some((p) => p.id === config.id || (p.email && config.email && p.email.toLowerCase() === config.email.toLowerCase()));
+      const nextProfiles = exists
+        ? prev.map((p) => (p.id === config.id || (p.email && config.email && p.email.toLowerCase() === config.email.toLowerCase()) ? updatedFull : p))
+        : [updatedFull, ...prev];
 
-    // Debounce save to cloud
+      try {
+        localStorage.setItem('digital_medic_colleagues_v2', JSON.stringify(nextProfiles));
+        localStorage.setItem('digital_medic_current_config', JSON.stringify(updatedFull));
+        localStorage.setItem('digital_medic_active_colleague', updatedFull.id);
+      } catch (lsErr) {
+        console.warn('LocalStorage error in updateCurrentConfig:', lsErr);
+      }
+
+      return nextProfiles;
+    });
+
+    // Guardado inmediato directo a Firestore (cliente) sin delay
+    const ident = updatedFull.email || updatedFull.ci || updatedFull.id || 'carloseduardoleal29@gmail.com';
+    saveDirectToFirestore({
+      identifier: ident,
+      email: updatedFull.email,
+      ci: updatedFull.ci,
+      doctorConfig: updatedFull,
+    }).catch((e) => console.warn('Direct Firestore save warning:', e));
+
+    // Debounce save al servidor y Firestore backend
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(async () => {
       await saveSingleDoctorToCloud(updatedFull);
       
-      const ident = updatedFull.email || updatedFull.ci || updatedFull.id || 'carloseduardoleal29@gmail.com';
       await saveEcosystemToCloud({
         identifier: ident,
         email: updatedFull.email,
         ci: updatedFull.ci,
         doctorConfig: updatedFull,
-        colleagueProfiles: nextProfiles,
         patientBank,
         recipes,
         report: currentReport,
@@ -231,13 +337,12 @@ export default function App() {
         rest: restCert,
         records,
       }).catch((e) => console.warn('Cloud save error in updateCurrentConfig:', e));
-    }, 1000);
+    }, 400);
   };
 
   // Doctor Session & Authentication State
-  // SEGURIDAD MÉDICA: En la web, cada vez que se entra o se abre la página, la sesión inicia CERRADA.
-  // Solo se mantiene durante la navegación activa en la pestaña actual (sessionStorage).
-  // Al cerrar la pestaña o entrar por enlace web, la sesión debe estar cerrada por confidencialidad de datos.
+  // SEGURIDAD MÉDICA: En la web, cada vez que se entra o se abre la página, la sesión inicia CERRADA
+  // a menos que el médico ya haya iniciado sesión con su correo y clave en este navegador.
   const [activeDoctorSessionId, setActiveDoctorSessionId] = useState<string | null>(() => {
     return getStoredDoctorSessionId();
   });
@@ -362,15 +467,24 @@ export default function App() {
       return fallback;
     };
 
-    const mergedDoc: DoctorConfig = {
-      ...DEFAULT_DOCTOR_CONFIG,
-      ...(existingDoc || {}),
-      ...(finalDoc || {}),
-      ...(cloudDoc || {}),
-      id: finalDoc.id || cloudDoc?.id || existingDoc?.id || 'doc-admin-master',
-      email: finalDoc.email || cloudDoc?.email || existingDoc?.email || 'carloseduardoleal29@gmail.com',
-      updatedAt: Date.now(),
-    };
+    let mergedDoc = mergeDoctorConfigs(DEFAULT_DOCTOR_CONFIG, existingDoc || {});
+    // Check if there is a local current config stored in digital_medic_current_config
+    try {
+      const savedCur = localStorage.getItem('digital_medic_current_config');
+      if (savedCur) {
+        const parsedCur = JSON.parse(savedCur);
+        if (parsedCur && (parsedCur.id === finalDoc.id || parsedCur.email === finalDoc.email)) {
+          mergedDoc = mergeDoctorConfigs(mergedDoc, parsedCur);
+        }
+      }
+    } catch (_) {}
+    mergedDoc = mergeDoctorConfigs(mergedDoc, finalDoc || {});
+    if (cloudDoc) {
+      mergedDoc = mergeDoctorConfigs(mergedDoc, cloudDoc);
+    }
+    mergedDoc.id = finalDoc.id || cloudDoc?.id || existingDoc?.id || 'doc-admin-master';
+    mergedDoc.email = finalDoc.email || cloudDoc?.email || existingDoc?.email || 'carloseduardoleal29@gmail.com';
+    mergedDoc.updatedAt = Date.now();
 
     setColleagueProfiles((prev) => {
       const existing = prev.find((p) => p.id === mergedDoc.id || (p.email && mergedDoc.email && p.email.toLowerCase() === mergedDoc.email.toLowerCase()));
@@ -511,24 +625,16 @@ export default function App() {
   }).format(new Date());
 
   // 3. Recipes State (Master & 4-in-1) - Clean Pristine Blank Template
-  // Helper to strictly sanitize recipes so they start 100% BLANK by default
+  // Preserva las prescripciones reales del médico (Paracetamol, Ibuprofeno, etc.) sin borrarlas
   const sanitizeRecipeItem = (r: RecipeItem): RecipeItem => {
+    if (!r) return r;
     const clean = { ...r };
-    const isMockName = Boolean(
-      clean.patientName?.includes('Juan Carlos') ||
-      clean.patientName?.includes('Pérez Gómez') ||
-      clean.patientName?.includes('Test Patient')
-    );
-    const isMockRp = Boolean(
-      clean.rp?.includes('Paracetamol') ||
-      clean.rp?.includes('Aspirina') ||
-      clean.rp?.includes('Ibuprofeno') ||
-      clean.rp?.includes('Amoxicilina') ||
-      clean.rp?.includes('Omeprazol') ||
-      clean.rp?.includes('Ejemplo:')
+    // Solo limpiar si es exactamente la plantilla demo inicial de prueba antigua
+    const isOldDemoPlaceholder = Boolean(
+      clean.patientName === 'Juan Carlos Pérez Gómez' && clean.rp?.includes('Ejemplo: Paracetamol')
     );
 
-    if (isMockName || isMockRp) {
+    if (isOldDemoPlaceholder) {
       clean.patientName = '';
       clean.patientCI = '';
       clean.patientAge = '';
@@ -557,10 +663,10 @@ export default function App() {
       }
     } catch (e) {}
     return [
-      { id: 'rec-1', patientName: 'Carlos leal', patientAge: '35 años', patientCI: 'V-18.456.789', patientPhone: '', date: '14/10/26', diagnosis: 'Consulta médica general', rp: '', indicationsNotes: '' },
-      { id: 'rec-2', patientName: 'Carlos leal', patientAge: '35 años', patientCI: 'V-18.456.789', patientPhone: '', date: '14/10/26', diagnosis: 'Consulta médica general', rp: '', indicationsNotes: '' },
-      { id: 'rec-3', patientName: 'Carlos leal', patientAge: '35 años', patientCI: 'V-18.456.789', patientPhone: '', date: '14/10/26', diagnosis: 'Consulta médica general', rp: '', indicationsNotes: '' },
-      { id: 'rec-4', patientName: 'Carlos leal', patientAge: '35 años', patientCI: 'V-18.456.789', patientPhone: '', date: '14/10/26', diagnosis: 'Consulta médica general', rp: '', indicationsNotes: '' },
+      { id: 'rec-1', patientName: '', patientAge: '', patientCI: '', patientPhone: '', date: todayStr, diagnosis: '', rp: '', indicationsNotes: '' },
+      { id: 'rec-2', patientName: '', patientAge: '', patientCI: '', patientPhone: '', date: todayStr, diagnosis: '', rp: '', indicationsNotes: '' },
+      { id: 'rec-3', patientName: '', patientAge: '', patientCI: '', patientPhone: '', date: todayStr, diagnosis: '', rp: '', indicationsNotes: '' },
+      { id: 'rec-4', patientName: '', patientAge: '', patientCI: '', patientPhone: '', date: todayStr, diagnosis: '', rp: '', indicationsNotes: '' },
     ];
   });
 
@@ -785,7 +891,7 @@ export default function App() {
           });
 
           if (index >= 0) {
-            currentList = currentList.map((p, i) => i === index ? { ...p, ...doc } : p);
+            currentList = currentList.map((p, i) => i === index ? mergeDoctorConfigs(p, doc) : p);
           } else {
             currentList = [doc, ...currentList];
           }
@@ -928,59 +1034,15 @@ export default function App() {
             const localTime = local.updatedAt || 0;
             const cloudTime = match.updatedAt || 0;
 
-            // Non-destructive merge: newer timestamp wins, but never drop custom properties
+            // Non-destructive merge: newer timestamp wins, but NEVER drop custom assets
             const base = localTime >= cloudTime ? match : local;
             const override = localTime >= cloudTime ? local : match;
 
-            const mergedDoctor: DoctorConfig = {
-              ...base,
+            const mergedDoctor = mergeDoctorConfigs(base, {
               ...override,
-              id: override.id || base.id,
-              doctorName: override.doctorName !== undefined ? override.doctorName.trim() : (base.doctorName?.trim() || ''),
-              profileName: override.profileName !== undefined ? override.profileName.trim() : (base.profileName?.trim() || ''),
-              specialty: override.specialty !== undefined ? override.specialty.trim() : (base.specialty?.trim() || ''),
-              mpps: override.mpps !== undefined ? override.mpps.trim() : (base.mpps?.trim() || ''),
-              ci: override.ci !== undefined ? override.ci.trim() : (base.ci?.trim() || ''),
-              collegeNumber: override.collegeNumber !== undefined ? override.collegeNumber.trim() : (base.collegeNumber?.trim() || ''),
-              phone: override.phone !== undefined ? override.phone.trim() : (base.phone?.trim() || ''),
-              email: override.email !== undefined ? override.email.trim() : (base.email?.trim() || ''),
-              socialHandle: override.socialHandle !== undefined ? override.socialHandle.trim() : (base.socialHandle?.trim() || ''),
-              socialHandle2: override.socialHandle2 !== undefined ? override.socialHandle2.trim() : (base.socialHandle2?.trim() || ''),
-              institution: override.institution !== undefined ? override.institution.trim() : (base.institution?.trim() || ''),
-              institutionDetails: override.institutionDetails !== undefined ? override.institutionDetails.trim() : (base.institutionDetails?.trim() || ''),
-              educacionContinua: override.educacionContinua !== undefined ? override.educacionContinua.trim() : (base.educacionContinua?.trim() || ''),
-              fuenteEducacion: override.fuenteEducacion || base.fuenteEducacion,
-              educacionSize: override.educacionSize || base.educacionSize,
-              educacionColor: override.educacionColor || base.educacionColor,
-              primaryDocColor: override.primaryDocColor || base.primaryDocColor || '#2563eb',
-              headerColor: override.headerColor || base.headerColor || '#1e3a8a',
-              fuenteHeader: override.fuenteHeader || base.fuenteHeader,
-              fuenteNombre: override.fuenteNombre || base.fuenteNombre,
-              borderStyle: override.borderStyle || base.borderStyle,
-              paperTexture: override.paperTexture || base.paperTexture,
-              tonePapel: override.tonePapel || base.tonePapel,
-              firmaImg: override.firmaImg !== undefined ? override.firmaImg : (base.firmaImg || ''),
-              selloImg: override.selloImg !== undefined ? override.selloImg : (base.selloImg || ''),
-              selloFirma: override.selloFirma !== undefined ? override.selloFirma : (base.selloFirma || ''),
-              logoIzq: override.logoIzq !== undefined ? override.logoIzq : (base.logoIzq || ''),
-              logoDer: override.logoDer !== undefined ? override.logoDer : (base.logoDer || ''),
-              marcaAgua: override.marcaAgua !== undefined ? override.marcaAgua : (base.marcaAgua || ''),
-              watermarkOpacity: override.watermarkOpacity !== undefined ? override.watermarkOpacity : (base.watermarkOpacity ?? 0.05),
-              watermarkScale: override.watermarkScale !== undefined ? override.watermarkScale : (base.watermarkScale ?? 55),
-              watermarkRotation: override.watermarkRotation !== undefined ? override.watermarkRotation : (base.watermarkRotation ?? 0),
-              logoSize: override.logoSize !== undefined ? override.logoSize : (base.logoSize ?? 52),
-              formaLogo: override.formaLogo || base.formaLogo || 'logo-redondo',
-              rxTitle: override.rxTitle || base.rxTitle || 'Rp.',
-              rxTitleColor: override.rxTitleColor || base.rxTitleColor,
-              bodyFontSize: override.bodyFontSize || base.bodyFontSize,
-              footerNotesText: override.footerNotesText !== undefined ? override.footerNotesText : (base.footerNotesText || ''),
-              footerDisclaimer: override.footerDisclaimer !== undefined ? override.footerDisclaimer : (base.footerDisclaimer || ''),
-              isAdmin: Boolean(override.isAdmin || base.isAdmin || override.id === 'doc-admin-master'),
-              isPaidClient: Boolean(override.isPaidClient || base.isPaidClient || override.id === 'doc-admin-master'),
-              isVip: Boolean(override.isVip || base.isVip || override.id === 'doc-admin-master'),
-              paymentStatus: (override.paymentStatus || base.paymentStatus || 'activo') as 'activo' | 'pendiente' | 'vencido',
               updatedAt: Math.max(localTime, cloudTime, Date.now())
-            };
+            });
+
             return mergedDoctor;
           });
 
@@ -1139,6 +1201,12 @@ export default function App() {
 
     const recipesToSave = customRecipes || recipes;
 
+    let paymentConfig: any = null;
+    try {
+      const pmSaved = localStorage.getItem('digital_medic_payment_config_v4');
+      if (pmSaved) paymentConfig = JSON.parse(pmSaved);
+    } catch (_) {}
+
     saveEcosystemToCloud({
       identifier: ident,
       email: doc.email,
@@ -1151,6 +1219,7 @@ export default function App() {
       indications,
       rest: restCert,
       records,
+      paymentConfig,
     });
     saveSingleDoctorToCloud(doc);
   };
@@ -1199,21 +1268,71 @@ export default function App() {
     }
   }, [records, currentReport, indications, restCert]);
 
+  // Immediate flush before tab/window closes so no data is ever lost
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      try {
+        const full = mergeDoctorConfigs(config, { updatedAt: Date.now() });
+        localStorage.setItem('digital_medic_current_config', JSON.stringify(full));
+        localStorage.setItem('digital_medic_colleagues_v2', JSON.stringify(colleagueProfiles));
+        localStorage.setItem('digital_medic_recipes_v2', JSON.stringify(recipes));
+        localStorage.setItem('digital_medic_patient_bank_v1', JSON.stringify(patientBank));
+        localStorage.setItem('digital_medic_records_v2', JSON.stringify(records));
+        localStorage.setItem('digital_medic_report_v2', JSON.stringify(currentReport));
+        localStorage.setItem('digital_medic_indications_v2', JSON.stringify(indications));
+        localStorage.setItem('digital_medic_rest_v2', JSON.stringify(restCert));
+
+        let paymentConfig: any = null;
+        try {
+          const pmSaved = localStorage.getItem('digital_medic_payment_config_v4');
+          if (pmSaved) paymentConfig = JSON.parse(pmSaved);
+        } catch (_) {}
+
+        let userIdent = full.email || full.ci || full.id || 'carloseduardoleal29@gmail.com';
+        userIdent = userIdent.toLowerCase().trim();
+        const payload = JSON.stringify({
+          identifier: userIdent,
+          email: full.email,
+          ci: full.ci,
+          doctorConfig: full,
+          colleagueProfiles,
+          patientBank,
+          recipes,
+          report: currentReport,
+          indications,
+          rest: restCert,
+          records,
+          paymentConfig,
+        });
+
+        if (navigator.sendBeacon) {
+          const blob = new Blob([payload], { type: 'application/json' });
+          navigator.sendBeacon('/api/ecosystem/save', blob);
+        }
+      } catch (_) {}
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [config, colleagueProfiles, recipes, patientBank, records, currentReport, indications, restCert]);
+
   // Sync state to LocalStorage and Cloud Database
   const handleSaveAll = async () => {
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     hasUserEditedStateRef.current = true;
     
-    // Always merge current config into colleagueProfiles list to guarantee 100% data fidelity
-    const nextProfiles = colleagueProfiles.map((p) => (p.id === config.id ? { ...p, ...config, updatedAt: Date.now() } : p));
-    if (!nextProfiles.some((p) => p.id === config.id)) {
-      nextProfiles.unshift({ ...config, updatedAt: Date.now() });
-    }
+    const updatedFull = mergeDoctorConfigs(config, { updatedAt: Date.now() });
+    const exists = colleagueProfiles.some((p) => p.id === updatedFull.id || (p.email && updatedFull.email && p.email.toLowerCase() === updatedFull.email.toLowerCase()));
+    const nextProfiles = exists
+      ? colleagueProfiles.map((p) => (p.id === updatedFull.id || (p.email && updatedFull.email && p.email.toLowerCase() === updatedFull.email.toLowerCase()) ? updatedFull : p))
+      : [updatedFull, ...colleagueProfiles];
+    
     setColleagueProfiles(nextProfiles);
 
     try {
       localStorage.setItem('digital_medic_colleagues_v2', JSON.stringify(nextProfiles));
-      localStorage.setItem('digital_medic_active_colleague', activeColleagueId);
+      localStorage.setItem('digital_medic_current_config', JSON.stringify(updatedFull));
+      localStorage.setItem('digital_medic_active_colleague', updatedFull.id);
       localStorage.setItem('digital_medic_recipes_v2', JSON.stringify(recipes));
       localStorage.setItem('digital_medic_records_v2', JSON.stringify(records));
       localStorage.setItem('digital_medic_report_v2', JSON.stringify(currentReport));
@@ -1222,19 +1341,40 @@ export default function App() {
       localStorage.setItem('digital_medic_patient_bank_v1', JSON.stringify(patientBank));
     } catch (_) {}
 
-    let userIdent = config.email || config.ci || config.id || 'carloseduardoleal29@gmail.com';
+    let userIdent = updatedFull.email || updatedFull.ci || updatedFull.id || 'carloseduardoleal29@gmail.com';
     userIdent = userIdent.toLowerCase().trim();
     if (userIdent === 'doc-admin-master' || userIdent === 'admin@digitalmedic.com' || userIdent === 'admin') {
       userIdent = 'carloseduardoleal29@gmail.com';
     }
     loadedEcosystemUserRef.current = userIdent;
 
-    // 1. Guardar el ecosistema completo (récipes, historias, reposos, indicaciones y diseño)
+    let paymentConfig: any = null;
+    try {
+      const pmSaved = localStorage.getItem('digital_medic_payment_config_v4');
+      if (pmSaved) paymentConfig = JSON.parse(pmSaved);
+    } catch (_) {}
+
+    // 1. Guardar de forma inmediata directo en Google Firestore (cliente)
+    await saveDirectToFirestore({
+      identifier: userIdent,
+      email: updatedFull.email,
+      ci: updatedFull.ci,
+      doctorConfig: updatedFull,
+      patientBank,
+      recipes,
+      report: currentReport,
+      indications,
+      rest: restCert,
+      records,
+      paymentConfig,
+    }).catch(e => console.warn('Direct Firestore save error:', e));
+
+    // 2. Guardar el ecosistema completo en el servidor / Firestore backend
     await saveEcosystemToCloud({
       identifier: userIdent,
-      email: config.email,
-      ci: config.ci,
-      doctorConfig: config,
+      email: updatedFull.email,
+      ci: updatedFull.ci,
+      doctorConfig: updatedFull,
       colleagueProfiles: nextProfiles,
       patientBank,
       recipes,
@@ -1242,15 +1382,16 @@ export default function App() {
       indications,
       rest: restCert,
       records,
+      paymentConfig,
     });
 
-    // 2. Guardar médico individual con sus firmas y sellos
-    await saveSingleDoctorToCloud(config);
+    // 3. Guardar médico individual con sus firmas, logos y sellos
+    await saveSingleDoctorToCloud(updatedFull);
 
-    // 3. Guardar catálogo general de médicos
+    // 4. Guardar catálogo general de médicos
     await saveDoctorsToCloud(nextProfiles);
 
-    showToast('✓ ¡Todo tu diseño, récipes y datos fueron guardados permanentemente en la nube!');
+    showToast('✓ ¡Todo tu diseño (logo, colores, letras, marca de agua) y datos quedaron guardados de forma permanente!');
   };
 
   const handleManualCloudSync = async () => {
@@ -3210,18 +3351,6 @@ export default function App() {
 
               {/* Botón de Instalación como App en PC con su Logo SOLO en pantalla de Inicio */}
               {activeModule === 'inicio' && <PWAInstallButton />}
-
-              {/* Botón Sincronizar & Enlace Móvil / PC con QR */}
-              <button
-                type="button"
-                onClick={() => setIsSyncDevicesOpen(true)}
-                className="px-2.5 py-1.5 sm:px-3 sm:py-2 bg-gradient-to-r from-blue-700 via-indigo-700 to-slate-900 hover:from-blue-600 hover:to-indigo-600 text-white rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shadow-md cursor-pointer shrink-0 border border-blue-400/40 hover:scale-105 active:scale-95"
-                title="Abrir en mi teléfono móvil o computadora y sincronizar en la nube"
-              >
-                <Smartphone className="w-3.5 h-3.5 text-cyan-300" />
-                <span className="hidden sm:inline">Enlace Móvil / PC</span>
-                <span className="sm:hidden">Móvil/PC</span>
-              </button>
 
               {activeModule !== 'inicio' && (
                 <button
