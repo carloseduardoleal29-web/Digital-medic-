@@ -318,6 +318,21 @@ export const DoctorOnboardingWizard: React.FC<DoctorOnboardingWizardProps> = ({
     fetchPaymentConfig().then((cfg) => {
       if (cfg && cfg.pagoMovil) setPayConfig(cfg);
     });
+
+    const handlePaymentUpdated = (e: any) => {
+      if (e?.detail) {
+        setPayConfig(e.detail);
+      } else {
+        fetchPaymentConfig().then((cfg) => {
+          if (cfg && cfg.pagoMovil) setPayConfig(cfg);
+        });
+      }
+    };
+
+    window.addEventListener('digital-medic-payment-updated', handlePaymentUpdated);
+    return () => {
+      window.removeEventListener('digital-medic-payment-updated', handlePaymentUpdated);
+    };
   }, []);
 
   const handleRefreshLiveBinanceRate = async () => {
@@ -1102,7 +1117,7 @@ export const DoctorOnboardingWizard: React.FC<DoctorOnboardingWizardProps> = ({
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1 text-xs text-slate-300">
                       <div className="flex items-center gap-2">
                         <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0" />
-                        <span>Récipes individuales y 4 en 1 con folios correlativos</span>
+                        <span>Récipes médicos oficiales con folios correlativos</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0" />
@@ -1271,7 +1286,7 @@ export const DoctorOnboardingWizard: React.FC<DoctorOnboardingWizardProps> = ({
                           <div className="space-y-1.5 pt-2 border-t border-slate-800 text-[11px] text-slate-300">
                             <div className="flex items-center gap-1.5">
                               <Check className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                              <span>Récipes 4 en 1 e individuales sin límites</span>
+                              <span>Récipes médicos profesionales sin límites</span>
                             </div>
                             <div className="flex items-center gap-1.5">
                               <Check className="w-3.5 h-3.5 text-blue-400 shrink-0" />

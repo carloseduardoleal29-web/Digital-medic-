@@ -95,7 +95,8 @@ import {
   exportAllLocalData, 
   applyEcosystemToLocalStorage 
 } from './services/ecosystemSync';
-import { saveDirectToFirestore } from './services/firebaseClient';
+import { saveDirectToFirestore, subscribeToPaymentConfig, subscribeToUserEcosystem } from './services/firebaseClient';
+import { fetchPaymentConfig } from './services/paymentConfigService';
 import { exportElementAsPDF, sharePDFViaWebShare, generatePDFBlob, buildDocumentPdfFilename, showWhatsAppClipAlert, buildWhatsAppTreatmentMessage } from './utils/exportDocument';
 
 /**
@@ -325,6 +326,12 @@ export default function App() {
     saveTimeoutRef.current = setTimeout(async () => {
       await saveSingleDoctorToCloud(updatedFull);
       
+      let paymentConfig: any = null;
+      try {
+        const pmSaved = localStorage.getItem('digital_medic_payment_config_v4');
+        if (pmSaved) paymentConfig = JSON.parse(pmSaved);
+      } catch (_) {}
+
       await saveEcosystemToCloud({
         identifier: ident,
         email: updatedFull.email,
@@ -336,6 +343,7 @@ export default function App() {
         indications,
         rest: restCert,
         records,
+        paymentConfig,
       }).catch((e) => console.warn('Cloud save error in updateCurrentConfig:', e));
     }, 400);
   };
@@ -559,13 +567,13 @@ export default function App() {
     setActiveColleagueId(targetDoc.id);
     setActiveDoctorSessionId(targetDoc.id);
     storeDoctorSessionId(targetDoc.id);
-    setActiveModule('recipe-4en1');
+    setActiveModule('recipe-master');
     showToast(`✓ Sesión activa cambiada al Dr(a). ${targetDoc.doctorName}. Membrete, logo, sello y firma cargados.`);
   };
 
   // 2. Active View Module & Master Lock (PIN 2534)
   const [activeModule, setActiveModule] = useState<ActiveModule>('inicio');
-  const [designerPreviewDoc, setDesignerPreviewDoc] = useState<'recipe' | 'recipe-4en1' | 'indicaciones' | 'reposo' | 'informes'>('recipe');
+  const [designerPreviewDoc, setDesignerPreviewDoc] = useState<'recipe' | 'indicaciones' | 'reposo' | 'informes'>('recipe');
   const [isDesignerUnlocked, setIsDesignerUnlocked] = useState<boolean>(() => {
     return sessionStorage.getItem('digital_medic_unlocked_2534') === 'true';
   });
@@ -600,10 +608,10 @@ export default function App() {
   const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
   const [isShareWithDoctorOpen, setIsShareWithDoctorOpen] = useState(false);
   const [isUniversalPreviewOpen, setIsUniversalPreviewOpen] = useState(false);
-  const [previewInitialModule, setPreviewInitialModule] = useState<ActiveModule>('recipe-4en1');
+  const [previewInitialModule, setPreviewInitialModule] = useState<ActiveModule>('recipe-master');
   const [isWelcomeBlankRecipeOpen, setIsWelcomeBlankRecipeOpen] = useState(false);
 
-  const handleOpenFormatPreview = (moduleTarget: ActiveModule = 'recipe-4en1') => {
+  const handleOpenFormatPreview = (moduleTarget: ActiveModule = 'recipe-master') => {
     setPreviewInitialModule(moduleTarget);
     setIsUniversalPreviewOpen(true);
   };
@@ -863,6 +871,12 @@ export default function App() {
 
     // Only push local state if user actively edited in THIS session AND not forcing download
     if (hasUserEditedStateRef.current && !forceDownload) {
+      let paymentConfig: any = null;
+      try {
+        const pmSaved = localStorage.getItem('digital_medic_payment_config_v4');
+        if (pmSaved) paymentConfig = JSON.parse(pmSaved);
+      } catch (_) {}
+
       await saveEcosystemToCloud({
         identifier: ident,
         email: config.email,
@@ -875,6 +889,7 @@ export default function App() {
         indications,
         rest: restCert,
         records,
+        paymentConfig,
       });
       await saveSingleDoctorToCloud(config);
       return true;
@@ -990,6 +1005,19 @@ export default function App() {
             } catch (_) {}
           }
 
+          if (cloudEco.paymentConfig && typeof cloudEco.paymentConfig === 'object') {
+            const pm = cloudEco.paymentConfig.pagoMovil;
+            const bin = cloudEco.paymentConfig.binance;
+            const zin = cloudEco.paymentConfig.zinli;
+            const hasData = pm?.telefono || bin?.payId || bin?.email || zin?.email || (cloudEco.paymentConfig.tasaBinanceUsd && cloudEco.paymentConfig.tasaBinanceUsd > 0);
+            if (hasData) {
+              try {
+                localStorage.setItem('digital_medic_payment_config_v4', JSON.stringify(cloudEco.paymentConfig));
+                window.dispatchEvent(new CustomEvent('digital-medic-payment-updated', { detail: cloudEco.paymentConfig }));
+              } catch (_) {}
+            }
+          }
+
           applyEcosystemToLocalStorage(cloudEco);
         }
 
@@ -1034,6 +1062,9 @@ export default function App() {
     } catch (_) {}
 
     const activeSessionId = getStoredDoctorSessionId();
+
+    // Fetch central payment config on startup
+    fetchPaymentConfig().catch(() => {});
 
     // Fetch complete doctors catalog from cloud on every startup
     fetchDoctorsFromCloud().then((cloudDocs) => {
@@ -1097,25 +1128,50 @@ export default function App() {
 
   // Cross-device Real-Time Cloud Synchronization (Phone <-> PC)
   useEffect(() => {
-    let lastCloudCheckTime = Date.now();
+    let lastCloudCheckTime = 0;
     let isCheckingCloud = false;
     let lastCheckTimestamp = 0;
 
+    // 1. Escucha en tiempo real de Firestore para datos de cobro (Pago Móvil, Binance, Zinli)
+    const unsubPayment = subscribeToPaymentConfig((cloudPaymentConfig) => {
+      if (cloudPaymentConfig && typeof cloudPaymentConfig === 'object') {
+        const pm = cloudPaymentConfig.pagoMovil;
+        const bin = cloudPaymentConfig.binance;
+        const zin = cloudPaymentConfig.zinli;
+        const hasData = pm?.telefono || bin?.payId || bin?.email || zin?.email || (cloudPaymentConfig.tasaBinanceUsd && cloudPaymentConfig.tasaBinanceUsd > 0);
+        if (hasData) {
+          try {
+            localStorage.setItem('digital_medic_payment_config_v4', JSON.stringify(cloudPaymentConfig));
+            window.dispatchEvent(new CustomEvent('digital-medic-payment-updated', { detail: cloudPaymentConfig }));
+            console.log('[Cloud Realtime] Datos de cobro recibidos desde Firestore en tiempo real');
+          } catch (_) {}
+        }
+      }
+    });
+
+    // 2. Escucha en tiempo real de Firestore para el ecosistema del usuario (diseño, récipes, pacientes)
+    const targetIdent = (activeDoctorSessionId || config.email || 'carloseduardoleal29@gmail.com').toLowerCase().trim();
+    const resolvedIdent = (targetIdent === 'doc-admin-master' || targetIdent === 'admin' || targetIdent === 'admin@digitalmedic.com') 
+      ? 'carloseduardoleal29@gmail.com' 
+      : targetIdent;
+
+    const unsubEcosystem = subscribeToUserEcosystem(resolvedIdent, (cloudEco) => {
+      if (cloudEco && cloudEco.updatedAt && cloudEco.updatedAt > lastCloudCheckTime) {
+        lastCloudCheckTime = cloudEco.updatedAt;
+        syncWithCloudEcosystem(resolvedIdent, true);
+      }
+    });
+
     const checkAndSyncFromCloud = async () => {
-      // Cooldown de al menos 20 segundos para evitar llamadas repetidas
+      // Cooldown de al menos 10 segundos para evitar llamadas repetidas
       const now = Date.now();
-      if (now - lastCheckTimestamp < 20000) return;
+      if (now - lastCheckTimestamp < 10000) return;
       if (isCheckingCloud) return;
       if (hasUserEditedStateRef.current) return;
       if (isSyncingFromCloudRef.current) return;
 
       isCheckingCloud = true;
       lastCheckTimestamp = now;
-
-      const targetIdent = (activeDoctorSessionId || config.email || 'carloseduardoleal29@gmail.com').toLowerCase().trim();
-      const resolvedIdent = (targetIdent === 'doc-admin-master' || targetIdent === 'admin' || targetIdent === 'admin@digitalmedic.com') 
-        ? 'carloseduardoleal29@gmail.com' 
-        : targetIdent;
 
       try {
         const cloudEco = await fetchEcosystemFromCloud(resolvedIdent);
@@ -1133,23 +1189,27 @@ export default function App() {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         checkAndSyncFromCloud();
+        fetchPaymentConfig().catch(() => {});
       }
     };
 
     const handleWindowFocus = () => {
       checkAndSyncFromCloud();
+      fetchPaymentConfig().catch(() => {});
     };
 
-    // Intervalo saludable de 45 segundos para no agotar la memoria ni congelar el navegador móvil
+    // Intervalo saludable de 30 segundos
     const intervalId = setInterval(() => {
       checkAndSyncFromCloud();
-    }, 45000);
+    }, 30000);
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', handleWindowFocus);
 
     return () => {
       clearInterval(intervalId);
+      if (unsubPayment) unsubPayment();
+      if (unsubEcosystem) unsubEcosystem();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleWindowFocus);
     };
@@ -1176,6 +1236,12 @@ export default function App() {
     }
 
     const timer = setTimeout(async () => {
+      let paymentConfig: any = null;
+      try {
+        const pmSaved = localStorage.getItem('digital_medic_payment_config_v4');
+        if (pmSaved) paymentConfig = JSON.parse(pmSaved);
+      } catch (_) {}
+
       await saveEcosystemToCloud({
         identifier: ident,
         email: config.email,
@@ -1188,6 +1254,7 @@ export default function App() {
         indications,
         rest: restCert,
         records,
+        paymentConfig,
       });
       await saveSingleDoctorToCloud(config);
     }, 2500);
@@ -3487,9 +3554,9 @@ export default function App() {
                 {/* Row 1: Récipes, Indicaciones, Informe Médico */}
                 <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
                   <button
-                    onClick={() => handleNavigate('recipe-4en1')}
+                    onClick={() => handleNavigate('recipe-master')}
                     className={`rounded-full px-3 py-2.5 sm:px-4 sm:py-3 font-black text-xs sm:text-sm transition-all cursor-pointer flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap shadow-sm hover:scale-[1.02] active:scale-95 ${
-                      activeModule === 'recipe-4en1' || activeModule === 'recipe-master'
+                      activeModule === 'recipe-master' || activeModule === 'recipe' || activeModule === 'recipe-4en1'
                         ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/30 ring-2 ring-blue-300 font-extrabold'
                         : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 border border-blue-400/50'
                     }`}
@@ -3654,7 +3721,7 @@ export default function App() {
                   <span>⭐ Mejorar a Plan VIP</span>
                 </button>
                 <button
-                  onClick={() => setActiveModule('recipe-4en1')}
+                  onClick={() => setActiveModule('recipe-master')}
                   className="w-full sm:w-auto px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl transition-colors cursor-pointer"
                 >
                   <span>Volver a Récipes</span>
@@ -3684,16 +3751,6 @@ export default function App() {
                       }`}
                     >
                       📄 Récipe
-                    </button>
-                    <button
-                      onClick={() => setDesignerPreviewDoc('recipe-4en1')}
-                      className={`px-2.5 py-1 rounded-lg font-bold transition-colors ${
-                        designerPreviewDoc === 'recipe-4en1'
-                          ? 'bg-blue-600 text-white shadow-2xs'
-                          : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                      }`}
-                    >
-                      📦 Récipes
                     </button>
                     <button
                       onClick={() => setDesignerPreviewDoc('indicaciones')}
@@ -3744,21 +3801,6 @@ export default function App() {
                   />
                 )}
 
-                {designerPreviewDoc === 'recipe-4en1' && (
-                  <FourInOneRecipeView
-                    config={config}
-                    recipes={recipes}
-                    onChangeRecipeItem={handleUpdateRecipe}
-                    onSyncPatientToAll={handleSyncPatientToAllRecipes}
-                    onCopyRecipe1ToAll={handleCopyRecipe1ToAll}
-                    activeRecipeIndex={activeRecipeIndex}
-                    onSelectActiveRecipe={setActiveRecipeIndex}
-                    onPrint={handleTriggerPrint}
-                    onSavePatientOnly={() => handleSavePatientOnly('recipe-4en1')}
-                    onSaveAndShare={() => handleSavePatientOnly('recipe-4en1')}
-                    onClearRecipeToBlank={() => handleClearRecipeToBlank(activeRecipeIndex)}
-                  />
-                )}
 
                 {designerPreviewDoc === 'indicaciones' && (
                   <IndicationsModule
@@ -3820,31 +3862,8 @@ export default function App() {
             </div>
           )}
 
-          {/* Module 2: Formato Récipes Médicos (Solo Récipe / 4 en 1) */}
-          {(activeModule === 'recipe-4en1' || (activeModule as any) === 'recipe-4en1-view' || (activeModule as any) === 'recipes') && (
-            <FourInOneRecipeView
-              config={config}
-              recipes={recipes}
-              onChangeRecipeItem={handleUpdateRecipe}
-              onSyncPatientToAll={handleSyncPatientToAllRecipes}
-              onCopyRecipe1ToAll={handleCopyRecipe1ToAll}
-              activeRecipeIndex={activeRecipeIndex}
-              onSelectActiveRecipe={setActiveRecipeIndex}
-              onUpdateConfig={updateCurrentConfig}
-              onPrint={handleTriggerPrint}
-              onDownloadPdf={() => handleDownloadRealPdf(null)}
-              onOpenEmailModal={() => handleOpenEmailDirectly('recipe-4en1')}
-              onSavePatientOnly={() => handleSavePatientOnly('recipe-4en1')}
-              onSaveAndShare={() => handleSavePatientOnly('recipe-4en1')}
-              onOpenPreview={() => setIsUniversalPreviewOpen(true)}
-              onBackToHome={() => handleNavigate('inicio')}
-              onClearRecipeToBlank={() => handleClearRecipeToBlank(activeRecipeIndex)}
-              onSwitchToNormalRecipe={() => setActiveModule('recipe-master')}
-            />
-          )}
-
-          {/* Module 2-B: Asistente Guiado Paso a Paso */}
-          {(activeModule === 'recipe-master' || activeModule === 'recipe') && (
+          {/* Module 2: Asistente Guiado de Récipes Médicos Oficiales */}
+          {(activeModule === 'recipe-master' || activeModule === 'recipe' || activeModule === 'recipe-4en1' || (activeModule as any) === 'recipes') && (
             <ProgressiveRecipeWizard
               config={config}
               recipe={recipes[activeRecipeIndex] || recipes[0]}
@@ -3866,7 +3885,6 @@ export default function App() {
                 setPreviewInitialModule('recipe-master');
                 setIsUniversalPreviewOpen(true);
               }}
-              onSwitchTo4In1={() => setActiveModule('recipe-4en1')}
               onClearRecipeToBlank={() => handleClearRecipeToBlank(activeRecipeIndex)}
               onBackToHome={() => handleNavigate('inicio')}
               existingPatients={patientBank}
@@ -3968,7 +3986,7 @@ export default function App() {
               }}
               onUpdateConfig={updateCurrentConfig}
               onBackToHome={() => handleNavigate('inicio')}
-              onSwitchToRecipe={() => setActiveModule('recipe-4en1')}
+              onSwitchToRecipe={() => setActiveModule('recipe-master')}
               recipes={recipes}
               activeRecipeIndex={activeRecipeIndex}
             />

@@ -44,6 +44,21 @@ export const PendingPaymentNotice: React.FC<PendingPaymentNoticeProps> = ({
     fetchPaymentConfig().then((cfg) => {
       if (cfg && cfg.pagoMovil) setPayConfig(cfg);
     });
+
+    const handlePaymentUpdated = (e: any) => {
+      if (e?.detail) {
+        setPayConfig(e.detail);
+      } else {
+        fetchPaymentConfig().then((cfg) => {
+          if (cfg && cfg.pagoMovil) setPayConfig(cfg);
+        });
+      }
+    };
+
+    window.addEventListener('digital-medic-payment-updated', handlePaymentUpdated);
+    return () => {
+      window.removeEventListener('digital-medic-payment-updated', handlePaymentUpdated);
+    };
   }, []);
 
   const [paymentMethod, setPaymentMethod] = useState<'pagomovil' | 'binance' | 'zinli'>('pagomovil');

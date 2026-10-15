@@ -50,7 +50,7 @@ export const TrialExpiredModal: React.FC<TrialExpiredModalProps> = ({
           <ul className="space-y-1.5 pl-2 text-slate-300">
             <li className="flex items-center gap-2">
               <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-              <span>Emisión ilimitada de récipes 4 en 1 e individuales con folios correlativos.</span>
+              <span>Emisión ilimitada de récipes médicos oficiales con folios correlativos.</span>
             </li>
             <li className="flex items-center gap-2">
               <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />

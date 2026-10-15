@@ -307,7 +307,7 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
       case 'clinical-history':
         return 'historia clínica oficial';
       case 'recipe-4en1':
-        return 'récipe médico (4 en 1)';
+        return 'récipe médico oficial';
       case 'recipe':
       default:
         return 'récipe y prescripción médica';

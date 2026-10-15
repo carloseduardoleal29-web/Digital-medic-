@@ -313,17 +313,6 @@ export const EmailShareModal: React.FC<EmailShareModalProps> = ({
             </div>
           )}
 
-          {directError && (
-            <div className="bg-rose-50 border-2 border-rose-200 text-rose-950 p-3.5 rounded-xl space-y-1 text-xs">
-              <div className="flex items-center gap-2 font-bold text-rose-900">
-                <X className="w-4 h-4 text-rose-600" />
-                <span>Error en el envío directo</span>
-              </div>
-              <p className="text-[11px] text-slate-700 leading-snug">
-                {directError}. Puede usar la opción de abajo <strong>"Abrir en mi Correo"</strong> como alternativa instantánea.
-              </p>
-            </div>
-          )}
 
           {/* Patient details */}
           <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex flex-wrap items-center justify-between gap-2">
@@ -384,39 +373,24 @@ export const EmailShareModal: React.FC<EmailShareModalProps> = ({
             </div>
 
             {/* Actions Bar */}
-            <div className="pt-2 flex flex-col gap-2.5">
-              
-              {/* PRIMARY HIGHLY VISIBLE ACTION: DIRECT EMAIL WITH PDF */}
+            <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-2.5">
               <button
                 type="button"
-                onClick={handleSendDirectEmail}
-                disabled={directSending}
-                className="w-full py-2.5 bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-800 hover:from-blue-800 hover:to-indigo-800 text-white rounded-xl font-black text-xs shadow-md shadow-indigo-600/30 flex items-center justify-center gap-2 cursor-pointer transition-all hover:scale-[1.01] active:scale-95 disabled:opacity-50"
+                onClick={onClose}
+                className="w-full sm:w-auto px-4 py-2.5 text-center rounded-xl text-slate-600 hover:text-slate-800 border border-slate-300 hover:bg-slate-50 font-medium text-xs cursor-pointer"
               >
-                <Send className="w-4 h-4 text-cyan-300" />
-                <span>📧 ENVIAR CORREO DIRECTO CON PDF ADJUNTO</span>
+                Cerrar Ventana
               </button>
 
-              <div className="flex items-center justify-between gap-2.5">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="flex-1 py-2 text-center rounded-xl text-slate-600 hover:text-slate-800 border border-slate-300 hover:bg-slate-50 font-medium"
-                >
-                  Cerrar Ventana
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleOpenEmailClient()}
-                  className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                  title="Abrir tu aplicación local de correo (Gmail, Outlook, etc.) con los datos rellenados"
-                >
-                  <Mail className="w-4 h-4 text-slate-500" />
-                  <span>Abrir en mi Correo (Mailto)</span>
-                </button>
-              </div>
-
+              <button
+                type="button"
+                onClick={() => handleOpenEmailClient()}
+                className="w-full sm:flex-1 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md text-xs hover:scale-[1.01] active:scale-95"
+                title="Abrir tu aplicación de correo (Gmail, Outlook, etc.) con los datos y enlace listos"
+              >
+                <Mail className="w-4 h-4 text-cyan-200" />
+                <span>Abrir en mi Correo (Gmail / Outlook)</span>
+              </button>
             </div>
           </div>
 

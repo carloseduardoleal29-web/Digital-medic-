@@ -1,23 +1,23 @@
 {
+  "adminWhatsapp": "+584243291438",
   "pagoMovil": {
-    "banco": "",
-    "telefono": "",
-    "cedula": "",
-    "titular": ""
+    "cedula": "15489288",
+    "titular": "Dr. Carlos Leal",
+    "banco": "Banesco",
+    "telefono": "04141234567"
   },
+  "updatedAt": 1792067969903,
+  "tasaBinanceUsd": 115.5,
   "binance": {
-    "payId": "",
-    "email": "",
-    "nickname": "",
-    "usdtAddress": "",
-    "network": "USDT (TRC-20)"
+    "network": "USDT (TRC-20)",
+    "payId": "12345678",
+    "nickname": "CarlosLeal",
+    "email": "carloseduardoleal29@gmail.com",
+    "usdtAddress": ""
   },
+  "test": true,
   "zinli": {
-    "email": "",
-    "titular": ""
-  },
-  "adminWhatsapp": "",
-  "tasaBinanceUsd": 0,
-  "tasaFuente": "Binance P2P Venezuela",
-  "tasaUltimaActualizacion": ""
+    "titular": "Carlos Leal",
+    "email": "carloseduardoleal29@gmail.com"
+  }
 }

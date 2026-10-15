@@ -263,7 +263,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
     setActivatingEliteDoc(null);
 
     // Auto-copy WhatsApp activation message for Plan Élite
-    const msg = `*¡PLAN ÉLITE ACTIVADO EN DIGITAL MÉDICO!* 💎✨\n\nEstimado(a) Dr(a). *${doc.doctorName}*:\nEl Administrador Master Dr. Carlos Leal le ha concedido acceso exclusivo al *PLAN ÉLITE* por *${validDays} días continuos*.\n\n📅 *Vigencia hasta:* ${formattedExpires}\n⭐ *Privilegios Élite Desbloqueados:*\n• Emisión ilimitada de Récipes Médicos 4 en 1 y Máster\n• Módulos completos de Historias Clínicas, Informes y Reposos Médicos\n• Acceso Exclusivo al Estudio de Diseño PRO (sellos, firmas y membretes de alta gama)\n• Respaldo y sincronización en la nube\n\n📧 *Correo:* ${doc.email}\n👤 *Cédula / Usuario:* ${doc.ci}\n🔑 *Clave:* ${doc.password || doc.ci}\n\nYa puede ingresar y emitir sus formatos con categoría Élite. ¡Muchos éxitos en su consulta médica!`;
+    const msg = `*¡PLAN ÉLITE ACTIVADO EN DIGITAL MÉDICO!* 💎✨\n\nEstimado(a) Dr(a). *${doc.doctorName}*:\nEl Administrador Master Dr. Carlos Leal le ha concedido acceso exclusivo al *PLAN ÉLITE* por *${validDays} días continuos*.\n\n📅 *Vigencia hasta:* ${formattedExpires}\n⭐ *Privilegios Élite Desbloqueados:*\n• Emisión ilimitada de Récipes Médicos Oficiales y Máster\n• Módulos completos de Historias Clínicas, Informes y Reposos Médicos\n• Acceso Exclusivo al Estudio de Diseño PRO (sellos, firmas y membretes de alta gama)\n• Respaldo y sincronización en la nube\n\n📧 *Correo:* ${doc.email}\n👤 *Cédula / Usuario:* ${doc.ci}\n🔑 *Clave:* ${doc.password || doc.ci}\n\nYa puede ingresar y emitir sus formatos con categoría Élite. ¡Muchos éxitos en su consulta médica!`;
     
     try {
       navigator.clipboard.writeText(msg);

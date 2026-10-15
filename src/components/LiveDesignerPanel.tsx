@@ -1804,8 +1804,7 @@ export const LiveDesignerPanel: React.FC<LiveDesignerPanelProps> = ({
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
                   {[
-                    { id: 'recipe', label: '📄 Récipe Individual Carta / 1/2' },
-                    { id: 'recipe-4en1', label: '📦 Récipe Múltiple 4 en 1' },
+                    { id: 'recipe', label: '📄 Récipe Médico Profesional' },
                     { id: 'indicaciones', label: '📋 Hoja Indicaciones' },
                     { id: 'reposo', label: '⏱️ Reposo Médico' },
                     { id: 'informes', label: '📑 Informe Clínico' },

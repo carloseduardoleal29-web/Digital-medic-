@@ -27,9 +27,19 @@ export async function saveEcosystemToCloud(ecosystem: Partial<UserEcosystem>): P
   let savedServer = false;
   let savedDirectFirestore = false;
 
+  const payload: Partial<UserEcosystem> = { ...ecosystem };
+  if (!payload.paymentConfig) {
+    try {
+      const pmSaved = localStorage.getItem('digital_medic_payment_config_v4');
+      if (pmSaved) {
+        payload.paymentConfig = JSON.parse(pmSaved);
+      }
+    } catch (_) {}
+  }
+
   // 1. Guardado directo en Firestore
   try {
-    savedDirectFirestore = await saveDirectToFirestore(ecosystem);
+    savedDirectFirestore = await saveDirectToFirestore(payload);
   } catch (err) {
     console.warn('[EcosystemSync] Direct Firestore save failed, using server fallback:', err);
   }
@@ -39,7 +49,7 @@ export async function saveEcosystemToCloud(ecosystem: Partial<UserEcosystem>): P
     const res = await fetch('/api/ecosystem/save', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(ecosystem),
+      body: JSON.stringify(payload),
     });
     if (res.ok) {
       const data = await res.json();
@@ -224,6 +234,12 @@ export function exportAllLocalData(activeColleagueId?: string): Partial<UserEcos
     if (saved) customDrugs = JSON.parse(saved);
   } catch (_) {}
 
+  let paymentConfig: any = undefined;
+  try {
+    const saved = localStorage.getItem('digital_medic_payment_config_v4');
+    if (saved) paymentConfig = JSON.parse(saved);
+  } catch (_) {}
+
   const email = activeDoc?.email || 'admin@digitalmedic.com';
   const ci = activeDoc?.ci || '';
   
@@ -245,6 +261,7 @@ export function exportAllLocalData(activeColleagueId?: string): Partial<UserEcos
     rest,
     records,
     customDrugs,
+    paymentConfig,
     updatedAt: Date.now(),
   };
 }
@@ -291,6 +308,20 @@ export function applyEcosystemToLocalStorage(ecosystem: UserEcosystem): void {
 
     if (ecosystem.customDrugs && Array.isArray(ecosystem.customDrugs)) {
       localStorage.setItem('digital_medic_custom_drugs_v2', JSON.stringify(ecosystem.customDrugs));
+    }
+
+    // Persistir y propagar datos de cobro a este dispositivo
+    if (ecosystem.paymentConfig && typeof ecosystem.paymentConfig === 'object') {
+      const pm = ecosystem.paymentConfig.pagoMovil;
+      const bin = ecosystem.paymentConfig.binance;
+      const zin = ecosystem.paymentConfig.zinli;
+      const hasData = pm?.telefono || bin?.payId || bin?.email || zin?.email || (ecosystem.paymentConfig.tasaBinanceUsd && ecosystem.paymentConfig.tasaBinanceUsd > 0);
+      if (hasData) {
+        localStorage.setItem('digital_medic_payment_config_v4', JSON.stringify(ecosystem.paymentConfig));
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('digital-medic-payment-updated', { detail: ecosystem.paymentConfig }));
+        }
+      }
     }
   } catch (err) {
     console.warn('[EcosystemSync] Error al escribir en localStorage:', err);

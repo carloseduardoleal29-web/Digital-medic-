@@ -302,8 +302,7 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
         {/* Switch between Documents */}
         <div className="flex items-center bg-slate-800/90 rounded-2xl p-1.5 border border-slate-700/80 gap-1.5 overflow-x-auto max-w-full shadow-inner">
           {[
-            { id: 'recipe-master', label: '💊 Récipe', icon: FileCheck2 },
-            { id: 'recipe-4en1', label: '📦 Récipes 4en1', icon: Grid2X2 },
+            { id: 'recipe-master', label: '💊 Récipe Médico', icon: FileCheck2 },
             { id: 'indicaciones', label: '🕐 Indicaciones', icon: ClipboardList },
             { id: 'informes', label: '📋 Informe Médico', icon: FileText },
             { id: 'reposo', label: '⏱️ Reposo / Constancia', icon: ShieldCheck },

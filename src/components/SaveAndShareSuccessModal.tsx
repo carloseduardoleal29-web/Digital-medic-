@@ -366,7 +366,7 @@ export const SaveAndShareSuccessModal: React.FC<SaveAndShareSuccessModalProps> =
       case 'historia':
         return 'historia clínica de consulta';
       case 'recipe-4en1':
-        return 'récipe médico (formato 4 en 1)';
+        return 'récipe médico oficial';
       case 'recipe-master':
       default:
         return 'récipe y orden médica';

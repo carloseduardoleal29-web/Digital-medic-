@@ -57,6 +57,21 @@
         "updatedAt": { "type": "number" }
       },
       "required": ["id", "documentType", "patientName"]
+    },
+    "PaymentSettings": {
+      "title": "PaymentSettings",
+      "description": "Payment methods and Binance P2P rate configuration for doctor billing and subscriptions",
+      "type": "object",
+      "properties": {
+        "pagoMovil": { "type": "object" },
+        "binance": { "type": "object" },
+        "zinli": { "type": "object" },
+        "adminWhatsapp": { "type": "string", "maxLength": 64 },
+        "tasaBinanceUsd": { "type": "number" },
+        "tasaFuente": { "type": "string", "maxLength": 128 },
+        "tasaUltimaActualizacion": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "number" }
+      }
     }
   },
   "firestore": {
@@ -71,6 +86,10 @@
     "/documents/{documentId}": {
       "schema": "Document",
       "description": "Saved medical prescriptions, reports, and records"
+    },
+    "/settings/{settingId}": {
+      "schema": "PaymentSettings",
+      "description": "App settings including official billing configuration and Binance rates"
     }
   }
 }

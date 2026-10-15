@@ -364,33 +364,6 @@ export const WelcomeInicioModule: React.FC<WelcomeInicioModuleProps> = ({
               </div>
             </button>
 
-            {/* BOTÓN SINCRONIZAR MÓVIL / PC (QR & ENLACE) */}
-            {onOpenSyncDevices && (
-              <button
-                type="button"
-                onClick={onOpenSyncDevices}
-                className="w-full p-3 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl transition-all flex items-center justify-between text-left shadow-md border border-slate-700 cursor-pointer group hover:scale-[1.01]"
-                title="Abrir este mismo consultorio en su teléfono móvil o computadora mediante código QR y enlace directo"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-blue-600/30 text-cyan-300 flex items-center justify-center shrink-0 border border-blue-400/30">
-                    <Smartphone className="w-4.5 h-4.5" />
-                  </div>
-                  <div>
-                    <div className="text-[11px] font-black uppercase tracking-wide text-white flex items-center gap-1.5">
-                      <span>📱 ENLACE MÓVIL / PC (QR)</span>
-                      <span className="px-1.5 py-0.5 bg-emerald-500/30 text-emerald-300 text-[8.5px] font-black rounded border border-emerald-400/30">
-                        NUBE ACTIVA
-                      </span>
-                    </div>
-                    <div className="text-[10px] text-slate-400 font-medium">
-                      Escanear QR o copiar link para su teléfono
-                    </div>
-                  </div>
-                </div>
-                <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-1 transition-transform shrink-0" />
-              </button>
-            )}
 
           </div>
 

@@ -723,11 +723,11 @@ export const DoctorLeftDrawer: React.FC<DoctorLeftDrawerProps> = ({
                       <span>Inicio</span>
                     </button>
                     <button
-                      onClick={() => { onClose(); onNavigate('recipe-master'); }}
+                      onClick={() => { onClose(); onNavigate('recipe-4en1'); }}
                       className="p-2.5 bg-slate-50 hover:bg-blue-50 hover:text-blue-700 rounded-xl font-bold text-slate-700 text-left border border-slate-200/80 transition-all flex items-center gap-2"
                     >
                       <Grid2X2 className="w-4 h-4 text-blue-600 shrink-0" />
-                      <span>Récipes Médicos</span>
+                      <span>Récipes Médicos (4 en 1)</span>
                     </button>
                     <button
                       onClick={() => { onClose(); onNavigate('historias'); }}

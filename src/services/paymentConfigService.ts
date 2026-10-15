@@ -66,10 +66,36 @@ export function isPaymentConfigured(config?: PaymentConfig | null): boolean {
   return hasPm || hasBinance || hasZinli;
 }
 
+import { 
+  savePaymentConfigDirectToFirestore, 
+  fetchPaymentConfigDirectFromFirestore, 
+  saveDirectToFirestore,
+  fetchDirectFromFirestore 
+} from './firebaseClient';
+
 const LOCAL_STORAGE_KEY = 'digital_medic_payment_config_v4';
 
+export function resolveActiveUserIdentifier(): string {
+  try {
+    const session = sessionStorage.getItem('digital_medic_active_doctor_session') ||
+                    localStorage.getItem('digital_medic_active_doctor_session');
+    if (session && session !== 'guest' && session.trim() !== '') {
+      if (session.includes('@') || session.includes('.')) return session.toLowerCase().trim();
+    }
+
+    const storedActive = localStorage.getItem('digital_medic_active_colleague');
+    const storedDocs = localStorage.getItem('digital_medic_colleagues_v2');
+    if (storedDocs) {
+      const list = JSON.parse(storedDocs);
+      const doc = list.find((d: any) => d.id === storedActive) || list[0];
+      if (doc?.email) return doc.email.toLowerCase().trim();
+      if (doc?.ci) return doc.ci.trim();
+    }
+  } catch (_) {}
+  return 'carloseduardoleal29@gmail.com';
+}
+
 export async function fetchPaymentConfig(): Promise<PaymentConfig> {
-  // 1. Check local storage first
   let localConfig: PaymentConfig | null = null;
   try {
     const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
@@ -81,21 +107,58 @@ export async function fetchPaymentConfig(): Promise<PaymentConfig> {
     }
   } catch (_) {}
 
-  // 2. Fetch from server
+  // 1. Consultar PRIMERO directamente a la nube de Google Firebase Firestore (settings/payment_config)
+  try {
+    const fireConfig = await fetchPaymentConfigDirectFromFirestore();
+    if (fireConfig && isPaymentConfigured(fireConfig)) {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(fireConfig));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('digital-medic-payment-updated', { detail: fireConfig }));
+      }
+      return fireConfig;
+    }
+  } catch (err) {
+    console.warn('[PaymentConfig] Error consultando Firestore directo:', err);
+  }
+
+  // 2. Consultar el ecosistema de la sesión activa del usuario en Firestore (ej. carloseduardoleal29@gmail.com)
+  try {
+    const activeUser = resolveActiveUserIdentifier();
+    const userEco = await fetchDirectFromFirestore(activeUser);
+    if (userEco?.paymentConfig && isPaymentConfigured(userEco.paymentConfig)) {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(userEco.paymentConfig));
+      // Guardar también en settings de Firestore para sincronización global
+      savePaymentConfigDirectToFirestore(userEco.paymentConfig).catch(() => {});
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('digital-medic-payment-updated', { detail: userEco.paymentConfig }));
+      }
+      return userEco.paymentConfig;
+    }
+  } catch (err) {
+    console.warn('[PaymentConfig] Error consultando ecosistema del usuario en Firestore:', err);
+  }
+
+  // 3. Consultar la API del servidor en la nube (/api/payment-config)
   try {
     const res = await fetch('/api/payment-config');
     if (res.ok) {
       const data = await res.json();
       if (data?.config && isPaymentConfigured(data.config)) {
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data.config));
+        // Sincronizar directo con Firestore
+        savePaymentConfigDirectToFirestore(data.config).catch(() => {});
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('digital-medic-payment-updated', { detail: data.config }));
+        }
         return data.config;
       }
     }
   } catch (err) {
-    console.warn('Could not fetch payment config from server, using local storage:', err);
+    console.warn('[PaymentConfig] Could not fetch payment config from server:', err);
   }
 
-  // 3. If server returned unconfigured/empty data but local config has data, keep local config & push to server!
+  // 4. Si el almacenamiento local ya tiene datos configurados pero la nube no los tenía,
+  // subirlos DE INMEDIATO a la nube (Firestore y Servidor) para que queden disponibles en todos los dispositivos
   if (localConfig && isPaymentConfigured(localConfig)) {
     savePaymentConfig(localConfig);
     return localConfig;
@@ -105,12 +168,46 @@ export async function fetchPaymentConfig(): Promise<PaymentConfig> {
 }
 
 export async function savePaymentConfig(config: PaymentConfig): Promise<boolean> {
-  // Save in local storage immediately
+  // 1. Guardar en local storage inmediatamente
   try {
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(config));
   } catch (_) {}
 
-  // Sync to server
+  // 2. Disparar evento para actualizar instantáneamente cualquier pantalla en este dispositivo
+  try {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('digital-medic-payment-updated', { detail: config }));
+    }
+  } catch (_) {}
+
+  // 3. Guardar DIRECTO en la nube de Google Firebase Firestore (settings/payment_config)
+  try {
+    await savePaymentConfigDirectToFirestore(config);
+  } catch (err) {
+    console.warn('[PaymentConfig] Error guardando directo en Firestore settings:', err);
+  }
+
+  // 4. Guardar en el ecosistema del usuario en la nube (Firestore) para persistencia total por sesión
+  try {
+    const activeUser = resolveActiveUserIdentifier();
+    await saveDirectToFirestore({
+      identifier: activeUser,
+      paymentConfig: config,
+      updatedAt: Date.now(),
+    });
+
+    if (activeUser !== 'carloseduardoleal29@gmail.com') {
+      await saveDirectToFirestore({
+        identifier: 'carloseduardoleal29@gmail.com',
+        paymentConfig: config,
+        updatedAt: Date.now(),
+      }).catch(() => {});
+    }
+  } catch (err) {
+    console.warn('[PaymentConfig] Error guardando en ecosistema de Firestore:', err);
+  }
+
+  // 5. Sincronizar con el servidor backend
   try {
     const res = await fetch('/api/payment-config', {
       method: 'POST',
@@ -123,7 +220,8 @@ export async function savePaymentConfig(config: PaymentConfig): Promise<boolean>
   } catch (err) {
     console.error('Error saving payment config to server:', err);
   }
-  return false;
+
+  return true;
 }
 
 export interface LiveBinanceRateResult {

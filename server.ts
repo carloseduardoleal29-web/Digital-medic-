@@ -423,12 +423,21 @@ async function writeUserEcosystem(payload: any): Promise<any | null> {
       }
     }
 
+    let mergedPaymentConfig = payload.paymentConfig;
+    if (!mergedPaymentConfig && existingEco?.paymentConfig) {
+      mergedPaymentConfig = existingEco.paymentConfig;
+    }
+    if (mergedPaymentConfig && typeof mergedPaymentConfig === 'object') {
+      writePaymentConfig(mergedPaymentConfig).catch(() => {});
+    }
+
     const dataToSave = {
       ...(existingEco || {}),
       ...payload,
       ...(mergedDoctorConfig ? { doctorConfig: mergedDoctorConfig } : {}),
       patientBank: mergedPatientBank,
       recipes: mergedRecipes,
+      ...(mergedPaymentConfig ? { paymentConfig: mergedPaymentConfig } : {}),
       identifier: ident,
       updatedAt: Date.now(),
     };

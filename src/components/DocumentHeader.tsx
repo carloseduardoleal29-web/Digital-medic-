@@ -224,13 +224,15 @@ export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
             contentEditable={editableInline}
             suppressContentEditableWarning
             onBlur={(e) => onUpdateField?.('doctorName', e.currentTarget.innerText)}
-            className={`font-bold tracking-tight transition-all leading-tight outline-none cursor-text break-words ${
-              editableInline ? 'hover:bg-blue-50/70 hover:ring-1 hover:ring-blue-300 rounded px-1' : ''
+            className={`font-bold tracking-normal transition-all outline-none cursor-text break-words inline-block text-center ${
+              editableInline ? 'hover:bg-blue-50/70 hover:ring-1 hover:ring-blue-300 rounded px-1.5' : ''
             }`}
             style={{
               color: config.nombreColor,
               fontFamily: config.fuenteNombre,
               fontSize: compact ? `calc(${config.nombreSize} * ${scaleCompact})` : config.nombreSize,
+              letterSpacing: '0.015em',
+              lineHeight: '1.35',
               whiteSpace: 'normal',
             }}
             title="Haga clic para editar el Nombre del Médico"

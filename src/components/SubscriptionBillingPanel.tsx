@@ -32,6 +32,7 @@ import {
   fetchPaymentConfig, 
   fetchLiveBinanceRate 
 } from '../services/paymentConfigService';
+import { subscribeToPaymentConfig } from '../services/firebaseClient';
 
 interface SubscriptionBillingPanelProps {
   currentDoctor: DoctorConfig;
@@ -55,6 +56,7 @@ export const SubscriptionBillingPanel: React.FC<SubscriptionBillingPanelProps> =
   const [isRefreshingRate, setIsRefreshingRate] = useState(false);
 
   useEffect(() => {
+    // Initial fetch from cloud/server
     fetchPaymentConfig().then((cfg) => {
       if (cfg && cfg.pagoMovil) {
         setPayConfig(cfg);
@@ -64,6 +66,41 @@ export const SubscriptionBillingPanel: React.FC<SubscriptionBillingPanelProps> =
         handleRefreshLiveBinanceRate();
       }
     });
+
+    // Firestore Cloud Realtime Listener (Instant sync Phone <-> PC)
+    const unsubFirestore = subscribeToPaymentConfig((cloudCfg) => {
+      if (cloudCfg && typeof cloudCfg === 'object') {
+        const pm = cloudCfg.pagoMovil;
+        const bin = cloudCfg.binance;
+        const zin = cloudCfg.zinli;
+        const hasData = pm?.telefono || bin?.payId || bin?.email || zin?.email || (cloudCfg.tasaBinanceUsd && cloudCfg.tasaBinanceUsd > 0);
+        if (hasData) {
+          setPayConfig((prev) => ({
+            ...prev,
+            ...cloudCfg,
+            pagoMovil: { ...prev.pagoMovil, ...(cloudCfg.pagoMovil || {}) },
+            binance: { ...prev.binance, ...(cloudCfg.binance || {}) },
+            zinli: { ...prev.zinli, ...(cloudCfg.zinli || {}) },
+          }));
+        }
+      }
+    });
+
+    const handlePaymentUpdated = (e: any) => {
+      if (e?.detail) {
+        setPayConfig(e.detail);
+      } else {
+        fetchPaymentConfig().then((cfg) => {
+          if (cfg && cfg.pagoMovil) setPayConfig(cfg);
+        });
+      }
+    };
+
+    window.addEventListener('digital-medic-payment-updated', handlePaymentUpdated);
+    return () => {
+      if (unsubFirestore) unsubFirestore();
+      window.removeEventListener('digital-medic-payment-updated', handlePaymentUpdated);
+    };
   }, []);
 
   const handleRefreshLiveBinanceRate = async () => {
@@ -125,19 +162,18 @@ export const SubscriptionBillingPanel: React.FC<SubscriptionBillingPanelProps> =
       priceUsd: 10,
       duration: '1 Mes',
       badge: 'Acceso Total Mensual',
-      desc: 'Acceso completo a la aplicación médica, récipes 4 en 1, informes, historias y reposos sin restricciones.',
-      target: 'Ideal para médicos que desean probar la suite profesional mes a mes con máxima flexibilidad.',
+      desc: 'Acceso completo a la aplicación médica, récipes oficiales, informes, historias y reposos sin restricciones.',
+      target: 'Ideal para médicos que desean la suite profesional mes a mes con máxima flexibilidad.',
       features: [
-        'Emisión ilimitada de Récipes Médicos 4 en 1 y Máster',
+        'Emisión ilimitada de Récipes Médicos Oficiales y Máster',
         'Módulo de Historias Clínicas con antecedentes y evolución',
         'Informes Médicos formales y Constancias de Reposo Oficiales',
         'Módulo de Indicaciones y Posología guiada para el paciente',
         'Personalización con logotipo, datos de MPPS, C.I. y clínica',
         'Sello digital oficial y firma médica de seguridad',
-        'Envío directo a WhatsApp del paciente en un solo clic',
+        'Envío a WhatsApp del paciente en un solo clic con enlace PDF',
         'Exportación a PDF de alta resolución listo para imprimir',
-        'Banco de más de 200 medicamentos comerciales y genéricos',
-        'Calculadora médica y dosis pediátricas integradas',
+        'Banco de medicamentos comerciales y genéricos',
         'Soporte técnico y actualizaciones continuas del sistema'
       ],
       bondades: [
@@ -259,7 +295,7 @@ export const SubscriptionBillingPanel: React.FC<SubscriptionBillingPanelProps> =
               Activa o Renueva tu Consultorio Digital
             </h1>
             <p className="text-slate-300 text-sm max-w-2xl leading-relaxed">
-              Emite récipes oficiales 4 en 1, historias clínicas, constancias e informes médicos con membrete de alta fidelidad, sello nítido y firma digital sin límites.
+              Emite récipes médicos oficiales, historias clínicas, constancias e informes médicos con membrete de alta fidelidad, sello nítido y firma digital sin límites.
             </p>
           </div>
 

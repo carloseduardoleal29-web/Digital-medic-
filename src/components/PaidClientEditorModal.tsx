@@ -518,8 +518,12 @@ export const PaidClientEditorModal: React.FC<PaidClientEditorModalProps> = ({
                       />
                     )}
                     <span 
-                      className="font-bold text-lg tracking-tight"
-                      style={{ color: formData.nombreColor || '#1e3a8a' }}
+                      className="font-bold text-lg tracking-normal"
+                      style={{ 
+                        color: formData.nombreColor || '#1e3a8a',
+                        letterSpacing: '0.015em',
+                        lineHeight: '1.3'
+                      }}
                     >
                       {formData.doctorName || 'Dr. Médico Especialista'}
                     </span>

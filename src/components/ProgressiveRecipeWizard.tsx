@@ -464,17 +464,7 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
               </button>
             )}
 
-            {onSwitchTo4In1 && (
-              <button
-                type="button"
-                onClick={onSwitchTo4In1}
-                className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-colors border border-blue-200 cursor-pointer"
-                title="Cambiar a formato 4 en 1 hoja carta"
-              >
-                <Grid2X2 className="w-3.5 h-3.5 text-blue-600" />
-                <span className="hidden sm:inline">Modo 4 en 1</span>
-              </button>
-            )}
+
 
             {onClearRecipeToBlank && (
               <button
@@ -1719,18 +1709,6 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
                   >
                     Media Carta (Caben 2)
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setRecipeSize('letter')}
-                    className={`px-2.5 py-1 rounded-lg font-bold text-xs transition-all cursor-pointer ${
-                      recipeSize === 'letter'
-                        ? 'bg-blue-600 text-white shadow-xs'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
-                    title="Hoja carta completa"
-                  >
-                    Hoja Entera
-                  </button>
                 </div>
               )}
 
@@ -1749,7 +1727,7 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
 
             {/* Action Buttons for Recipe View */}
             {finalPreviewTab === 'recipe' && (
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {/* Enviar por WhatsApp */}
                 <button
                   type="button"
@@ -1789,18 +1767,7 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
                   <span>Imprimir Récipe</span>
                 </button>
 
-                {/* 3. Imprimir 4 en 1 Hoja Carta (Para recortar) */}
-                <button
-                  type="button"
-                  onClick={() => handlePrintSpecific('recipe', true)}
-                  className="p-2.5 bg-gradient-to-r from-amber-600 to-orange-700 hover:from-amber-700 hover:to-orange-800 text-white rounded-xl font-black text-xs flex flex-col items-center justify-center gap-1 shadow-md transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-amber-400/40"
-                  title="Imprimir 4 copias en 1 sola hoja carta con líneas para recortar"
-                >
-                  <Scissors className="w-4 h-4 text-amber-200" />
-                  <span>📑 4 en 1 Hoja Carta</span>
-                </button>
-
-                {/* 4. Continuar a Indicaciones */}
+                {/* Continuar a Indicaciones */}
                 <button
                   type="button"
                   onClick={() => setFinalPreviewTab('indications')}
