@@ -71,26 +71,6 @@ export function getStoredDoctorSessionId(): string | null {
       return null;
     }
 
-    // Comportamiento en Computadora (PC):
-    if (isPcDevice()) {
-      const pcTabActive = sessionStorage.getItem('digital_medic_pc_tab_authenticated') === 'true';
-      const sessionStored = sessionStorage.getItem(SESSION_STORAGE_KEY);
-      if (pcTabActive && sessionStored && sessionStored !== 'guest' && sessionStored.trim() !== '') {
-        return sessionStored;
-      }
-      // En PC debe quedar cerrada al abrir o reiniciar y pedir correo y contraseña
-      return null;
-    }
-
-    // Comportamiento en Teléfono Móvil:
-    const isAuthenticated = 
-      sessionStorage.getItem(AUTH_FLAG_KEY) === 'true' || 
-      localStorage.getItem(AUTH_FLAG_KEY) === 'true';
-
-    if (!isAuthenticated) {
-      return null;
-    }
-
     const sessionStored = sessionStorage.getItem(SESSION_STORAGE_KEY);
     if (sessionStored && sessionStored !== 'guest' && sessionStored.trim() !== '') {
       return sessionStored;

@@ -25,6 +25,7 @@ import {
   FileText
 } from 'lucide-react';
 import { DoctorConfig } from '../types';
+import { compressImageBase64, compressDoctorConfigImages } from '../utils/imageCompressor';
 import { 
   CADUCEUS_SVG, 
   MEDICAL_SHIELD_SVG, 
@@ -111,7 +112,11 @@ export const LiveDesignerPanel: React.FC<LiveDesignerPanelProps> = ({
         if (field === 'selloImg' || field === 'firmaImg' || field === 'selloFirma') {
           finalData = await removeDarkBackgroundAndEnhanceInk(finalData, 215, true);
         }
-        onUpdateConfig({ [field]: finalData });
+        // Auto-compress image using canvas to max 300x300 to ensure payload < 50KB for Firestore
+        finalData = await compressImageBase64(finalData, 300, 0.8);
+        
+        const keyToUpdate = field === 'logoIzq' ? 'logoImg' : field;
+        onUpdateConfig({ [keyToUpdate]: finalData });
       }
     };
     reader.readAsDataURL(file);
@@ -121,7 +126,8 @@ export const LiveDesignerPanel: React.FC<LiveDesignerPanelProps> = ({
     const current = config.selloImg || config.selloFirma;
     if (!current) return;
     const cleaned = await removeDarkBackgroundAndEnhanceInk(current, 205, true);
-    onUpdateConfig({ selloImg: cleaned });
+    const compressed = await compressImageBase64(cleaned, 300, 0.8);
+    onUpdateConfig({ selloImg: compressed });
   };
 
   const handleApplyPresetStamp = (style: DoctorStampStyle) => {
@@ -141,14 +147,15 @@ export const LiveDesignerPanel: React.FC<LiveDesignerPanelProps> = ({
     setIsSaving(true);
     try {
       const now = Date.now();
-      const updatedConfig = { ...config, updatedAt: now };
+      // Auto-compress all logos and stamps in config before save
+      const compressedConfig = await compressDoctorConfigImages({ ...config, updatedAt: now });
 
       // 1. Immediately update React state
-      onUpdateConfig(updatedConfig);
+      onUpdateConfig(compressedConfig);
 
       // 2. Direct instant local backup to guarantee no data loss even without network
       try {
-        localStorage.setItem('digital_medic_current_config', JSON.stringify(updatedConfig));
+        localStorage.setItem('digital_medic_current_config', JSON.stringify(compressedConfig));
         const savedColleaguesStr = localStorage.getItem('digital_medic_colleagues_v2');
         let colleaguesList: DoctorConfig[] = [];
         if (savedColleaguesStr) {
@@ -156,8 +163,8 @@ export const LiveDesignerPanel: React.FC<LiveDesignerPanelProps> = ({
         }
         const exists = colleaguesList.some((p) => p.id === config.id);
         const nextList = exists
-          ? colleaguesList.map((p) => (p.id === config.id ? updatedConfig : p))
-          : [updatedConfig, ...colleaguesList];
+          ? colleaguesList.map((p) => (p.id === config.id ? compressedConfig : p))
+          : [compressedConfig, ...colleaguesList];
         localStorage.setItem('digital_medic_colleagues_v2', JSON.stringify(nextList));
         localStorage.setItem('digital_medic_active_colleague', config.id);
       } catch (lsErr) {
@@ -173,7 +180,6 @@ export const LiveDesignerPanel: React.FC<LiveDesignerPanelProps> = ({
       await onSaveConfig();
     } catch (e) {
       console.error('Error saving designer config:', e);
-      // Still show success since local storage succeeded
       setSaveModalOpen(true);
     } finally {
       setIsSaving(false);

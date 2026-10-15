@@ -613,13 +613,21 @@ app.post('/api/auth/login', async (req, res) => {
 
     // Regular doctor login
     const doctors = await readDoctors();
-    const found = doctors.find((d: any) => {
+    let found = doctors.find((d: any) => {
       const dEmail = (d.email || '').toLowerCase().trim();
       const dCI = (d.ci || '').toLowerCase().replace(/[^a-z0-9]/gi, '');
       const dMPPS = (d.mpps || '').toLowerCase().replace(/[^a-z0-9]/gi, '');
       const dId = (d.id || '').toLowerCase().trim();
       return dEmail === cleanIdent || dId === cleanIdent || (cleanDigits && (dCI === cleanDigits || dMPPS === cleanDigits));
     });
+
+    let userEco: any = null;
+    if (!found) {
+      userEco = await readUserEcosystem(cleanIdent);
+      if (userEco?.doctorConfig) {
+        found = userEco.doctorConfig;
+      }
+    }
 
     if (!found) {
       return res.status(404).json({
@@ -628,7 +636,9 @@ app.post('/api/auth/login', async (req, res) => {
       });
     }
 
-    const expectedPass = (found.password || found.ci || '').trim();
+    if (!userEco) {
+      userEco = await readUserEcosystem(found.email || found.ci || found.id);
+    }
     const cleanPassLower = cleanPass.toLowerCase().replace(/[^a-z0-9]/gi, '');
     const expectedPassLower = expectedPass.toLowerCase().replace(/[^a-z0-9]/gi, '');
     const expectedCiLower = (found.ci || '').toLowerCase().replace(/[^a-z0-9]/gi, '');

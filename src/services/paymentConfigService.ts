@@ -127,8 +127,6 @@ export async function fetchPaymentConfig(): Promise<PaymentConfig> {
     const userEco = await fetchDirectFromFirestore(activeUser);
     if (userEco?.paymentConfig && isPaymentConfigured(userEco.paymentConfig)) {
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(userEco.paymentConfig));
-      // Guardar también en settings de Firestore para sincronización global
-      savePaymentConfigDirectToFirestore(userEco.paymentConfig).catch(() => {});
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('digital-medic-payment-updated', { detail: userEco.paymentConfig }));
       }
@@ -145,8 +143,6 @@ export async function fetchPaymentConfig(): Promise<PaymentConfig> {
       const data = await res.json();
       if (data?.config && isPaymentConfigured(data.config)) {
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data.config));
-        // Sincronizar directo con Firestore
-        savePaymentConfigDirectToFirestore(data.config).catch(() => {});
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('digital-medic-payment-updated', { detail: data.config }));
         }
@@ -157,10 +153,8 @@ export async function fetchPaymentConfig(): Promise<PaymentConfig> {
     console.warn('[PaymentConfig] Could not fetch payment config from server:', err);
   }
 
-  // 4. Si el almacenamiento local ya tiene datos configurados pero la nube no los tenía,
-  // subirlos DE INMEDIATO a la nube (Firestore y Servidor) para que queden disponibles en todos los dispositivos
+  // 4. Si el almacenamiento local ya tiene datos configurados pero la nube no los tenía, retornar local
   if (localConfig && isPaymentConfigured(localConfig)) {
-    savePaymentConfig(localConfig);
     return localConfig;
   }
 

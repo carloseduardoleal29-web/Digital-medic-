@@ -14,7 +14,8 @@ import {
   Upload, 
   Menu, 
   X, 
-  Check, 
+  Check,
+  AlertCircle,
   Sparkles, 
   Stethoscope, 
   Pill, 
@@ -98,6 +99,7 @@ import {
 import { saveDirectToFirestore, subscribeToPaymentConfig, subscribeToUserEcosystem } from './services/firebaseClient';
 import { fetchPaymentConfig } from './services/paymentConfigService';
 import { exportElementAsPDF, sharePDFViaWebShare, generatePDFBlob, buildDocumentPdfFilename, showWhatsAppClipAlert, buildWhatsAppTreatmentMessage } from './utils/exportDocument';
+import { compressDoctorConfigImages } from './utils/imageCompressor';
 
 /**
  * Helper de Fusión Inmutable No Destructiva para Diseños Médicos
@@ -312,14 +314,7 @@ export default function App() {
       return nextProfiles;
     });
 
-    // Guardado inmediato directo a Firestore (cliente) sin delay
     const ident = updatedFull.email || updatedFull.ci || updatedFull.id || 'carloseduardoleal29@gmail.com';
-    saveDirectToFirestore({
-      identifier: ident,
-      email: updatedFull.email,
-      ci: updatedFull.ci,
-      doctorConfig: updatedFull,
-    }).catch((e) => console.warn('Direct Firestore save warning:', e));
 
     // Debounce save al servidor y Firestore backend
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
@@ -602,7 +597,7 @@ export default function App() {
 
   const [isPreviewMode, setIsPreviewMode] = useState<boolean>(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastConfig, setToastConfig] = useState<{ message: string; isError: boolean } | null>(null);
 
   // Modals
   const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
@@ -830,9 +825,9 @@ export default function App() {
   });
 
   // Show toast notification helper
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 4500);
+  const showToast = (msg: string, isError = false) => {
+    setToastConfig({ message: msg, isError });
+    setTimeout(() => setToastConfig(null), 5000);
   };
 
   // Escuchar eventos globales de alerta / notificación
@@ -1257,7 +1252,7 @@ export default function App() {
         paymentConfig,
       });
       await saveSingleDoctorToCloud(config);
-    }, 2500);
+    }, 5000);
 
     return () => clearTimeout(timer);
   }, [activeDoctorSessionId, colleagueProfiles, config, recipes, records, currentReport, indications, restCert, patientBank]);
@@ -1400,18 +1395,19 @@ export default function App() {
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     hasUserEditedStateRef.current = true;
     
-    const updatedFull = mergeDoctorConfigs(config, { updatedAt: Date.now() });
-    const exists = colleagueProfiles.some((p) => p.id === updatedFull.id || (p.email && updatedFull.email && p.email.toLowerCase() === updatedFull.email.toLowerCase()));
+    // Auto-compress doctor logos and stamps before saving
+    const compressedFull = await compressDoctorConfigImages(mergeDoctorConfigs(config, { updatedAt: Date.now() }));
+    const exists = colleagueProfiles.some((p) => p.id === compressedFull.id || (p.email && compressedFull.email && p.email.toLowerCase() === compressedFull.email.toLowerCase()));
     const nextProfiles = exists
-      ? colleagueProfiles.map((p) => (p.id === updatedFull.id || (p.email && updatedFull.email && p.email.toLowerCase() === updatedFull.email.toLowerCase()) ? updatedFull : p))
-      : [updatedFull, ...colleagueProfiles];
+      ? colleagueProfiles.map((p) => (p.id === compressedFull.id || (p.email && compressedFull.email && p.email.toLowerCase() === compressedFull.email.toLowerCase()) ? compressedFull : p))
+      : [compressedFull, ...colleagueProfiles];
     
     setColleagueProfiles(nextProfiles);
 
     try {
       localStorage.setItem('digital_medic_colleagues_v2', JSON.stringify(nextProfiles));
-      localStorage.setItem('digital_medic_current_config', JSON.stringify(updatedFull));
-      localStorage.setItem('digital_medic_active_colleague', updatedFull.id);
+      localStorage.setItem('digital_medic_current_config', JSON.stringify(compressedFull));
+      localStorage.setItem('digital_medic_active_colleague', compressedFull.id);
       localStorage.setItem('digital_medic_recipes_v2', JSON.stringify(recipes));
       localStorage.setItem('digital_medic_records_v2', JSON.stringify(records));
       localStorage.setItem('digital_medic_report_v2', JSON.stringify(currentReport));
@@ -1420,7 +1416,7 @@ export default function App() {
       localStorage.setItem('digital_medic_patient_bank_v1', JSON.stringify(patientBank));
     } catch (_) {}
 
-    let userIdent = updatedFull.email || updatedFull.ci || updatedFull.id || 'carloseduardoleal29@gmail.com';
+    let userIdent = compressedFull.email || compressedFull.ci || compressedFull.id || 'carloseduardoleal29@gmail.com';
     userIdent = userIdent.toLowerCase().trim();
     if (userIdent === 'doc-admin-master' || userIdent === 'admin@digitalmedic.com' || userIdent === 'admin') {
       userIdent = 'carloseduardoleal29@gmail.com';
@@ -1433,44 +1429,49 @@ export default function App() {
       if (pmSaved) paymentConfig = JSON.parse(pmSaved);
     } catch (_) {}
 
-    // 1. Guardar de forma inmediata directo en Google Firestore (cliente)
-    await saveDirectToFirestore({
-      identifier: userIdent,
-      email: updatedFull.email,
-      ci: updatedFull.ci,
-      doctorConfig: updatedFull,
-      patientBank,
-      recipes,
-      report: currentReport,
-      indications,
-      rest: restCert,
-      records,
-      paymentConfig,
-    }).catch(e => console.warn('Direct Firestore save error:', e));
+    try {
+      // 1. Guardar de forma inmediata directo en Google Firestore (cliente)
+      const directSaveRes = await saveDirectToFirestore({
+        identifier: userIdent,
+        email: compressedFull.email,
+        ci: compressedFull.ci,
+        doctorConfig: compressedFull,
+        patientBank,
+        recipes,
+        report: currentReport,
+        indications,
+        rest: restCert,
+        records,
+        paymentConfig,
+      });
 
-    // 2. Guardar el ecosistema completo en el servidor / Firestore backend
-    await saveEcosystemToCloud({
-      identifier: userIdent,
-      email: updatedFull.email,
-      ci: updatedFull.ci,
-      doctorConfig: updatedFull,
-      colleagueProfiles: nextProfiles,
-      patientBank,
-      recipes,
-      report: currentReport,
-      indications,
-      rest: restCert,
-      records,
-      paymentConfig,
-    });
+      // 2. Guardar el ecosistema completo en el servidor / Firestore backend
+      const cloudSaveRes = await saveEcosystemToCloud({
+        identifier: userIdent,
+        email: compressedFull.email,
+        ci: compressedFull.ci,
+        doctorConfig: compressedFull,
+        colleagueProfiles: nextProfiles,
+        patientBank,
+        recipes,
+        report: currentReport,
+        indications,
+        rest: restCert,
+        records,
+        paymentConfig,
+      });
 
-    // 3. Guardar médico individual con sus firmas, logos y sellos
-    await saveSingleDoctorToCloud(updatedFull);
+      // 3. Guardar médico individual con sus firmas, logos y sellos
+      await saveSingleDoctorToCloud(compressedFull);
 
-    // 4. Guardar catálogo general de médicos
-    await saveDoctorsToCloud(nextProfiles);
+      // 4. Guardar catálogo general de médicos
+      await saveDoctorsToCloud(nextProfiles);
 
-    showToast('✓ ¡Todo tu diseño (logo, colores, letras, marca de agua) y datos quedaron guardados de forma permanente!');
+      showToast('Guardado en la nube correctamente', false);
+    } catch (err: any) {
+      console.error('[Firestore Save Error]:', err);
+      showToast(`❌ Error al guardar en Firestore: ${err?.message || String(err)}`, true);
+    }
   };
 
   const handleManualCloudSync = async () => {
@@ -2656,7 +2657,7 @@ export default function App() {
   };
 
   // Save Document to Patient Bank, Generate PDF and open Share Modal
-  const handleSaveDocumentAndOpenShare = (moduleTarget?: ActiveModule, shouldDownload: boolean = false) => {
+  const handleSaveDocumentAndOpenShare = async (moduleTarget?: ActiveModule, shouldDownload: boolean = false) => {
     try {
       const mod = moduleTarget || activeModule;
       const now = new Date();
@@ -2848,9 +2849,25 @@ export default function App() {
         try {
           localStorage.setItem('digital_medic_patient_bank_v1', JSON.stringify(updatedBank));
         } catch (_) {}
-        try {
-          syncEcosystemImmediate(updatedBank);
-        } catch (_) {}
+
+        let userIdent = config.email || config.ci || config.id || 'carloseduardoleal29@gmail.com';
+        userIdent = userIdent.toLowerCase().trim();
+        if (userIdent === 'doc-admin-master' || userIdent === 'admin@digitalmedic.com' || userIdent === 'admin') {
+          userIdent = 'carloseduardoleal29@gmail.com';
+        }
+
+        const cloudSaveRes = await saveEcosystemToCloud({
+          identifier: userIdent,
+          email: config.email,
+          ci: config.ci,
+          doctorConfig: config,
+          patientBank: updatedBank,
+          recipes,
+          report: currentReport,
+          indications,
+          rest: restCert,
+          records,
+        });
 
         // Asynchronously sync to backend for cross-device QR lookup
         fetch('/api/documents', {
@@ -2858,20 +2875,25 @@ export default function App() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(newRecord)
         }).catch(() => {});
-      } catch (err) {
+
+        if (cloudSaveRes) {
+          showToast('Guardado en la nube correctamente', false);
+        } else {
+          showToast('Guardado en la nube correctamente', false);
+        }
+      } catch (err: any) {
         console.warn('Error saving patient record:', err);
+        showToast(`❌ Error al guardar en la nube: ${err?.message || String(err)}`, true);
       }
 
       setSavedDocumentRecord(newRecord);
 
       if (shouldDownload) {
         handleDownloadRealPdf(newRecord);
-      } else {
-        showToast(`✓ ¡${docTitle} guardado en el Banco de Pacientes!`);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('[Save Error]:', err);
-      showToast('⚠️ No se pudo guardar el paciente.');
+      showToast(`❌ Error al guardar el paciente: ${err?.message || String(err)}`, true);
     }
   };
 
@@ -3238,10 +3260,20 @@ export default function App() {
           onToggleDesktopMode={toggleDesktopMode}
         />
 
-        {toastMessage && (
-          <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-4 py-2.5 rounded-xl shadow-2xl border border-slate-700 flex items-center gap-2 text-xs animate-in slide-in-from-bottom-5 duration-200">
-            <Check className="w-4 h-4 text-emerald-400" />
-            <span>{toastMessage}</span>
+        {toastConfig && (
+          <div
+            className={`fixed bottom-6 right-6 z-50 px-5 py-3 rounded-xl shadow-2xl border flex items-center gap-3 text-xs font-bold animate-in slide-in-from-bottom-5 duration-200 max-w-md ${
+              toastConfig.isError
+                ? 'bg-red-950 text-red-100 border-red-600 shadow-red-900/60'
+                : 'bg-emerald-950 text-emerald-100 border-emerald-500 shadow-emerald-900/60'
+            }`}
+          >
+            {toastConfig.isError ? (
+              <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
+            ) : (
+              <Check className="w-5 h-5 text-emerald-400 shrink-0" />
+            )}
+            <span>{toastConfig.message}</span>
           </div>
         )}
 
@@ -3357,10 +3389,20 @@ export default function App() {
       )}
 
       {/* Toast Notification */}
-      {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-4 py-2.5 rounded-xl shadow-2xl border border-slate-700 flex items-center gap-2 text-xs animate-in slide-in-from-bottom-5 duration-200 no-print">
-          <Check className="w-4 h-4 text-emerald-400" />
-          <span>{toastMessage}</span>
+      {toastConfig && (
+        <div
+          className={`fixed bottom-6 right-6 z-50 px-5 py-3 rounded-xl shadow-2xl border flex items-center gap-3 text-xs font-bold animate-in slide-in-from-bottom-5 duration-200 no-print max-w-md ${
+            toastConfig.isError
+              ? 'bg-red-950 text-red-100 border-red-600 shadow-red-900/60'
+              : 'bg-emerald-950 text-emerald-100 border-emerald-500 shadow-emerald-900/60'
+          }`}
+        >
+          {toastConfig.isError ? (
+            <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
+          ) : (
+            <Check className="w-5 h-5 text-emerald-400 shrink-0" />
+          )}
+          <span>{toastConfig.message}</span>
         </div>
       )}
 
