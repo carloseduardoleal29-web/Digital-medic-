@@ -573,7 +573,7 @@ export default function App() {
 
   // 2. Active View Module & Master Lock (PIN 2534)
   const [activeModule, setActiveModule] = useState<ActiveModule>('inicio');
-  const [designerPreviewDoc, setDesignerPreviewDoc] = useState<'recipe' | 'indicaciones' | 'reposo' | 'informes'>('recipe');
+  const [designerPreviewDoc, setDesignerPreviewDoc] = useState<'recipe' | 'recipe-4en1' | 'indicaciones' | 'reposo' | 'informes'>('recipe');
   const [isDesignerUnlocked, setIsDesignerUnlocked] = useState<boolean>(() => {
     return sessionStorage.getItem('digital_medic_unlocked_2534') === 'true';
   });

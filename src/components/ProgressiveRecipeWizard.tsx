@@ -1648,7 +1648,6 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
           
           {/* Main Action Control Center Bar (sin textos invasivos ni botones innecesarios, no-print) */}
           <div className="w-full bg-slate-900 text-white rounded-2xl border border-slate-800 p-3 sm:p-4 shadow-xl no-print space-y-3">
-            
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-2.5">
               {/* Selector de Documento: Récipe vs Indicaciones */}
               <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
@@ -1678,57 +1677,34 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
                   <span>Indicaciones Médicas</span>
                 </button>
               </div>
-
-              {/* Selector de Tamaño del Récipe (1/4 Hoja Carta vs Media Carta vs Hoja Entera) */}
-              {finalPreviewTab === 'recipe' && (
-                <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
-                  <span className="text-[11px] font-bold text-slate-400 px-1.5 flex items-center gap-1">
-                    <span>📐 Tamaño:</span>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setRecipeSize('quarter')}
-                    className={`px-2.5 py-1 rounded-lg font-bold text-xs transition-all cursor-pointer ${
-                      recipeSize === 'quarter'
-                        ? 'bg-blue-600 text-white shadow-xs'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
-                    title="Tamaño pequeño compacto (1/4 de hoja carta: caben 4 por hoja)"
-                  >
-                    1/4 Hoja (Caben 4)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRecipeSize('half')}
-                    className={`px-2.5 py-1 rounded-lg font-bold text-xs transition-all cursor-pointer ${
-                      recipeSize === 'half'
-                        ? 'bg-blue-600 text-white shadow-xs'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
-                    title="Media carta horizontal (caben 2 por hoja)"
-                  >
-                    Media Carta (Caben 2)
-                  </button>
-                </div>
-              )}
-
-              {/* Botón de volver a editar prescripción */}
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setCurrentStep(finalPreviewTab === 'indications' ? 3 : 2)}
-                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl transition-colors cursor-pointer flex items-center gap-1 text-xs"
-                >
-                  <Edit3 className="w-3.5 h-3.5 text-blue-400" />
-                  <span>Editar {finalPreviewTab === 'indications' ? 'Indicaciones' : 'Prescripción'}</span>
-                </button>
-              </div>
             </div>
 
             {/* Action Buttons for Recipe View */}
             {finalPreviewTab === 'recipe' && (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {/* Enviar por WhatsApp */}
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                {/* 1. Descargar PDF */}
+                <button
+                  type="button"
+                  onClick={handleDownloadRecipePdfDirect}
+                  className="p-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-black text-xs flex flex-col items-center justify-center gap-1 shadow-md transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-blue-400/40"
+                  title="Descargar PDF oficial firmado y sellado"
+                >
+                  <Download className="w-4 h-4 text-cyan-200" />
+                  <span>Descargar PDF</span>
+                </button>
+
+                {/* 2. Enviar por Correo */}
+                <button
+                  type="button"
+                  onClick={() => setIsEmailModalOpen(true)}
+                  className="p-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-black text-xs flex flex-col items-center justify-center gap-1 shadow-md transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-indigo-400/40"
+                  title="Enviar récipe por correo electrónico"
+                >
+                  <Mail className="w-4 h-4 text-cyan-200" />
+                  <span>Enviar por Correo</span>
+                </button>
+
+                {/* 3. Enviar por WhatsApp */}
                 <button
                   type="button"
                   onClick={() => {
@@ -1756,7 +1732,7 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
                   <span>Enviar por WhatsApp</span>
                 </button>
 
-                {/* Imprimir Récipe Individual */}
+                {/* 4. Imprimir Récipe Individual */}
                 <button
                   type="button"
                   onClick={() => handlePrintSpecific('recipe', false)}
@@ -1767,29 +1743,14 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
                   <span>Imprimir Récipe</span>
                 </button>
 
-                {/* Continuar a Indicaciones */}
+                {/* 5. Continuar a Indicaciones */}
                 <button
                   type="button"
                   onClick={() => setFinalPreviewTab('indications')}
-                  className="p-2.5 bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 hover:to-purple-800 text-white rounded-xl font-black text-xs flex flex-col items-center justify-center gap-1 shadow-md transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-indigo-400/40"
+                  className="p-2.5 bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 hover:to-purple-800 text-white rounded-xl font-black text-xs flex flex-col items-center justify-center gap-1 shadow-md transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-indigo-400/40 col-span-2 sm:col-span-1"
                 >
                   <ArrowRight className="w-4 h-4 text-cyan-200" />
-                  <span>Ver Indicaciones ➔</span>
-                </button>
-
-                {/* 5. Finalizar Consulta / Nuevo Paciente */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (onSavePatientOnly) onSavePatientOnly();
-                    if (onClearRecipeToBlank) onClearRecipeToBlank();
-                    setCurrentStep(1);
-                  }}
-                  className="p-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white rounded-xl font-black text-xs flex flex-col items-center justify-center gap-1 shadow-md transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-emerald-400/40 col-span-2 sm:col-span-1"
-                  title="Guardar consulta y dejar récipe en blanco para el próximo paciente"
-                >
-                  <Check className="w-4 h-4 text-emerald-200" />
-                  <span>Nuevo Paciente</span>
+                  <span>Seguir a Indicaciones ➔</span>
                 </button>
               </div>
             )}

@@ -4,7 +4,6 @@ import { DocumentHeader } from './DocumentHeader';
 import { DocumentFooter } from './DocumentFooter';
 import { getDocumentBorderStyle, getPaperTextureClass } from '../utils/documentStyles';
 import { exportAndSendWhatsAppBusiness } from '../utils/exportDocument';
-import { WhatsAppSendGuideModal } from './WhatsAppSendGuideModal';
 import { 
   Copy, 
   RefreshCw, 
@@ -320,51 +319,7 @@ export const FourInOneRecipeView: React.FC<FourInOneRecipeViewProps> = ({
           )}
         </div>
 
-        {/* SELECTOR DE TAMAÑO EN "SOLO RÉCIPE" (1/4 Carta vs Media Carta Horizontal vs Carta Entera) */}
-        {viewMode === 'single' && (
-          <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs gap-1">
-            <span className="text-[11px] font-bold text-slate-400 px-1.5">📐 Tamaño:</span>
-            
-            <button
-              type="button"
-              onClick={() => setRecipeSize('quarter')}
-              className={`px-2.5 py-1 rounded-lg font-bold text-xs transition-all cursor-pointer ${
-                recipeSize === 'quarter'
-                  ? 'bg-blue-600 text-white shadow-xs'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-              title="1/4 de hoja carta (pequeño - 4 caben en una hoja carta)"
-            >
-              1/4 Hoja (Caben 4)
-            </button>
 
-            <button
-              type="button"
-              onClick={() => setRecipeSize('half')}
-              className={`px-2.5 py-1 rounded-lg font-bold text-xs transition-all cursor-pointer ${
-                recipeSize === 'half'
-                  ? 'bg-blue-600 text-white shadow-xs'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-              title="Media carta horizontal (2 caben en una hoja carta)"
-            >
-              Media Carta Horizontal (2)
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setRecipeSize('letter')}
-              className={`px-2.5 py-1 rounded-lg font-bold text-xs transition-all cursor-pointer ${
-                recipeSize === 'letter'
-                  ? 'bg-blue-600 text-white shadow-xs'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-              title="Hoja carta completa"
-            >
-              Carta Entera
-            </button>
-          </div>
-        )}
 
         {viewMode === 'grid' && (
           <div className="flex items-center gap-2 text-xs text-slate-400">

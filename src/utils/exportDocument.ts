@@ -908,12 +908,19 @@ export async function sharePDFViaWebShare(
     // Alerta en pantalla requerida: PDF descargado + clip
     showWhatsAppClipAlert('PDF descargado. Recuerda tocar el ícono del clip 📎 en WhatsApp para adjuntarlo al paciente');
 
-    // 2. Abrir WhatsApp con el texto preparado de inmediato
+    // Copiar mensaje al portapapeles por seguridad
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        await navigator.clipboard.writeText(shareText);
+      }
+    } catch (_) {}
+
+    // 2. Abrir WhatsApp con el texto preparado de inmediato usando api.whatsapp.com
     const cleanDigits = (patientPhone || '').replace(/\D/g, '');
     const encodedText = encodeURIComponent(shareText);
     const targetUrl = cleanDigits.length > 6
-      ? `https://wa.me/${cleanDigits}?text=${encodedText}`
-      : (isMobile ? `https://wa.me/?text=${encodedText}` : `https://web.whatsapp.com/send?text=${encodedText}`);
+      ? `https://api.whatsapp.com/send?phone=${cleanDigits}&text=${encodedText}`
+      : `https://api.whatsapp.com/send?text=${encodedText}`;
 
     try {
       if (isMobile) {
@@ -1064,54 +1071,59 @@ export interface WhatsAppTreatmentMessageParams {
   patientName?: string;
   treatmentDetails?: string;
   customMessage?: string;
+  doctorSpecialty?: string;
+  mpps?: string;
+  ci?: string;
+  phone?: string;
+  fileName?: string;
+  dateStr?: string;
 }
 
 /**
- * Arma un mensaje completo leyendo los datos del récipe/documento médico:
- * 'Hola, soy el Dr. Carlos Leal. Te envío tu [Récipe / Informe / Constancia] en formato PDF. Detalle de tu tratamiento: [Lista de medicamentos y cómo tomárselos]'
+ * Arma un mensaje completo leyendo los datos del récipe/documento médico según el formato exacto solicitado.
  */
 export function buildWhatsAppTreatmentMessage({
-  doctorName = 'Dr. Carlos Leal',
+  doctorName = 'Dr. Carlos E. Leal S.',
   documentType = 'Récipe',
+  patientName = 'Carlos leal',
   treatmentDetails = '',
   customMessage,
+  doctorSpecialty = 'Especialista en Anestesiología y Reanimación',
+  mpps = '94.228',
+  ci = '15.489.288',
+  phone = '+584243291438',
+  fileName,
+  dateStr,
 }: WhatsAppTreatmentMessageParams): string {
   if (customMessage && customMessage.trim()) {
     return customMessage.trim();
   }
 
-  // Nombre del doctor con título formal
   let cleanDocName = (doctorName || '').trim();
-  if (!cleanDocName) {
-    cleanDocName = 'Dr. Carlos Leal';
-  } else if (!/^dr(\(a\))?\.?/i.test(cleanDocName)) {
-    cleanDocName = `Dr. ${cleanDocName}`;
-  }
+  if (!cleanDocName) cleanDocName = 'Dr. Carlos E. Leal S.';
+  else if (!/^dr(\(a\))?\.?/i.test(cleanDocName)) cleanDocName = `Dr. ${cleanDocName}`;
 
-  // Tipo de documento: [Récipe / Informe / Constancia]
-  let docTypeLabel = 'Récipe';
+  let cleanPatient = (patientName || 'Carlos leal').trim();
+  let cleanSpecialty = (doctorSpecialty || 'Especialista en Anestesiología y Reanimación').trim();
+  let cleanMpps = (mpps || '').trim();
+  let cleanCi = (ci || '').trim();
+  let cleanPhone = (phone || '').trim();
+  let cleanDate = (dateStr || new Intl.DateTimeFormat('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date())).trim();
+
+  const filePdfName = fileName || `récipe ${cleanPatient} ${cleanDate}.pdf`;
+
+  let docTypeLabel = 'RÉCIPE Y PRESCRIPCIÓN MÉDICA OFICIAL';
   const lowerDoc = (documentType || '').toLowerCase();
-  if (lowerDoc.includes('informe') || lowerDoc.includes('report')) {
-    docTypeLabel = 'Informe';
-  } else if (lowerDoc.includes('reposo') || lowerDoc.includes('constancia') || lowerDoc.includes('rest')) {
-    docTypeLabel = 'Constancia';
-  } else if (lowerDoc.includes('indicaci')) {
-    docTypeLabel = 'Indicaciones';
-  } else if (lowerDoc.includes('historia')) {
-    docTypeLabel = 'Historia Clínica';
-  } else {
-    docTypeLabel = 'Récipe';
-  }
+  if (lowerDoc.includes('informe')) docTypeLabel = 'INFORME MÉDICO OFICIAL';
+  else if (lowerDoc.includes('reposo')) docTypeLabel = 'CONSTANCIA DE REPOSO MÉDICO';
+  else if (lowerDoc.includes('indicaci')) docTypeLabel = 'INDICACIONES MÉDICAS OFICIALES';
 
-  // Detalle del tratamiento (lista de medicamentos e indicaciones)
   let cleanTreatment = (treatmentDetails || '').trim();
   if (!cleanTreatment) {
-    cleanTreatment = 'Prescripción médica detallada en el archivo PDF adjunto.';
+    cleanTreatment = 'Prescripción médica detallada.';
   }
 
-  // Estructura exacta solicitada por el usuario:
-  // 'Hola, soy el Dr. Carlos Leal. Te envío tu [Récipe / Informe / Constancia] en formato PDF. Detalle de tu tratamiento: [Lista de medicamentos y cómo tomárselos]'
-  return `Hola, soy el ${cleanDocName}. Te envío tu ${docTypeLabel} en formato PDF.\n\nDetalle de tu tratamiento:\n${cleanTreatment}`;
+  return `Estimado(a) ${cleanPatient},\n\nLe saluda el/la Dr(a). ${cleanDocName} (${cleanSpecialty}).\n\n📄 ${docTypeLabel}\n\n📎 DOCUMENTO PDF OFICIAL: ${filePdfName} (Firmado y Sellado Digitalmente)\n\n📋 RESUMEN DE PRESCRIPCIÓN / INDICACIONES:\n${cleanTreatment}\n\n${cleanMpps ? `M.P.P.S: ${cleanMpps}` : ''}${cleanMpps && cleanCi ? ' · ' : ''}${cleanCi ? `C.I: ${cleanCi}` : ''}\n${cleanPhone ? `Contacto: ${cleanPhone}` : ''}\n\nDocumento legal con firma y sello digital. ¡Que tenga una pronta recuperación! ✨`;
 }
 
 /**
@@ -1119,7 +1131,7 @@ export function buildWhatsAppTreatmentMessage({
  * 'PDF descargado. Recuerda tocar el ícono del clip 📎 en WhatsApp para adjuntarlo al paciente'
  */
 export function showWhatsAppClipAlert(
-  customMessage: string = 'PDF descargado. Recuerda tocar el ícono del clip 📎 en WhatsApp para adjuntarlo al paciente'
+  customMessage: string = 'PDF descargado. Toca el clip 📎 en WhatsApp para adjuntarlo.'
 ): void {
   try {
     if (typeof window !== 'undefined') {
@@ -1161,33 +1173,45 @@ export function showWhatsAppClipAlert(
       transform: translateX(-50%);
       z-index: 9999999;
       max-width: calc(100vw - 32px);
-      width: 540px;
+      width: 580px;
       background: linear-gradient(135deg, #064e3b 0%, #065f46 100%);
       color: #ffffff;
-      padding: 14px 18px;
-      border-radius: 16px;
-      box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.45), 0 0 0 1.5px rgba(52, 211, 153, 0.45);
+      padding: 16px 20px;
+      border-radius: 18px;
+      box-shadow: 0 24px 48px -10px rgba(0, 0, 0, 0.5), 0 0 0 2px rgba(52, 211, 153, 0.5);
       display: flex;
-      align-items: center;
-      gap: 12px;
+      flex-direction: column;
+      gap: 10px;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      font-size: 13px;
-      line-height: 1.4;
-      font-weight: 600;
+      font-size: 12.5px;
+      line-height: 1.45;
       animation: dmClipFadeUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
       pointer-events: auto;
     `;
 
     alertEl.innerHTML = `
-      <div style="width: 36px; height: 36px; border-radius: 10px; background: rgba(255, 255, 255, 0.2); display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0;">
-        📎
+      <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.2); pb-8px; margin-bottom: 2px;">
+        <span style="font-weight: 900; font-size: 13.5px; color: #a7f3d0; display: flex; align-items: center; gap: 6px;">
+          <span>📎</span> GUÍA RÁPIDA: CÓMO ENVIAR EL PDF POR WHATSAPP
+        </span>
+        <button type="button" id="dm-close-clip-alert" style="background: none; border: none; color: #a7f3d0; font-size: 18px; cursor: pointer; padding: 2px; display: flex; align-items: center; justify-content: center; line-height: 1;" title="Cerrar">
+          ✕
+        </button>
       </div>
-      <div style="flex: 1; text-shadow: 0 1px 2px rgba(0,0,0,0.25);">
-        ${customMessage}
+      <div style="display: flex; flex-direction: column; gap: 6px; text-shadow: 0 1px 2px rgba(0,0,0,0.25);">
+        <div style="display: flex; align-items: flex-start; gap: 8px;">
+          <span style="background: rgba(255,255,255,0.2); border-radius: 6px; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; flex-shrink: 0;">1</span>
+          <span>El PDF oficial ya se descargó a tu celular o computadora.</span>
+        </div>
+        <div style="display: flex; align-items: flex-start; gap: 8px;">
+          <span style="background: rgba(255,255,255,0.2); border-radius: 6px; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; flex-shrink: 0;">2</span>
+          <span>WhatsApp se abrió con el mensaje y tratamiento listos para pegar.</span>
+        </div>
+        <div style="display: flex; align-items: flex-start; gap: 8px;">
+          <span style="background: rgba(255,255,255,0.2); border-radius: 6px; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; flex-shrink: 0;">3</span>
+          <span>En WhatsApp, toca el ícono del <strong>clip 📎</strong> (o el botón <strong>+</strong>), selecciona <strong>Documento</strong> o <strong>Archivo</strong>, busca el PDF recién descargado y envíaselo al paciente.</span>
+        </div>
       </div>
-      <button type="button" id="dm-close-clip-alert" style="background: none; border: none; color: #a7f3d0; font-size: 18px; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; line-height: 1;" title="Cerrar">
-        ✕
-      </button>
     `;
 
     document.body.appendChild(alertEl);
@@ -1204,7 +1228,7 @@ export function showWhatsAppClipAlert(
 
     const closeBtn = alertEl.querySelector('#dm-close-clip-alert');
     if (closeBtn) closeBtn.addEventListener('click', dismiss);
-    setTimeout(dismiss, 9500);
+    setTimeout(dismiss, 14000);
   } catch (e) {
     console.warn('[WhatsApp Clip Alert Error]:', e);
   }
@@ -1375,8 +1399,8 @@ export async function exportAndSendWhatsAppBusiness(
 
       const encodedText = encodeURIComponent(messageText);
       const waUrl = phoneNum.length >= 7
-        ? `https://wa.me/${phoneNum}?text=${encodedText}`
-        : (isMobile ? `https://wa.me/?text=${encodedText}` : `https://web.whatsapp.com/send?text=${encodedText}`);
+        ? `https://api.whatsapp.com/send?phone=${phoneNum}&text=${encodedText}`
+        : `https://api.whatsapp.com/send?text=${encodedText}`;
 
       setTimeout(() => {
         try {
