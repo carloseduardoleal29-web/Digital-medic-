@@ -92,7 +92,7 @@ export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
   const leftLogo = cfg.logoIzq !== undefined ? cfg.logoIzq : DIGITAL_MEDIC_OFFICIAL_LOGO_SVG;
   const rightLogo = cfg.logoDer || '';
 
-  const scaleCompact = cfg.headerScaleCompact ?? 0.78;
+  const scaleCompact = cfg.headerScaleCompact ?? (compact ? 0.64 : 0.78);
 
   return (
     <div 

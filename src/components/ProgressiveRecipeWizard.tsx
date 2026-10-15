@@ -1830,18 +1830,7 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
           {/* ========================================================= */}
           <div className={`w-full flex flex-col items-center py-2 ${finalPreviewTab === 'recipe' ? 'block' : 'hidden'}`}>
             
-            {/* Aviso informativo de formato */}
-            <div className="mb-2 text-center text-xs font-semibold text-slate-400 no-print">
-              {recipeSize === 'quarter' && (
-                <span>📐 Récipe en <strong>1/4 de Hoja Carta</strong> (Formato compacto: 4 caben en una hoja carta).</span>
-              )}
-              {recipeSize === 'half' && (
-                <span>📐 Récipe en <strong>Media Carta Horizontal</strong> (2 caben en una hoja carta).</span>
-              )}
-              {recipeSize === 'letter' && (
-                <span>📐 Récipe en <strong>Hoja Carta Completa</strong> (1 récipe por página entera).</span>
-              )}
-            </div>
+
 
             {/* Tarjeta del Récipe */}
             <div

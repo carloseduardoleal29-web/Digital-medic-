@@ -709,10 +709,12 @@ export async function generatePDFBlob(
  * Descarga directamente un Blob como archivo en el disco del usuario con el nombre exacto.
  */
 export function downloadBlobAsFile(blob: Blob, filename: string): void {
+  const cleanFilename = (filename || 'Documento_Medico.pdf').trim();
   const blobUrl = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = blobUrl;
-  link.download = filename;
+  link.download = cleanFilename;
+  link.setAttribute('download', cleanFilename);
   link.style.display = 'none';
   document.body.appendChild(link);
   link.click();
