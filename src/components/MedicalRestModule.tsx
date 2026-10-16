@@ -780,8 +780,8 @@ export const MedicalRestModule: React.FC<MedicalRestModuleProps> = ({
                     alt="Marca de agua"
                     className="marca-agua-img"
                     style={{
-                      opacity: Math.min(safeConfig.watermarkOpacity ?? 0.08, 0.12),
-                      width: `${Math.min(60, safeConfig.watermarkScale || 55)}%`,
+                      opacity: safeConfig.watermarkOpacity ?? 0.16,
+                      width: `${safeConfig.watermarkScale || 55}%`,
                       transform: `rotate(${safeConfig.watermarkRotation || 0}deg)`,
                     }}
                   />

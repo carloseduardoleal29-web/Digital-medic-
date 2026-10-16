@@ -229,8 +229,8 @@ export const MasterRecipeView: React.FC<MasterRecipeViewProps> = ({
                 alt="Marca de agua"
                 className="marca-agua-img"
                 style={{
-                  opacity: Math.min(config.watermarkOpacity ?? 0.08, 0.12),
-                  width: `${Math.min(50, config.watermarkScale || 40)}%`,
+                  opacity: config.watermarkOpacity ?? 0.16,
+                  width: `${config.watermarkScale || 50}%`,
                   transform: `rotate(${config.watermarkRotation || 0}deg)`,
                 }}
               />

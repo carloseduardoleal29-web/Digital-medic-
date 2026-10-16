@@ -3170,11 +3170,24 @@ export default function App() {
         }
       }
 
-      // PLAN DE EMERGENCIA: Descargar PDF + Alerta de clip + Abrir WhatsApp con texto
-      showWhatsAppClipAlert('PDF descargado. Recuerda tocar el ícono del clip 📎 en WhatsApp para adjuntarlo al paciente');
+      // Copy message to clipboard
+      try {
+        if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(msg).catch(() => {});
+        }
+      } catch (_) {}
 
-      if (cleanPhone && cleanPhone.length >= 8) {
-        const waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`;
+      // Flujo de salida: Descargar PDF + Alerta de clip + Abrir API de WhatsApp con texto
+      showWhatsAppClipAlert('📎 Se ha descargado el archivo PDF oficial en su dispositivo. Por favor, pulse el clip en este chat y adjúntelo para su validez');
+
+      const waUrl = cleanPhone && cleanPhone.length >= 8
+        ? `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(msg)}`
+        : `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+
+      const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+      if (isMobile) {
+        window.location.href = waUrl;
+      } else {
         const link = document.createElement('a');
         link.href = waUrl;
         link.target = '_blank';
@@ -3184,9 +3197,6 @@ export default function App() {
         setTimeout(() => {
           if (document.body.contains(link)) document.body.removeChild(link);
         }, 150);
-      } else {
-        // Phone is missing: open SaveAndShareSuccessModal for phone input
-        setIsSaveSuccessModalOpen(true);
       }
     } catch (err) {
       console.error('[Instant WhatsApp Error]:', err);

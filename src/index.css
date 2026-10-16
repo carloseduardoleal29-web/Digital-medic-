@@ -220,16 +220,35 @@ button, input, select, textarea {
 }
 
 /* ==========================================================================
-   PRINT STYLES: Reglas Exactas de Impresión Médica Profesional
-   - Hoja Carta: 215.9mm ancho x 279.4mm alto (8.5 x 11 in)
-   - RÉCIPES:
-     * 1 Récipe: Cabe COMPLETO en 1 hoja limpia (1 cuarto o media hoja dentro de hoja carta)
-     * 2 Récipes en modo horizontal / 2en1: Cabe en 1 sola hoja carta
-     * 4 en 1 Grid: 4 cuadrantes en 1 sola hoja carta
-   - INDICACIONES, INFORME MÉDICO, REPOSO / CONSTANCIA:
-     * Caben ESTRICTAMENTE en 1 sola hoja carta (Single Full Page)
-     * CERO desbordamiento a 2da página
+   VISTA PREVIA (body.modo-preview) & MOTOR DE IMPRESIÓN PROPIETARIO
+   - El récipe que el usuario ve en pantalla y en Modo Vista Previa (body.modo-preview)
+     es 100% IDÉNTICO al que se imprime o descarga como PDF.
+   - Prohibido totalmente sustituir el diseño por plantillas genéricas o básicas.
+   - Todo lo editado (cajones superiores/inferiores, firma, sello, colores de fondo,
+     logos y marcas de agua con hasta 100% de opacidad) se mantiene intacto.
+   - Estilos con print-color-adjust: exact e impresiones color sin alteración.
    ========================================================================== */
+
+* {
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+  color-adjust: exact !important;
+}
+
+body.modo-preview {
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+  color-adjust: exact !important;
+}
+
+body.modo-preview .marca-agua-img,
+.marca-agua-img {
+  display: block !important;
+  visibility: visible !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
 @page {
   size: letter;
   margin: 0;
@@ -246,6 +265,7 @@ button, input, select, textarea {
     overflow: hidden !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+    color-adjust: exact !important;
   }
 
   #root {

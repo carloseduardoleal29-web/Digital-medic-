@@ -1849,8 +1849,8 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
                     alt="Marca de agua"
                     className="marca-agua-img"
                     style={{
-                      opacity: Math.min(config.watermarkOpacity ?? 0.08, 0.12),
-                      width: `${Math.min(60, config.watermarkScale || 50)}%`,
+                      opacity: config.watermarkOpacity ?? 0.16,
+                      width: `${config.watermarkScale || 50}%`,
                       transform: `rotate(${config.watermarkRotation || 0}deg)`,
                     }}
                   />
@@ -2151,8 +2151,8 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
                     alt="Marca de agua"
                     className="marca-agua-img"
                     style={{
-                      opacity: Math.min(config.watermarkOpacity ?? 0.08, 0.12),
-                      width: `${Math.min(60, config.watermarkScale || 50)}%`,
+                      opacity: config.watermarkOpacity ?? 0.16,
+                      width: `${config.watermarkScale || 50}%`,
                       transform: `rotate(${config.watermarkRotation || 0}deg)`,
                     }}
                   />

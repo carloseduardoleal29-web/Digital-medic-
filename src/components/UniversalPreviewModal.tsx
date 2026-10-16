@@ -199,9 +199,15 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
   // Sync with prop when opened and auto-scale zoom based on screen width
   React.useEffect(() => {
     if (isOpen) {
+      document.body.classList.add('modo-preview');
       setSelectedPreviewModule(activeModule);
       setZoom(calculateMobileFitZoom());
+    } else {
+      document.body.classList.remove('modo-preview');
     }
+    return () => {
+      document.body.classList.remove('modo-preview');
+    };
   }, [activeModule, isOpen]);
 
   // Adjust zoom automatically as they switch format tabs in the preview modal

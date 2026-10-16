@@ -250,7 +250,7 @@ export function buildWhatsAppPharmacologicalMessage(options: {
     msg += `${rawIndications}\n\n`;
   }
 
-  msg += `📎 *RECORDATORIO:* Su récipe médico con firma y sello digital oficial ha sido generado y enviado adjunto en archivo PDF en este chat para su presentación en farmacia.\n`;
+  msg += `📎 Se ha descargado el archivo PDF oficial en su dispositivo. Por favor, pulse el clip en este chat y adjúntelo para su validez\n\n`;
   msg += `_¡Deseándole una pronta recuperación!_ ✨`;
 
   return msg;
@@ -504,7 +504,7 @@ export async function compartirPDFAdjuntoWhatsApp(datos: DatosRecipePDF, targetE
   const cleanPatient = (datos.nombrePaciente || "Paciente").replace(/[^a-zA-Z0-9]/g, "_");
   const nombreArchivo = `Recipe_${cleanPatient}.pdf`;
 
-  // 1. Descargar el PDF con el formato real del médico para que esté listo en Descargas
+  // a) Disparar la descarga automática del PDF oficial del récipe al dispositivo
   try {
     const targetEl = findActivePrintElement(targetElement);
     await exportElementAsPDF(targetEl, nombreArchivo, datos);
@@ -513,10 +513,10 @@ export async function compartirPDFAdjuntoWhatsApp(datos: DatosRecipePDF, targetE
     doc.save(nombreArchivo);
   }
 
-  // 2. Notificación prominente recordando adjuntar el PDF con el clip 📎
-  showWhatsAppClipAlert('📎 ¡PDF Descargado! Recuerda presionar el icono del clip (📎) en WhatsApp y adjuntar el archivo descargado para tu paciente.');
+  // b) Notificación explicativa en pantalla
+  showWhatsAppClipAlert('📎 Se ha descargado el archivo PDF oficial en su dispositivo. Por favor, pulse el clip en este chat y adjúntelo para su validez.');
 
-  // 3. Abrir WhatsApp con el texto enfocado estrictamente en los FÁRMACOS
+  // c) Abrir la API de WhatsApp copiando el mensaje al portapapeles
   enviarWhatsAppDirectoNumero(datos, false);
 }
 
@@ -544,6 +544,13 @@ export function enviarWhatsAppDirectoNumero(datos: DatosRecipePDF, descargarTamb
     rpText: datos.textoRp,
     indicationsText: datos.textoIndicaciones,
   });
+
+  // Copiar al portapapeles el mensaje
+  try {
+    if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(mensaje).catch(() => {});
+    }
+  } catch (_) {}
 
   const urlWhatsApp = telefono 
     ? `https://api.whatsapp.com/send?phone=${telefono}&text=${encodeURIComponent(mensaje)}`
