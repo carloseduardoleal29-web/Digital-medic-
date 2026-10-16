@@ -19,7 +19,14 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { DoctorConfig } from '../types';
-import { generatePDFBlob, exportElementAsPDF, buildDocumentPdfFilename, sharePDFViaWebShare, showWhatsAppClipAlert } from '../utils/exportDocument';
+import { 
+  generatePDFBlob, 
+  exportElementAsPDF, 
+  buildDocumentPdfFilename, 
+  sharePDFViaWebShare, 
+  showWhatsAppClipAlert,
+  buildWhatsAppPharmacologicalMessage 
+} from '../utils/exportDocument';
 
 interface CountryData {
   code: string;
@@ -347,23 +354,20 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
   };
 
   // Build professional WhatsApp markdown message with direct attachment instruction
+  // Build professional WhatsApp message containing strictly the medications / drugs
   const todayDateStr = new Intl.DateTimeFormat('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date()).replace(/[/\\:]/g, '-');
   const pdfFilename = buildDocumentPdfFilename(documentType || 'Recipe', patientName, todayDateStr);
 
   const buildWhatsAppMessage = () => {
-    const docName = getDocumentTypeName();
-    const effectiveUrl = pdfUrl || `${window.location.origin}/pdf/${pdfFilename}`;
-    const pdfLine = `📥 *ENLACE DE DESCARGA DIRECTA DE SU PDF OFICIAL:*\n${effectiveUrl}\n\n`;
-    
-    let msg = `Estimado(a) *${patientName || 'Paciente'}*,\n\n` +
-      `Le saluda el/la *Dr(a). ${config.doctorName}* (${config.specialty || 'Médico Especialista'}).\n\n` +
-      `📄 *${docName.toUpperCase()} OFICIAL*\n\n` +
-      pdfLine +
-      (contentBody ? `📋 *RESUMEN DE PRESCRIPCIÓN / INDICACIONES:*\n${contentBody.length > 450 ? contentBody.slice(0, 420) + '...' : contentBody}\n\n` : '') +
-      `*M.P.P.S:* ${config.mpps || '00.000'} · *C.I:* ${config.ci || 'V-00.000.000'}\n` +
-      (config.phone ? `*Contacto:* ${config.phone}\n` : '') +
-      `\n_Documento legal con firma y sello digital. ¡Que tenga una pronta recuperación! ✨_`;
-    return msg;
+    return buildWhatsAppPharmacologicalMessage({
+      patientName,
+      patientCI: config.ci,
+      dateStr: todayDateStr,
+      doctorName: config.doctorName,
+      doctorSpecialty: config.specialty,
+      rpText: contentBody,
+      documentType,
+    });
   };
 
   const messageText = buildWhatsAppMessage();
@@ -759,17 +763,29 @@ export const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({
               </div>
             </div>
 
-            {/* Información sobre el Envío de PDF en WhatsApp */}
-            <div className="bg-slate-50 border border-emerald-200 rounded-xl p-3 space-y-1.5 shadow-2xs">
-              <div className="flex items-center gap-1.5 font-bold text-emerald-900 text-xs">
-                <FileText className="w-3.5 h-3.5 text-emerald-600" />
-                <span>¿Cómo se envía el formato PDF por WhatsApp?</span>
+            {/* RECORDATORIO VISUAL OBLIGATORIO: ADJUNTAR PDF CON EL CLIP EN WHATSAPP */}
+            <div className="bg-amber-50 border-2 border-amber-400/90 rounded-2xl p-3.5 space-y-2 shadow-sm text-slate-800">
+              <div className="flex items-center gap-2 font-black text-amber-900 text-xs sm:text-sm">
+                <span className="text-lg">📎</span>
+                <span>IMPORTANTE: RECUERDA ADJUNTAR EL PDF AL PACIENTE</span>
               </div>
-              <p className="text-[11px] text-slate-600 leading-snug">
-                Al hacer clic en <strong>Enviar WhatsApp</strong> se abrirá el chat con el paciente y el saludo corto oficial. 
-                Si está en computadora o WhatsApp Web, descargue el PDF con el botón superior y use el clip (<strong>📎</strong>) para adjuntarlo. 
-                En celular, puede usar el botón <strong>Compartir en Celular</strong> para enviar el PDF directamente.
+              <p className="text-[11px] text-amber-950/90 leading-relaxed font-medium">
+                Por políticas de privacidad de WhatsApp, los navegadores no pueden adjuntar archivos PDF automáticamente mediante enlaces.
               </p>
+              <div className="bg-white/95 rounded-xl p-2.5 border border-amber-300/80 text-[11px] text-slate-700 space-y-1.5 font-semibold">
+                <div className="flex items-start gap-2">
+                  <span className="bg-amber-500 text-slate-950 rounded-full w-4 h-4 flex items-center justify-center font-black text-[10px] shrink-0 mt-0.5">1</span>
+                  <span>Al hacer clic abajo, <strong>el PDF oficial se descarga automáticamente</strong> en tu dispositivo.</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="bg-amber-500 text-slate-950 rounded-full w-4 h-4 flex items-center justify-center font-black text-[10px] shrink-0 mt-0.5">2</span>
+                  <span>En la ventana de WhatsApp que se abrirá, presiona el ícono del <strong>CLIP (📎)</strong>.</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="bg-amber-500 text-slate-950 rounded-full w-4 h-4 flex items-center justify-center font-black text-[10px] shrink-0 mt-0.5">3</span>
+                  <span>Selecciona <strong>Documento</strong> y adjunta el PDF descargado. La lista de fármacos ya estará lista para enviar.</span>
+                </div>
+              </div>
             </div>
 
 

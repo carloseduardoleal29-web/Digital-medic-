@@ -1,6 +1,6 @@
 {
   "id": "/",
-  "name": "Digital Médic - Formatos Médicos Digitales",
+  "name": "Digital Médic",
   "short_name": "DigitalMédic",
   "description": "Plataforma médica oficial para la emisión, cálculo posológico, personalización e impresión de récipes, informes, reposos e historias clínicas.",
   "start_url": "/",
@@ -8,7 +8,7 @@
   "display": "standalone",
   "orientation": "any",
   "background_color": "#082846",
-  "theme_color": "#082846",
+  "theme_color": "#1e3a8a",
   "categories": ["medical", "health", "productivity", "utilities"],
   "icons": [
     {
@@ -34,12 +34,6 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
-    },
-    {
-      "src": "/assets/digital_medic_logo.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any"
     }
   ]
 }

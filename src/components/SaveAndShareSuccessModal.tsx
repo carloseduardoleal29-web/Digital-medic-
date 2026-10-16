@@ -24,7 +24,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { DoctorConfig } from '../types';
-import { generatePDFBlob, buildDocumentPdfFilename, sharePDFViaWebShare } from '../utils/exportDocument';
+import { generatePDFBlob, buildDocumentPdfFilename, sharePDFViaWebShare, buildWhatsAppPharmacologicalMessage } from '../utils/exportDocument';
 
 interface CountryData {
   code: string;
@@ -375,23 +375,17 @@ export const SaveAndShareSuccessModal: React.FC<SaveAndShareSuccessModalProps> =
 
   const buildWhatsAppMessage = () => {
     if (!record) return '';
-    const docName = getDocumentTypeName();
     const cleanDate = record.date || new Intl.DateTimeFormat('es-VE').format(new Date());
-    const pdfFilename = record.pdfFileName || buildDocumentPdfFilename(record.documentType || 'Recipe', record.patientName, cleanDate);
 
-    const effectivePdfUrl = pdfUrl || record.pdfUrl || `${window.location.origin}/?doc=${record.id}`;
-    const pdfLine = `📥 *ENLACE DE DESCARGA DIRECTA DE SU PDF OFICIAL:*\n${effectivePdfUrl}\n\n`;
-
-    let msg = `Estimado(a) *${record.patientName || 'Paciente'}*,\n\n` +
-      `Le saluda el/la *Dr(a). ${record.doctorName || config.doctorName}* (${record.doctorSpecialty || config.specialty || 'Médico Especialista'}).\n\n` +
-      `📄 *${docName.toUpperCase()} OFICIAL*\n\n` +
-      pdfLine +
-      (record.contentBody ? `📋 *RESUMEN DE PRESCRIPCIÓN / INDICACIÓN:*\n${record.contentBody.length > 500 ? record.contentBody.slice(0, 480) + '...' : record.contentBody}\n\n` : '') +
-      `*M.P.P.S:* ${record.doctorMPPS || config.mpps || '00.000'} · *C.I:* ${record.doctorCI || config.ci || 'V-00.000.000'}\n` +
-      (config.phone ? `*Contacto / Consultas:* ${config.phone}\n` : '') +
-      `\n_Documento médico legal firmado y sellado digitalmente con plena validez para farmacias. ¡Que tenga una pronta recuperación! ✨_`;
-
-    return msg;
+    return buildWhatsAppPharmacologicalMessage({
+      patientName: record.patientName,
+      patientCI: record.patientCI,
+      dateStr: cleanDate,
+      doctorName: record.doctorName || config.doctorName,
+      doctorSpecialty: record.doctorSpecialty || config.specialty,
+      rpText: record.contentBody,
+      documentType: record.documentType,
+    });
   };
 
   const messageText = buildWhatsAppMessage();
@@ -846,22 +840,29 @@ export const SaveAndShareSuccessModal: React.FC<SaveAndShareSuccessModalProps> =
                 </div>
               </form>
 
-              {/* Información y Envío de PDF en WhatsApp */}
-              <div className="bg-emerald-50 border border-emerald-300 rounded-xl p-2.5 text-xs text-slate-800 space-y-1.5 shadow-2xs">
-                <div className="flex items-center justify-between font-bold text-emerald-950 text-[11px]">
-                  <div className="flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>Envío Inteligente con Enlace al PDF Directo</span>
-                  </div>
-                  {pdfUrl && (
-                    <span className="text-[10px] bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded-full font-bold">
-                      PDF en Nube Listo
-                    </span>
-                  )}
+              {/* RECORDATORIO VISUAL OBLIGATORIO: ADJUNTAR PDF CON EL CLIP EN WHATSAPP */}
+              <div className="bg-amber-50 border-2 border-amber-400/90 rounded-2xl p-3.5 space-y-2 shadow-sm text-slate-800">
+                <div className="flex items-center gap-2 font-black text-amber-900 text-xs sm:text-sm">
+                  <span className="text-lg">📎</span>
+                  <span>IMPORTANTE: RECUERDA ADJUNTAR EL PDF EN WHATSAPP</span>
                 </div>
-                <p className="text-[10.5px] text-emerald-900 leading-snug">
-                  Al presionar <strong>Abrir WhatsApp</strong>, el mensaje incluye automáticamente el <strong>enlace de descarga directa del PDF oficial</strong> con su firma y sello. El paciente solo debe tocar el enlace en su WhatsApp para abrir y guardar su documento al instante.
+                <p className="text-[11px] text-amber-950/90 leading-relaxed font-medium">
+                  Por seguridad de WhatsApp, los navegadores no pueden adjuntar archivos automáticamente.
                 </p>
+                <div className="bg-white/95 rounded-xl p-2.5 border border-amber-300/80 text-[11px] text-slate-700 space-y-1.5 font-semibold">
+                  <div className="flex items-start gap-2">
+                    <span className="bg-amber-500 text-slate-950 rounded-full w-4 h-4 flex items-center justify-center font-black text-[10px] shrink-0 mt-0.5">1</span>
+                    <span>El PDF oficial con firma y sello ya fue generado y descargado en tu dispositivo.</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="bg-amber-500 text-slate-950 rounded-full w-4 h-4 flex items-center justify-center font-black text-[10px] shrink-0 mt-0.5">2</span>
+                    <span>En WhatsApp, toca el ícono del <strong>CLIP (📎)</strong> en el chat del paciente.</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="bg-amber-500 text-slate-950 rounded-full w-4 h-4 flex items-center justify-center font-black text-[10px] shrink-0 mt-0.5">3</span>
+                    <span>Selecciona <strong>Documento</strong> y adjunta el PDF. El mensaje ya contiene los fármacos prescritos.</span>
+                  </div>
+                </div>
               </div>
 
               {/* Quick Actions for WhatsApp */}
@@ -960,23 +961,8 @@ export const SaveAndShareSuccessModal: React.FC<SaveAndShareSuccessModalProps> =
             </div>
           )}
 
-          {/* SECONDARY ACTIONS: PRINT & PATIENT BANK */}
-          <div className="grid grid-cols-2 gap-2.5">
-            
-            {/* Print Document */}
-            <button
-              type="button"
-              onClick={() => {
-                if (onPrint) onPrint();
-              }}
-              className="p-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-2xl font-bold flex flex-col items-center justify-center gap-1 text-center transition-all hover:shadow-xs active:scale-95 cursor-pointer"
-              title="Abrir diálogo nativo de impresión (Óptimo para cuartillas/hoja carta)"
-            >
-              <Printer className="w-5 h-5 text-emerald-600 mx-auto" />
-              <span className="text-xs font-black block mt-1">Imprimir</span>
-              <span className="text-[9px] text-emerald-600 font-normal block mt-0.5">Físico / Cuartillas</span>
-            </button>
-
+          {/* SECONDARY ACTION: PATIENT BANK */}
+          <div className="w-full">
             {/* View in Patient Bank */}
             <button
               type="button"
@@ -984,14 +970,15 @@ export const SaveAndShareSuccessModal: React.FC<SaveAndShareSuccessModalProps> =
                 onClose();
                 onOpenPatientBank();
               }}
-              className="p-3 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-2xl font-bold flex flex-col items-center justify-center gap-1 text-center transition-all hover:shadow-xs active:scale-95 cursor-pointer"
+              className="w-full p-3 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-2xl font-bold flex items-center justify-center gap-2 text-center transition-all hover:shadow-xs active:scale-95 cursor-pointer"
               title="Ver el historial completo del paciente en el Banco"
             >
-              <Users className="w-5 h-5 text-slate-700 mx-auto" />
-              <span className="text-xs font-black block mt-1">Banco de Pacientes</span>
-              <span className="text-[9px] text-slate-600 font-normal block mt-0.5">Historial clínico</span>
+              <Users className="w-5 h-5 text-slate-700 shrink-0" />
+              <div className="text-left">
+                <span className="text-xs font-black block">Ir al Banco de Pacientes</span>
+                <span className="text-[10px] text-slate-600 font-normal block">Consultar historial clínico y documentos emitidos</span>
+              </div>
             </button>
-
           </div>
 
         </div>

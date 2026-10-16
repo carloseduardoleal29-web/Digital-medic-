@@ -34,6 +34,7 @@ import { DoctorConfig, ActiveModule } from '../types';
 import { DIGITAL_MEDIC_OFFICIAL_LOGO_SVG, getMedicalSymbolSVG, CARLOS_LEAL_DEVELOPER_BADGE_SVG } from '../data/defaultAssets';
 import { CeLealStudioLogo } from './CeLealStudioLogo';
 import { formatSpecialtyTitle } from './DoctorOnboardingWizard';
+import { PWAInstallButton } from './PWAInstallButton';
 
 const Instagram: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
   <svg
@@ -779,6 +780,9 @@ export const DoctorLeftDrawer: React.FC<DoctorLeftDrawerProps> = ({
         <div className="p-4 bg-slate-900 border-t border-slate-800 space-y-2.5 shrink-0">
           
 
+
+          {/* Botón Instalar Aplicación */}
+          <PWAInstallButton variant="drawer" />
 
           {/* Botón Sincronizar Móvil / PC */}
           {onOpenSyncDevices && (

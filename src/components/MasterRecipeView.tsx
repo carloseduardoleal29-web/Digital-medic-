@@ -195,15 +195,15 @@ export const MasterRecipeView: React.FC<MasterRecipeViewProps> = ({
             </button>
           )}
 
-          {onPrint && (
+          {onDownloadPdf && (
             <button
               type="button"
-              onClick={onPrint}
+              onClick={onDownloadPdf}
               className="px-4 py-1.5 bg-gradient-to-r from-blue-700 to-indigo-700 hover:from-blue-800 hover:to-indigo-800 text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
-              title="Imprimir récipe directamente o guardar como PDF del sistema"
+              title="Descargar y guardar récipe oficial en PDF"
             >
-              <Printer className="w-3.5 h-3.5 text-white" />
-              <span>🖨️ Imprimir Récipe</span>
+              <Download className="w-3.5 h-3.5 text-white" />
+              <span>Descargar PDF</span>
             </button>
           )}
         </div>

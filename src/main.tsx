@@ -5,7 +5,21 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import './index.css';
 import { registerSW } from 'virtual:pwa-register';
 
-// Register Service Worker for instant PWA load and offline caching with safe fallback
+// Standard Service Worker registration for 100% PWA installability in Chrome & Mobile browsers
+if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register('/sw.js', { scope: '/' })
+      .then((reg) => {
+        console.log('[PWA] Service Worker registrado exitosamente. Scope:', reg.scope);
+      })
+      .catch((err) => {
+        console.warn('[PWA] Advertencia registrando Service Worker nativo:', err);
+      });
+  });
+}
+
+// Register virtual PWA plugin worker as companion
 try {
   registerSW({
     immediate: true,
@@ -20,7 +34,7 @@ try {
     }
   });
 } catch (e) {
-  console.warn('[PWA] Registro de Service Worker omitido:', e);
+  console.warn('[PWA] Registro de virtual Service Worker omitido:', e);
 }
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(

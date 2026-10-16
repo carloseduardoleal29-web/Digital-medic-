@@ -459,12 +459,12 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
           </button>
 
           <button
-            onClick={handlePrint}
+            onClick={handleDownloadDirectPDF}
             className="px-3.5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-md transition-all hover:scale-[1.02] cursor-pointer"
-            title="Imprimir en impresora física o guardar como PDF del sistema"
+            title="Descargar y guardar PDF oficial firmado y sellado"
           >
-            <Printer className="w-4 h-4" />
-            <span>🖨️ Imprimir</span>
+            <Download className="w-4 h-4 text-cyan-200" />
+            <span>Descargar PDF</span>
           </button>
 
           {/* Prominent Red Exit Button requested by the user */}

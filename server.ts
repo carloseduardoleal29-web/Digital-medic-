@@ -130,9 +130,13 @@ app.get('/manifest.json', (req, res) => {
   res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Cache-Control', 'public, max-age=3600');
-  const manifestPath = path.join(__dirname, 'public', 'manifest.json');
-  if (fs.existsSync(manifestPath)) {
-    return res.sendFile(manifestPath);
+  const publicPath = path.join(__dirname, 'public', 'manifest.json');
+  const rootPath = path.join(__dirname, 'manifest.json');
+  if (fs.existsSync(publicPath)) {
+    return res.sendFile(publicPath);
+  }
+  if (fs.existsSync(rootPath)) {
+    return res.sendFile(rootPath);
   }
   res.status(404).send('Manifest not found');
 });
@@ -142,9 +146,13 @@ app.get('/sw.js', (req, res) => {
   res.setHeader('Service-Worker-Allowed', '/');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Cache-Control', 'no-cache');
-  const swPath = path.join(__dirname, 'public', 'sw.js');
-  if (fs.existsSync(swPath)) {
-    return res.sendFile(swPath);
+  const publicPath = path.join(__dirname, 'public', 'sw.js');
+  const rootPath = path.join(__dirname, 'sw.js');
+  if (fs.existsSync(publicPath)) {
+    return res.sendFile(publicPath);
+  }
+  if (fs.existsSync(rootPath)) {
+    return res.sendFile(rootPath);
   }
   res.status(404).send('Service worker not found');
 });
@@ -639,6 +647,7 @@ app.post('/api/auth/login', async (req, res) => {
     if (!userEco) {
       userEco = await readUserEcosystem(found.email || found.ci || found.id);
     }
+    const expectedPass = String(found.password || found.ci || '2534').trim();
     const cleanPassLower = cleanPass.toLowerCase().replace(/[^a-z0-9]/gi, '');
     const expectedPassLower = expectedPass.toLowerCase().replace(/[^a-z0-9]/gi, '');
     const expectedCiLower = (found.ci || '').toLowerCase().replace(/[^a-z0-9]/gi, '');
@@ -657,8 +666,6 @@ app.post('/api/auth/login', async (req, res) => {
         message: 'Su cuenta está en proceso de verificación por la administración.'
       });
     }
-
-    const userEco = await readUserEcosystem(found.email || found.ci || found.id);
 
     return res.json({
       success: true,

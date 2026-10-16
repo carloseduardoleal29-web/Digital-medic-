@@ -3374,10 +3374,11 @@ export default function App() {
         <div className="fixed top-4 right-4 z-50 flex items-center gap-2 bg-slate-900/90 text-white p-2 rounded-xl shadow-2xl backdrop-blur-xs no-print">
           <span className="text-xs font-semibold px-2">Modo Vista Previa Real</span>
           <button
-            onClick={handleTriggerPrint}
+            onClick={() => handleDownloadRealPdf()}
             className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors"
+            title="Descargar y guardar PDF oficial"
           >
-            <Printer className="w-3.5 h-3.5" /> Imprimir
+            <Download className="w-3.5 h-3.5" /> Descargar PDF
           </button>
           <button
             onClick={() => setIsPreviewMode(false)}
@@ -3471,11 +3472,11 @@ export default function App() {
               </div>
             </div>
 
-            {/* Right: Ir al Inicio + Cerrar Sesión */}
+            {/* Right: Ir al Inicio + Instalar Aplicación + Cerrar Sesión */}
             <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
 
-              {/* Botón de Instalación como App en PC con su Logo SOLO en pantalla de Inicio */}
-              {activeModule === 'inicio' && <PWAInstallButton />}
+              {/* Botón de Instalación como App nativa PWA */}
+              <PWAInstallButton variant="header" />
 
               {activeModule !== 'inicio' && (
                 <button
@@ -4584,6 +4585,9 @@ export default function App() {
           }
         }}
       />
+
+      {/* Botón Flotante Permanente "Instalar Aplicación" (Escucha beforeinstallprompt) */}
+      <PWAInstallButton variant="floating" />
     </div>
   );
 }

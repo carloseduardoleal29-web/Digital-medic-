@@ -199,17 +199,7 @@ export const FourInOneRecipeView: React.FC<FourInOneRecipeViewProps> = ({
             </button>
           )}
 
-          {onPrint && (
-            <button
-              type="button"
-              onClick={onPrint}
-              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-xs hover:scale-105 active:scale-95 transition-all cursor-pointer border border-slate-700"
-              title="Imprimir los 4 récipes en 1 sola hoja carta o guardar como PDF"
-            >
-              <Printer className="w-3.5 h-3.5 text-cyan-300" />
-              <span>🖨️ Imprimir (4 en 1)</span>
-            </button>
-          )}
+
 
           {onOpenEmailModal && (
             <button

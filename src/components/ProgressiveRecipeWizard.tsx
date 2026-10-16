@@ -1626,13 +1626,13 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
               <span>Volver a Prescripción</span>
             </button>
 
-            {/* Continúa a la Vista Final & Descarga/Impresión */}
+            {/* Continúa a la Vista Final & Descarga de PDF */}
             <button
               type="button"
               onClick={() => setCurrentStep(4)}
               className="px-7 py-3.5 bg-gradient-to-r from-emerald-600 via-emerald-700 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-black text-sm sm:text-base rounded-2xl shadow-xl shadow-emerald-600/25 flex items-center gap-2 transition-all transform hover:scale-[1.02] active:scale-95 cursor-pointer"
             >
-              <span>Ver Formatos y Descargar / Imprimir</span>
+              <span>Ver Formatos y Descargar PDF</span>
               <ArrowRight className="w-5 h-5 text-white" />
             </button>
           </div>
@@ -1641,12 +1641,12 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
       )}
 
       {/* ========================================================= */}
-      {/* PASO 4: VISTA FINAL & DESCARGA / IMPRESIÓN DIRECTA        */}
+      {/* PASO 4: VISTA FINAL & DESCARGA DIRECTA DE PDF             */}
       {/* ========================================================= */}
       {currentStep === 4 && (
         <div className="w-full space-y-4 animate-in fade-in">
           
-          {/* Main Action Control Center Bar (sin textos invasivos ni botones innecesarios, no-print) */}
+          {/* Main Action Control Center Bar (sin botón de imprimir, enfocado en PDF y WhatsApp) */}
           <div className="w-full bg-slate-900 text-white rounded-2xl border border-slate-800 p-3 sm:p-4 shadow-xl no-print space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-2.5">
               {/* Selector de Documento: Récipe vs Indicaciones */}
@@ -1681,39 +1681,22 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
 
             {/* Action Buttons for Recipe View */}
             {finalPreviewTab === 'recipe' && (
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                {/* 1. Descargar PDF */}
+              <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2 w-full">
+                {/* 1. Descargar / Guardar PDF */}
                 <button
                   type="button"
                   onClick={handleDownloadRecipePdfDirect}
-                  className="p-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-black text-xs flex flex-col items-center justify-center gap-1 shadow-md transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-blue-400/40"
-                  title="Descargar PDF oficial firmado y sellado"
+                  className="w-full min-h-[46px] p-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-black text-xs flex items-center justify-center gap-2 shadow-md transition-all hover:scale-[1.01] active:scale-95 cursor-pointer border border-blue-400/40"
+                  title="Descargar y guardar PDF oficial firmado y sellado"
                 >
-                  <Download className="w-4 h-4 text-cyan-200" />
-                  <span>Descargar PDF</span>
+                  <Download className="w-4 h-4 text-cyan-200 shrink-0" />
+                  <span className="truncate">Descargar / Guardar PDF</span>
                 </button>
 
-                {/* 2. Enviar por Correo */}
-                <button
-                  type="button"
-                  onClick={() => setIsEmailModalOpen(true)}
-                  className="p-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-black text-xs flex flex-col items-center justify-center gap-1 shadow-md transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-indigo-400/40"
-                  title="Enviar récipe por correo electrónico"
-                >
-                  <Mail className="w-4 h-4 text-cyan-200" />
-                  <span>Enviar por Correo</span>
-                </button>
-
-                {/* 3. Enviar por WhatsApp */}
+                {/* 2. Enviar por WhatsApp */}
                 <button
                   type="button"
                   onClick={() => {
-                    const treatment = [
-                      recipe.rp?.trim(),
-                      recipe.indicationsNotes?.trim(),
-                      indications?.medicationSchedule?.trim(),
-                    ].filter(Boolean).join('\n\n');
-
                     exportAndSendWhatsAppBusiness({
                       element: printableRecipeRef.current,
                       patientName: recipe.patientName || 'Carlos leal',
@@ -1721,65 +1704,69 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
                       dateStr: recipe.date || '14/10/26',
                       patientPhone: recipe.patientPhone,
                       doctorName: config.doctorName || 'Dr. Carlos Leal',
-                      treatmentDetails: treatment,
+                      treatmentDetails: recipe.rp?.trim() || '',
                       documentType: 'recipe',
+                      recipe,
+                      indications,
+                      config
                     });
                   }}
-                  className="p-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black text-xs flex flex-col items-center justify-center gap-1 shadow-md transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-emerald-400/40"
+                  className="w-full min-h-[46px] p-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black text-xs flex items-center justify-center gap-2 shadow-md transition-all hover:scale-[1.01] active:scale-95 cursor-pointer border border-emerald-400/40"
                   title="Enviar récipe por WhatsApp con PDF y tratamiento"
                 >
-                  <span className="text-base">📱</span>
-                  <span>Enviar por WhatsApp</span>
+                  <span className="text-base shrink-0">📱</span>
+                  <span className="truncate">Enviar por WhatsApp</span>
                 </button>
 
-                {/* 4. Imprimir Récipe Individual */}
+                {/* 3. Enviar por Correo */}
                 <button
                   type="button"
-                  onClick={() => handlePrintSpecific('recipe', false)}
-                  className="p-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-black text-xs flex flex-col items-center justify-center gap-1 shadow-xs transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-slate-700"
-                  title="Imprimir récipe individual en su impresora física"
+                  onClick={() => setIsEmailModalOpen(true)}
+                  className="w-full min-h-[46px] p-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-black text-xs flex items-center justify-center gap-2 shadow-md transition-all hover:scale-[1.01] active:scale-95 cursor-pointer border border-indigo-400/40"
+                  title="Enviar récipe por correo electrónico"
                 >
-                  <Printer className="w-4 h-4 text-cyan-300" />
-                  <span>Imprimir Récipe</span>
+                  <Mail className="w-4 h-4 text-cyan-200 shrink-0" />
+                  <span className="truncate">Enviar por Correo</span>
                 </button>
 
-                {/* 5. Continuar a Indicaciones */}
+                {/* 4. Continuar a Indicaciones */}
                 <button
                   type="button"
                   onClick={() => setFinalPreviewTab('indications')}
-                  className="p-2.5 bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 hover:to-purple-800 text-white rounded-xl font-black text-xs flex flex-col items-center justify-center gap-1 shadow-md transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-indigo-400/40 col-span-2 sm:col-span-1"
+                  className="w-full min-h-[46px] p-2.5 bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 hover:to-purple-800 text-white rounded-xl font-black text-xs flex items-center justify-center gap-2 shadow-md transition-all hover:scale-[1.01] active:scale-95 cursor-pointer border border-indigo-400/40"
                 >
-                  <ArrowRight className="w-4 h-4 text-cyan-200" />
-                  <span>Seguir a Indicaciones ➔</span>
+                  <span className="truncate">Seguir a Indicaciones</span>
+                  <ArrowRight className="w-4 h-4 text-cyan-200 shrink-0" />
                 </button>
               </div>
             )}
 
             {/* Action Buttons for Indications View */}
             {finalPreviewTab === 'indications' && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full">
 
-                {/* 2. Imprimir Indicaciones */}
+                {/* 1. Descargar PDF Indicaciones */}
                 <button
                   type="button"
-                  onClick={() => handlePrintSpecific('indications')}
-                  className="p-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-black text-xs flex flex-col items-center justify-center gap-1 shadow-xs transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-slate-700"
+                  onClick={handleDownloadIndicationsPdfDirect}
+                  className="w-full min-h-[46px] p-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-black text-xs flex items-center justify-center gap-2 shadow-md transition-all hover:scale-[1.01] active:scale-95 cursor-pointer border border-indigo-400/40"
+                  title="Descargar PDF de Indicaciones Médicas"
                 >
-                  <Printer className="w-4 h-4 text-cyan-300" />
-                  <span>Imprimir Indicaciones</span>
+                  <Download className="w-4 h-4 text-cyan-200 shrink-0" />
+                  <span>Descargar PDF Indicaciones</span>
                 </button>
 
-                {/* 3. Volver al Récipe */}
+                {/* 2. Volver al Récipe */}
                 <button
                   type="button"
                   onClick={() => setFinalPreviewTab('recipe')}
-                  className="p-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-black text-xs flex flex-col items-center justify-center gap-1 shadow-xs transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-slate-700"
+                  className="w-full min-h-[46px] p-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-black text-xs flex items-center justify-center gap-2 shadow-xs transition-all hover:scale-[1.01] active:scale-95 cursor-pointer border border-slate-700"
                 >
-                  <ArrowLeft className="w-4 h-4 text-blue-300" />
-                  <span>⬅ Volver al Récipe</span>
+                  <ArrowLeft className="w-4 h-4 text-blue-300 shrink-0" />
+                  <span>Volver al Récipe</span>
                 </button>
 
-                {/* 4. Finalizar Consulta / Nuevo Paciente */}
+                {/* 3. Finalizar Consulta / Nuevo Paciente */}
                 <button
                   type="button"
                   onClick={() => {
@@ -1787,23 +1774,23 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
                     if (onClearRecipeToBlank) onClearRecipeToBlank();
                     setCurrentStep(1);
                   }}
-                  className="p-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white rounded-xl font-black text-xs flex flex-col items-center justify-center gap-1 shadow-md transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-emerald-400/40"
+                  className="w-full min-h-[46px] p-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white rounded-xl font-black text-xs flex items-center justify-center gap-2 shadow-md transition-all hover:scale-[1.01] active:scale-95 cursor-pointer border border-emerald-400/40"
                   title="Guardar consulta y dejar récipe en blanco para el próximo paciente"
                 >
-                  <Check className="w-4 h-4 text-emerald-200" />
+                  <Check className="w-4 h-4 text-emerald-200 shrink-0" />
                   <span>Nuevo Paciente</span>
                 </button>
               </div>
             )}
 
             {/* Extra Row: Correo y Guardar Paciente */}
-            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800/80 text-xs">
-              <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 pt-2 border-t border-slate-800/80 text-xs w-full">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
 
                 <button
                   type="button"
                   onClick={() => setIsEmailModalOpen(true)}
-                  className="px-3 py-1.5 bg-indigo-600/90 hover:bg-indigo-500 text-white font-black rounded-xl flex items-center gap-1.5 transition-all cursor-pointer border border-indigo-400/30"
+                  className="w-full sm:w-auto px-4 py-2 bg-indigo-600/90 hover:bg-indigo-500 text-white font-black rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer border border-indigo-400/30"
                   title="Enviar documento por correo electrónico"
                 >
                   <Mail className="w-3.5 h-3.5" />
@@ -1814,7 +1801,7 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
                   <button
                     type="button"
                     onClick={onSavePatientOnly}
-                    className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer border border-slate-700"
+                    className="w-full sm:w-auto px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-slate-700"
                   >
                     <Save className="w-3.5 h-3.5 text-blue-400" />
                     <span>Guardar Paciente</span>

@@ -346,7 +346,7 @@ export const MedicalRestModule: React.FC<MedicalRestModuleProps> = ({
                 3. Listo
               </span>
               <span className={`text-[9px] sm:text-[10px] block truncate ${currentStep === 3 ? 'text-emerald-100' : 'text-slate-500'}`}>
-                Imprimir / PDF
+                Descargar PDF
               </span>
             </div>
           </button>
@@ -640,7 +640,7 @@ export const MedicalRestModule: React.FC<MedicalRestModuleProps> = ({
               onClick={() => setCurrentStep(3)}
               className="px-8 py-3.5 bg-gradient-to-r from-emerald-600 via-emerald-700 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-black text-sm sm:text-base rounded-2xl shadow-xl shadow-emerald-600/25 flex items-center gap-2 transition-all transform hover:scale-[1.02] active:scale-95 cursor-pointer"
             >
-              <span>Ver Formato e Imprimir / Descargar</span>
+              <span>Ver Formato y Descargar PDF</span>
               <ArrowRight className="w-5 h-5 text-white" />
             </button>
           </div>
@@ -674,8 +674,19 @@ export const MedicalRestModule: React.FC<MedicalRestModuleProps> = ({
             </div>
 
             {/* Direct Instant Action Buttons */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 gap-2 w-full">
               
+              {/* Botón Descargar PDF */}
+              <button
+                type="button"
+                onClick={handleDownloadRestPdf}
+                className="w-full min-h-[46px] p-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-black text-xs flex items-center justify-center gap-2 shadow-md transition-all hover:scale-[1.01] active:scale-95 cursor-pointer border border-blue-400/40"
+                title="Descargar PDF oficial firmado y sellado"
+              >
+                <Download className="w-4 h-4 text-cyan-200 shrink-0" />
+                <span className="truncate">Descargar / Guardar PDF</span>
+              </button>
+
               {/* Botón WhatsApp */}
               <button
                 type="button"
@@ -693,56 +704,46 @@ export const MedicalRestModule: React.FC<MedicalRestModuleProps> = ({
                     documentType: 'rest',
                   });
                 }}
-                className="p-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl font-black text-xs flex flex-col items-center justify-center gap-1.5 shadow-lg shadow-emerald-900/40 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-emerald-400/40"
+                className="w-full min-h-[46px] p-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black text-xs flex items-center justify-center gap-2 shadow-md transition-all hover:scale-[1.01] active:scale-95 cursor-pointer border border-emerald-400/40"
               >
-                <span className="text-xl">📱</span>
-                <span>Enviar por WhatsApp</span>
-              </button>
-
-              {/* Imprimir Directamente */}
-              <button
-                type="button"
-                onClick={handlePrintSpecificRest}
-                className="p-3 bg-slate-800 hover:bg-slate-700 text-white rounded-2xl font-black text-xs flex flex-col items-center justify-center gap-1.5 shadow-md transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-slate-700"
-              >
-                <Printer className="w-5 h-5 text-cyan-300" />
-                <span>Imprimir Documento</span>
+                <span className="text-base shrink-0">📱</span>
+                <span className="truncate">Enviar por WhatsApp</span>
               </button>
 
               {/* Enviar por Correo */}
               <button
                 type="button"
                 onClick={() => setIsEmailModalOpen(true)}
-                className="p-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black text-xs flex flex-col items-center justify-center gap-1.5 shadow-lg shadow-indigo-900/40 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-indigo-400/40"
+                className="w-full min-h-[46px] p-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-black text-xs flex items-center justify-center gap-2 shadow-md transition-all hover:scale-[1.01] active:scale-95 cursor-pointer border border-indigo-400/40"
               >
-                <Mail className="w-5 h-5 text-indigo-200" />
-                <span>Enviar por Correo</span>
+                <Mail className="w-4 h-4 text-indigo-200 shrink-0" />
+                <span className="truncate">Enviar por Correo</span>
               </button>
 
             </div>
 
             {/* Extra Row: Guardar Paciente y Edición */}
-            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800/80 text-xs">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 pt-2 border-t border-slate-800/80 text-xs w-full">
+              <div className="flex items-center gap-2 w-full sm:w-auto">
                 {onSaveAndShare && (
                   <button
                     type="button"
                     onClick={() => (onSaveAndShare as any)(false)}
-                    className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer border border-slate-700"
+                    className="w-full sm:w-auto px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl flex items-center justify-center gap-2 transition-colors cursor-pointer border border-slate-700"
                   >
-                    <Save className="w-4 h-4 text-blue-400" />
+                    <Save className="w-4 h-4 text-blue-400 shrink-0" />
                     <span>Guardar Paciente</span>
                   </button>
                 )}
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 w-full sm:w-auto">
                 <button
                   type="button"
                   onClick={() => setCurrentStep(1)}
-                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl transition-colors cursor-pointer flex items-center gap-1"
+                  className="w-full sm:w-auto px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl transition-colors cursor-pointer flex items-center justify-center gap-1.5"
                 >
-                  <ArrowLeft className="w-3.5 h-3.5 text-blue-400" />
+                  <ArrowLeft className="w-3.5 h-3.5 text-blue-400 shrink-0" />
                   <span>Volver a Editar</span>
                 </button>
               </div>

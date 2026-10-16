@@ -30,25 +30,106 @@ html, body {
   }
 }
 
-/* Adaptación responsiva de hojas médicas en pantallas móviles (fuera de impresión) */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  footer, .pwa-floating-btn-container {
+    padding-bottom: max(0px, env(safe-area-inset-bottom));
+  }
+}
+
+/* ==========================================================================
+   DISEÑO FLUIDO Y RESPONSIVO EN PANTALLAS MÓVILES (PWA & CELULARES)
+   Garantiza que la app no se vea recortada ni gigante en teléfonos móviles
+   ========================================================================== */
 @media screen and (max-width: 768px) {
+  /* Hojas médicas fluidas y proporcionales en pantalla */
   .print-container,
   .recipe-4en1-container,
   .report-sheet-container,
   .indications-container,
   .rest-container,
   .clinical-history-container,
+  .clinical-history-sheet,
   .dual-recipe-container,
   .recipe-horizontal-2en1,
   .recipe-single-container,
-  .recipe-single-card {
+  .recipe-single-card,
+  .recipe-size-quarter {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: auto !important;
+    height: auto !important;
+    max-height: none !important;
+    padding: 12px 10px !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+    border-radius: 14px !important;
+  }
+
+  /* Grid 4 en 1 adaptable a 1 columna o 2 columnas compactas en móvil */
+  .recipe-4en1-grid {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: auto !important;
+    gap: 12px !important;
+    height: auto !important;
+  }
+
+  /* Contenedores principales flexibles (width: 100%, max-width: 600px en formularios) */
+  .fluid-mobile-container,
+  .wizard-step-container,
+  form {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Tablas responsivas con scroll horizontal suave si es necesario */
+  table {
+    width: 100% !important;
+    max-width: 100% !important;
+    table-layout: auto !important;
+  }
+
+  /* Adaptación de Botones de Acción (PDF, WhatsApp, Guardar) al ancho del celular */
+  .pwa-action-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    gap: 8px !important;
+  }
+
+  .pwa-action-btn {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    justify-content: center !important;
+    text-align: center !important;
+    padding: 12px 14px !important;
+    font-size: 13px !important;
+    border-radius: 14px !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Ajuste de tipografía de inputs para evitar zoom automático brusco en iOS/Android */
+  input[type="text"],
+  input[type="number"],
+  input[type="date"],
+  input[type="email"],
+  input[type="password"],
+  select,
+  textarea {
+    font-size: 14px !important;
     max-width: 100% !important;
     box-sizing: border-box !important;
   }
 
   /* Prevenir desbordamiento de modales en pantallas de teléfonos */
   .modal-overlay > div {
-    max-width: 96vw !important;
+    width: 95vw !important;
+    max-width: 95vw !important;
+    margin: 8px auto !important;
+    padding: 16px 12px !important;
+    max-height: 92vh !important;
+    overflow-y: auto !important;
   }
 }
 
