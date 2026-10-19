@@ -306,71 +306,88 @@ export const DocumentFooter: React.FC<DocumentFooterProps> = ({
         <div className="relative w-full flex items-end justify-center gap-3 sm:gap-4 min-h-[55px] mb-1 overflow-visible">
           
           {/* 1. Firma Real del Médico (a la izquierda de la línea) */}
-          {config.firmaImg && (
-            <div
-              onPointerDown={(e) => handlePointerDown(e, 'signature')}
-              onPointerMove={(e) => handlePointerMove(e, 'signature')}
-              onPointerUp={(e) => handlePointerUp(e, 'signature')}
-              onPointerCancel={(e) => handlePointerUp(e, 'signature')}
-              onTouchStart={(e) => handleTouchStart(e, 'signature')}
-              onTouchMove={(e) => handleTouchMove(e, 'signature')}
-              onTouchEnd={(e) => handleTouchEnd(e, 'signature')}
-              onTouchCancel={(e) => handleTouchEnd(e, 'signature')}
-              className={`relative select-none flex flex-col items-center justify-end ${
-                editableInline 
-                  ? 'cursor-grab active:cursor-grabbing hover:ring-2 hover:ring-indigo-400 hover:ring-dashed rounded-lg p-0.5 transition-shadow' 
-                  : ''
-              } ${activeDrag === 'signature' ? 'ring-2 ring-indigo-600 rounded-lg z-30 opacity-95 shadow-lg' : ''}`}
-              style={{
-                touchAction: 'none',
-                transform: `translate(${config.signaturePosX || 0}px, ${config.signaturePosY || 0}px)`,
-                zIndex: activeDrag === 'signature' ? 30 : 2,
-              }}
-              title={editableInline ? "Arrastre con el ratón o con el dedo para mover la firma libremente" : undefined}
-            >
-              <img
-                src={config.firmaImg}
-                alt="Firma Real del Médico"
-                className="firma-digital-print object-contain pointer-events-none transition-all"
+          {config.firmaImg && (() => {
+            const safeSigY = compact
+              ? Math.max(-20, Math.min(25, config.signaturePosY || 0))
+              : Math.max(-100, Math.min(100, config.signaturePosY || 0));
+            const safeSigX = compact
+              ? Math.max(-60, Math.min(60, config.signaturePosX || 0))
+              : (config.signaturePosX || 0);
+
+            return (
+              <div
+                onPointerDown={(e) => handlePointerDown(e, 'signature')}
+                onPointerMove={(e) => handlePointerMove(e, 'signature')}
+                onPointerUp={(e) => handlePointerUp(e, 'signature')}
+                onPointerCancel={(e) => handlePointerUp(e, 'signature')}
+                onTouchStart={(e) => handleTouchStart(e, 'signature')}
+                onTouchMove={(e) => handleTouchMove(e, 'signature')}
+                onTouchEnd={(e) => handleTouchEnd(e, 'signature')}
+                onTouchCancel={(e) => handleTouchEnd(e, 'signature')}
+                className={`relative select-none flex flex-col items-center justify-end ${
+                  editableInline 
+                    ? 'cursor-grab active:cursor-grabbing hover:ring-2 hover:ring-indigo-400 hover:ring-dashed rounded-lg p-0.5 transition-shadow' 
+                    : ''
+                } ${activeDrag === 'signature' ? 'ring-2 ring-indigo-600 rounded-lg z-30 opacity-95 shadow-lg' : ''}`}
                 style={{
-                  width: `${(typeof config.signatureSize === 'number' ? config.signatureSize : (parseFloat(String(config.signatureSize || '')) || (compact ? 90 : 135))) * (compact ? 0.78 : 1)}px`,
-                  maxWidth: '100%',
-                  maxHeight: compact ? '65px' : '110px',
-                  mixBlendMode: 'multiply',
+                  touchAction: 'none',
+                  transform: `translate(${safeSigX}px, ${safeSigY}px)`,
+                  zIndex: activeDrag === 'signature' ? 30 : 2,
                 }}
-              />
-              {editableInline && (
-                <div className="absolute -top-2 -right-2 bg-indigo-600 text-white rounded-full px-1 py-0.5 text-[8px] font-bold opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-opacity no-print shadow-md pointer-events-none">
-                  <Move className="w-2.5 h-2.5" />
-                  <span className="hidden sm:inline">Mover</span>
-                </div>
-              )}
-            </div>
-          )}
+                title={editableInline ? "Arrastre con el ratón o con el dedo para mover la firma libremente" : undefined}
+              >
+                <img
+                  src={config.firmaImg}
+                  alt="Firma Real del Médico"
+                  className="firma-digital-print object-contain pointer-events-none transition-all"
+                  style={{
+                    width: `${(typeof config.signatureSize === 'number' ? config.signatureSize : (parseFloat(String(config.signatureSize || '')) || (compact ? 90 : 135))) * (compact ? 0.78 : 1)}px`,
+                    maxWidth: '100%',
+                    maxHeight: compact ? '65px' : '110px',
+                    mixBlendMode: 'multiply',
+                  }}
+                />
+                {editableInline && (
+                  <div className="absolute -top-2 -right-2 bg-indigo-600 text-white rounded-full px-1 py-0.5 text-[8px] font-bold opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-opacity no-print shadow-md pointer-events-none">
+                    <Move className="w-2.5 h-2.5" />
+                    <span className="hidden sm:inline">Mover</span>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* 2. Sello del Médico (al lado de la firma, sin montarse encima) */}
-          {(config.selloImg || (!config.firmaImg && config.selloFirma)) && (
-            <div
-              onPointerDown={(e) => handlePointerDown(e, 'stamp')}
-              onPointerMove={(e) => handlePointerMove(e, 'stamp')}
-              onPointerUp={(e) => handlePointerUp(e, 'stamp')}
-              onPointerCancel={(e) => handlePointerUp(e, 'stamp')}
-              onTouchStart={(e) => handleTouchStart(e, 'stamp')}
-              onTouchMove={(e) => handleTouchMove(e, 'stamp')}
-              onTouchEnd={(e) => handleTouchEnd(e, 'stamp')}
-              onTouchCancel={(e) => handleTouchEnd(e, 'stamp')}
-              className={`relative select-none flex flex-col items-center justify-end ${
-                editableInline 
-                  ? 'cursor-grab active:cursor-grabbing hover:ring-2 hover:ring-blue-400 hover:ring-dashed rounded-lg p-0.5 transition-shadow' 
-                  : ''
-              } ${activeDrag === 'stamp' ? 'ring-2 ring-blue-600 rounded-lg z-20 opacity-95 shadow-lg' : ''}`}
-              style={{
-                touchAction: 'none',
-                transform: `translate(${config.stampPosX || 0}px, ${config.stampPosY || 0}px)`,
-                zIndex: activeDrag === 'stamp' ? 20 : 1,
-              }}
-              title={editableInline ? "Arrastre con el ratón o con el dedo para mover el sello libremente" : undefined}
-            >
+          {(config.selloImg || (!config.firmaImg && config.selloFirma)) && (() => {
+            const safeStampY = compact
+              ? Math.max(-20, Math.min(25, config.stampPosY || 0))
+              : Math.max(-100, Math.min(100, config.stampPosY || 0));
+            const safeStampX = compact
+              ? Math.max(-60, Math.min(60, config.stampPosX || 0))
+              : (config.stampPosX || 0);
+
+            return (
+              <div
+                onPointerDown={(e) => handlePointerDown(e, 'stamp')}
+                onPointerMove={(e) => handlePointerMove(e, 'stamp')}
+                onPointerUp={(e) => handlePointerUp(e, 'stamp')}
+                onPointerCancel={(e) => handlePointerUp(e, 'stamp')}
+                onTouchStart={(e) => handleTouchStart(e, 'stamp')}
+                onTouchMove={(e) => handleTouchMove(e, 'stamp')}
+                onTouchEnd={(e) => handleTouchEnd(e, 'stamp')}
+                onTouchCancel={(e) => handleTouchEnd(e, 'stamp')}
+                className={`relative select-none flex flex-col items-center justify-end ${
+                  editableInline 
+                    ? 'cursor-grab active:cursor-grabbing hover:ring-2 hover:ring-blue-400 hover:ring-dashed rounded-lg p-0.5 transition-shadow' 
+                    : ''
+                } ${activeDrag === 'stamp' ? 'ring-2 ring-blue-600 rounded-lg z-20 opacity-95 shadow-lg' : ''}`}
+                style={{
+                  touchAction: 'none',
+                  transform: `translate(${safeStampX}px, ${safeStampY}px)`,
+                  zIndex: activeDrag === 'stamp' ? 20 : 1,
+                }}
+                title={editableInline ? "Arrastre con el ratón o con el dedo para mover el sello libremente" : undefined}
+              >
               <img
                 src={config.selloImg || config.selloFirma}
                 alt="Sello Médico"
@@ -389,7 +406,8 @@ export const DocumentFooter: React.FC<DocumentFooterProps> = ({
                 </div>
               )}
             </div>
-          )}
+          );
+        })()}
 
           {/* Si no hay ni sello ni firma */}
           {!config.selloImg && !config.firmaImg && !config.selloFirma && (

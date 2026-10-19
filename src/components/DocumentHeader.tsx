@@ -179,7 +179,7 @@ export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
       )}
 
       {/* Central Medical Text Header Box */}
-      <div className={`flex-1 text-center px-1 ${layout === 'sin-logos' ? 'max-w-xl mx-auto py-1' : ''}`}>
+      <div className={`flex-1 min-w-0 text-center px-1 ${layout === 'sin-logos' ? 'max-w-xl mx-auto py-1' : ''}`}>
         
         {/* Cajón 1: Institución / Clínica / Hospital (Solo si el médico definió una institución) */}
         {config.institution && config.institution.trim() !== '' && (
@@ -202,64 +202,73 @@ export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
         )}
 
         {/* Cajón 2: Nombre del Médico / Colega Flanqueado por 2 Símbolos de la Medicina */}
-        <div className="flex items-center justify-center gap-1.5 sm:gap-2 my-1 max-w-full">
-          {showSymbols && (
-            <span 
-              className="shrink-0 inline-flex items-center justify-center opacity-85 select-none print:opacity-100"
-              title="Símbolo Médico Oficial"
-            >
-              <img 
-                src={symbolSvg} 
-                alt="Símbolo de la Medicina" 
-                className="inline-block transition-transform hover:scale-110"
-                style={{ 
-                  width: compact ? '12px' : '16px', 
-                  height: compact ? '12px' : '16px' 
-                }} 
-              />
-            </span>
-          )}
+        {(() => {
+          const parsedNombre = parseFloat(String(config.nombreSize || '16')) || 16;
+          const isRem = String(config.nombreSize || '').includes('rem');
+          const basePx = isRem ? parsedNombre * 16 : parsedNombre;
+          const nameFontSize = compact 
+            ? `${Math.min(14, Math.max(11, Math.round(basePx * 0.72)))}px`
+            : `${Math.min(20, Math.max(13, Math.round(basePx)))}px`;
 
-          <div
-            contentEditable={editableInline}
-            suppressContentEditableWarning
-            onBlur={(e) => onUpdateField?.('doctorName', e.currentTarget.innerText)}
-            className={`font-bold tracking-normal transition-all outline-none cursor-text break-words text-center max-w-full ${
-              editableInline ? 'hover:bg-blue-50/70 hover:ring-1 hover:ring-blue-300 rounded px-1.5' : ''
-            }`}
-            style={{
-              color: config.nombreColor || '#0f172a',
-              fontFamily: config.fuenteNombre,
-              fontSize: compact
-                ? `clamp(11px, calc(${config.nombreSize || '18px'} * ${scaleCompact}), 14.5px)`
-                : (config.nombreSize || '18px'),
-              letterSpacing: '0.01em',
-              lineHeight: '1.25',
-              wordBreak: 'break-word',
-              overflowWrap: 'break-word',
-            }}
-            title="Haga clic para editar el Nombre del Médico"
-          >
-            {config.doctorName || (editableInline ? 'Dr. [Nombre del Médico]' : '')}
-          </div>
+          return (
+            <div className="flex items-center justify-center gap-1.5 sm:gap-2 my-1 max-w-full">
+              {showSymbols && (
+                <span 
+                  className="shrink-0 inline-flex items-center justify-center opacity-85 select-none print:opacity-100"
+                  title="Símbolo Médico Oficial"
+                >
+                  <img 
+                    src={symbolSvg} 
+                    alt="Símbolo de la Medicina" 
+                    className="inline-block transition-transform hover:scale-110"
+                    style={{ 
+                      width: compact ? '11px' : '14px', 
+                      height: compact ? '11px' : '14px' 
+                    }} 
+                  />
+                </span>
+              )}
 
-          {showSymbols && (
-            <span 
-              className="shrink-0 inline-flex items-center justify-center opacity-85 select-none print:opacity-100"
-              title="Símbolo Médico Oficial"
-            >
-              <img 
-                src={symbolSvg} 
-                alt="Símbolo de la Medicina" 
-                className="inline-block transition-transform hover:scale-110"
-                style={{ 
-                  width: compact ? '12px' : '16px', 
-                  height: compact ? '12px' : '16px' 
-                }} 
-              />
-            </span>
-          )}
-        </div>
+              <div
+                contentEditable={editableInline}
+                suppressContentEditableWarning
+                onBlur={(e) => onUpdateField?.('doctorName', e.currentTarget.innerText)}
+                className={`font-black tracking-normal transition-all outline-none cursor-text break-words text-center ${
+                  editableInline ? 'hover:bg-blue-50/70 hover:ring-1 hover:ring-blue-300 rounded px-1.5' : ''
+                }`}
+                style={{
+                  color: config.nombreColor || '#0f172a',
+                  fontFamily: config.fuenteNombre,
+                  fontSize: nameFontSize,
+                  letterSpacing: '0.01em',
+                  lineHeight: '1.25',
+                  wordBreak: 'break-word',
+                  overflowWrap: 'break-word',
+                }}
+                title="Haga clic para editar el Nombre del Médico"
+              >
+                {config.doctorName || (editableInline ? 'Dr. [Nombre del Médico]' : '')}
+              </div>
+
+              {showSymbols && (
+                <span 
+                  className="shrink-0 inline-flex items-center justify-center opacity-85 select-none print:opacity-100"
+                  title="Símbolo Médico Oficial"
+                >
+                  <img 
+                    src={symbolSvg} 
+                    alt="Símbolo de la Medicina" 
+                    className="inline-block transition-transform hover:scale-110"
+                    style={{ 
+                      width: compact ? '11px' : '14px', 
+                      height: compact ? '11px' : '14px' 
+                    }} 
+                  />
+                </span>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Cajón 3: Especialidad Médica */}
         {(() => {
@@ -272,7 +281,7 @@ export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
               suppressContentEditableWarning
               onBlur={(e) => onUpdateField?.('specialty', e.currentTarget.innerText)}
               className={`font-semibold transition-colors leading-tight outline-none cursor-text ${
-                compact ? 'mt-0.5' : 'mt-1'
+                compact ? 'mt-1' : 'mt-1.5'
               } ${editableInline ? 'hover:bg-blue-50/70 hover:ring-1 hover:ring-blue-300 rounded px-1' : ''}`}
               style={{
                 color: config.specialtyColor || config.headerColor,

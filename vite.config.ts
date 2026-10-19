@@ -79,6 +79,19 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    rollupOptions: {
+      onwarn(warning, defaultHandler) {
+        if (
+          warning.code === 'MODULE_LEVEL_DIRECTIVE' ||
+          (warning.message && warning.message.includes('Module level directives'))
+        ) {
+          return;
+        }
+        defaultHandler(warning);
+      },
+    },
+  },
   server: {
     port: 3000
   }

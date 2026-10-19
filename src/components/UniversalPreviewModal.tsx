@@ -287,202 +287,33 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
     <div className="fixed inset-0 z-50 flex flex-col bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-150">
       
       {/* Top Header & Document Switcher */}
-      <div className="px-5 py-3 bg-slate-900 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 text-white shrink-0 shadow-xl">
+      <div className="px-5 py-3.5 bg-slate-900 border-b border-slate-800 flex items-center justify-between text-white shrink-0 shadow-xl">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md">
             <Eye className="w-5 h-5" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="font-bold text-sm text-white">Vista Previa Fiel 1:1 de Impresión y PDF</h2>
+              <h2 className="font-bold text-sm sm:text-base text-white">Vista Previa del Formato Oficial</h2>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30 flex items-center gap-1">
                 <CheckCircle2 className="w-3 h-3" /> {specs.sheetBadge.replace('4 en 1', 'Récipes')}
               </span>
             </div>
             <p className="text-xs text-slate-400">
-              Formato exacto: <span className="text-slate-200 font-semibold">{specs.sizeName}</span>
+              Formato exacto: <span className="text-slate-200 font-semibold">{specs.sizeName}</span> · Vista previa fiel de cómo queda
             </p>
           </div>
         </div>
 
-        {/* Switch between Documents */}
-        <div className="flex items-center bg-slate-800/90 rounded-2xl p-1.5 border border-slate-700/80 gap-1.5 overflow-x-auto max-w-full shadow-inner">
-          {[
-            { id: 'recipe-master', label: '💊 Récipe Médico', icon: FileCheck2 },
-            { id: 'indicaciones', label: '🕐 Indicaciones', icon: ClipboardList },
-            { id: 'informes', label: '📋 Informe Médico', icon: FileText },
-            { id: 'reposo', label: '⏱️ Reposo / Constancia', icon: ShieldCheck },
-          ].map((item) => {
-            const isSelected = selectedPreviewModule === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => {
-                  setSelectedPreviewModule(item.id as ActiveModule);
-                  onSelectModule?.(item.id as ActiveModule);
-                }}
-                className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-black flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
-                  isSelected
-                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md ring-2 ring-blue-400 scale-105'
-                    : 'text-slate-300 hover:text-white hover:bg-slate-700/80'
-                }`}
-              >
-                <span>{item.label}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Actions & Zoom */}
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* Zoom Controls with Mobile Fit & Desktop Toggle */}
-          <div className="flex items-center bg-slate-800 rounded-xl p-1 border border-slate-700 text-xs text-slate-300">
-            <button
-              onClick={() => setZoom((z) => Math.max(25, z - 5))}
-              className="p-1.5 hover:bg-slate-700 rounded-lg transition-colors cursor-pointer"
-              title="Reducir Zoom"
-            >
-              <ZoomOut className="w-3.5 h-3.5" />
-            </button>
-            <span className="px-2 font-mono font-bold text-xs min-w-[36px] text-center">{zoom}%</span>
-            <button
-              onClick={() => setZoom((z) => Math.min(130, z + 5))}
-              className="p-1.5 hover:bg-slate-700 rounded-lg transition-colors cursor-pointer"
-              title="Aumentar Zoom"
-            >
-              <ZoomIn className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => setZoom(calculateMobileFitZoom())}
-              className="px-2 py-1 ml-0.5 hover:bg-slate-700 rounded-lg text-[10px] font-bold text-cyan-300 transition-colors cursor-pointer border-l border-slate-700"
-              title="Ajustar toda la hoja a la pantalla del teléfono sin que se corte nada"
-            >
-              📱 Ajustar
-            </button>
-            <button
-              onClick={() => setZoom(100)}
-              className="px-2 py-1 hover:bg-slate-700 rounded-lg text-[10px] font-bold text-slate-300 transition-colors cursor-pointer"
-              title="Ver en tamaño real de escritorio (100%)"
-            >
-              🖥️ 100%
-            </button>
-          </div>
-
-          {selectedPreviewModule === 'recipe-master' && (
-            <div className="flex items-center bg-slate-800 rounded-xl p-1 border border-slate-700 text-xs gap-1">
-              <span className="text-[11px] font-bold text-slate-400 px-1">📐 Formato:</span>
-              <button
-                type="button"
-                onClick={() => setRecipePreviewSize('quarter')}
-                className={`px-2 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  recipePreviewSize === 'quarter'
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-                title="1/4 de hoja carta (pequeño - 4 caben en una hoja)"
-              >
-                1/4 Hoja (4)
-              </button>
-              <button
-                type="button"
-                onClick={() => setRecipePreviewSize('half')}
-                className={`px-2 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  recipePreviewSize === 'half'
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-                title="Media carta horizontal (2 caben en una hoja)"
-              >
-                Media Carta (2)
-              </button>
-              <button
-                type="button"
-                onClick={() => setRecipePreviewSize('letter')}
-                className={`px-2 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  recipePreviewSize === 'letter'
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-                title="Hoja carta completa"
-              >
-                Carta Entera
-              </button>
-            </div>
-          )}
-
-
-
-          {/* Botón WhatsApp Business */}
-          <button
-            onClick={() => {
-              let patientName = recipe?.patientName || 'Carlos leal';
-              let docTitle = 'Récipe Médico';
-              let dateStr = recipe?.date || '14/10/26';
-              let phoneStr = recipe?.patientPhone || '';
-
-              let treatment = [recipe?.rp?.trim(), recipe?.indicationsNotes?.trim()].filter(Boolean).join('\n\n');
-              let docType = 'recipe';
-
-              if (selectedPreviewModule === 'informe' || selectedPreviewModule === 'informes') {
-                patientName = currentReport?.patientName || patientName;
-                docTitle = 'Informe Médico';
-                docType = 'report';
-                dateStr = currentReport?.date || dateStr;
-                phoneStr = currentReport?.patientPhone || phoneStr;
-                treatment = [currentReport?.diagnosticImpression ? `Diagnóstico: ${currentReport.diagnosticImpression}` : '', currentReport?.treatmentPlan ? `Plan/Tratamiento: ${currentReport.treatmentPlan}` : ''].filter(Boolean).join('\n\n');
-              } else if (selectedPreviewModule === 'reposo') {
-                patientName = medicalRestCert?.patientName || patientName;
-                docTitle = 'Constancia de Reposo';
-                docType = 'rest';
-                dateStr = medicalRestCert?.date || dateStr;
-                phoneStr = medicalRestCert?.patientPhone || phoneStr;
-                treatment = `Reposo por ${medicalRestCert?.daysRest || 1} días. Diagnóstico: ${medicalRestCert?.diagnosis || 'Reposo médico'}`;
-              } else if (selectedPreviewModule === 'indicaciones') {
-                patientName = indicationsSheet?.patientName || patientName;
-                docTitle = 'Indicaciones Médicas';
-                docType = 'indications';
-                dateStr = indicationsSheet?.date || dateStr;
-                phoneStr = indicationsSheet?.patientPhone || phoneStr;
-                treatment = [indicationsSheet?.medicationSchedule, indicationsSheet?.dietAndRest].filter(Boolean).join('\n\n');
-              }
-
-              exportAndSendWhatsAppBusiness({
-                element: previewSheetRef.current,
-                patientName,
-                documentTitle: docTitle,
-                dateStr,
-                patientPhone: phoneStr,
-                doctorName: config.doctorName || 'Dr. Carlos Leal',
-                treatmentDetails: treatment,
-                documentType: docType,
-              });
-            }}
-            className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-md transition-all hover:scale-[1.02] cursor-pointer border border-emerald-500"
-            title="Enviar documento por WhatsApp con PDF y detalle de tratamiento"
-          >
-            <span className="text-sm">📱</span>
-            <span>Enviar por WhatsApp</span>
-          </button>
-
-          <button
-            onClick={handleDownloadDirectPDF}
-            className="px-3.5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-md transition-all hover:scale-[1.02] cursor-pointer"
-            title="Descargar y guardar PDF oficial firmado y sellado"
-          >
-            <Download className="w-4 h-4 text-cyan-200" />
-            <span>Descargar PDF</span>
-          </button>
-
-          {/* Prominent Red Exit Button requested by the user */}
-          <button
-            onClick={onClose}
-            className="px-3.5 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-md transition-all hover:scale-[1.02] cursor-pointer"
-            title="Salir de Vista Previa"
-          >
-            <X className="w-4 h-4" />
-            <span>Salir</span>
-          </button>
-        </div>
+        {/* UN SOLO BOTÓN PARA SALIR DE ALLÍ */}
+        <button
+          onClick={onClose}
+          className="px-5 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl font-black text-xs flex items-center gap-2 shadow-lg shadow-red-600/30 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer"
+          title="Salir de la Vista Previa"
+        >
+          <X className="w-4 h-4" />
+          <span>Salir de la Vista Previa</span>
+        </button>
       </div>
 
       {/* Floating Notice Banner when PDF is downloaded or shared */}

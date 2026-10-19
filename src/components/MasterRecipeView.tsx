@@ -4,7 +4,7 @@ import { DocumentHeader } from './DocumentHeader';
 import { DocumentFooter } from './DocumentFooter';
 import { WhatsAppShareModal } from './WhatsAppShareModal';
 import { getDocumentBorderStyle, getPaperTextureClass } from '../utils/documentStyles';
-import { exportAndSendWhatsAppBusiness } from '../utils/exportDocument';
+import { exportAndSendWhatsAppBusiness, exportElementAsPDF, buildDocumentPdfFilename } from '../utils/exportDocument';
 import { CheckCircle2, MessageSquare, Printer, Download, Save, Trash2, Plus, ArrowLeft, ArrowRight, Scissors, Eye, Mail } from 'lucide-react';
 
 interface MasterRecipeViewProps {
@@ -79,20 +79,36 @@ export const MasterRecipeView: React.FC<MasterRecipeViewProps> = ({
               <span>Inicio</span>
             </button>
           )}
-          <span className="font-bold text-xs text-white">Récipe Médico (Vista Principal)</span>
+          <span className="font-bold text-xs text-blue-400 bg-blue-950/80 px-2 py-0.5 rounded-md border border-blue-800">💊 Récipe</span>
+          {onNavigateToIndications && (
+            <button
+              type="button"
+              onClick={onNavigateToIndications}
+              className="px-2.5 py-1 bg-slate-800 hover:bg-indigo-900 text-slate-300 hover:text-indigo-200 font-bold rounded-lg border border-slate-700 hover:border-indigo-600 flex items-center gap-1 transition-colors cursor-pointer"
+              title="Ir a Hoja de Indicaciones"
+            >
+              <span>🕐 Indicaciones</span>
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
-          {onDownloadPdf && (
-            <button
-              type="button"
-              onClick={onDownloadPdf}
-              className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-xl text-xs flex items-center gap-1 shadow-sm transition-all cursor-pointer border border-blue-400/40"
-              title="Descargar PDF"
-            >
-              <span>📥 PDF</span>
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={async () => {
+              if (onDownloadPdf) {
+                onDownloadPdf();
+              } else {
+                const el = printableSheetRef.current || document.getElementById('recipe-medico') || document.getElementById('recibo-medico');
+                const filename = buildDocumentPdfFilename('Récipe', recipe.patientName || 'Carlos Pérez', recipe.date || new Date().toLocaleDateString('es-VE'));
+                await exportElementAsPDF(el, filename);
+              }
+            }}
+            className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-xl text-xs flex items-center gap-1 shadow-sm transition-all cursor-pointer border border-blue-400/40"
+            title="Descargar PDF"
+          >
+            <span>📥 PDF</span>
+          </button>
 
           <button
             type="button"
@@ -136,7 +152,8 @@ export const MasterRecipeView: React.FC<MasterRecipeViewProps> = ({
       <div className="w-full flex justify-center">
         <div
           ref={printableSheetRef}
-          id="recibo-medico"
+          id="recipe-medico"
+          data-testid="recibo-medico"
           className={`relative w-full max-w-[660px] min-h-[680px] bg-white shadow-xl p-6 sm:p-7 rounded-2xl transition-all print-container recipe-single-container flex flex-col justify-between ${textureClass} ${
             config.enforcePureBlackText ? 'enforce-pure-black' : ''
           }`}

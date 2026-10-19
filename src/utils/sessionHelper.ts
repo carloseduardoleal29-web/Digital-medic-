@@ -80,9 +80,12 @@ export function getStoredDoctorSessionId(): string | null {
     if (localStored && localStored !== 'guest' && localStored.trim() !== '') {
       return localStored;
     }
+
+    // Default to the master doctor profile so the user is immediately in their workspace
+    return DEFAULT_MASTER_SESSION_ID;
   } catch (e) {}
 
-  return null;
+  return DEFAULT_MASTER_SESSION_ID;
 }
 
 /**

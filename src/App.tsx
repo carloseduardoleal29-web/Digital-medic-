@@ -2599,9 +2599,9 @@ export default function App() {
       container = document.querySelector<HTMLElement>('#recipe-4en1-print-sheet, .recipe-4en1-container') ||
         document.querySelector<HTMLElement>('#recipe-quarter-print-container, .recipe-single-card');
     } else if (activeModule === 'recipe-master' || activeModule === 'recipe') {
-      container = document.querySelector<HTMLElement>('#recipe-quarter-print-container, .recipe-size-quarter, #recipe-single-print-container, .recipe-single-card, .recipe-single-container');
+      container = document.querySelector<HTMLElement>('#recipe-medico, #recibo-medico, [data-testid="recibo-medico"], .recipe-single-container, #recipe-quarter-print-container');
     } else {
-      container = document.querySelector<HTMLElement>('#recipe-4en1-print-sheet, .recipe-4en1-container, #recipe-quarter-print-container, .recipe-size-quarter, #recipe-single-print-container, .recipe-single-card');
+      container = document.querySelector<HTMLElement>('#recipe-medico, #recibo-medico, #recipe-4en1-print-sheet, .recipe-4en1-container, #recipe-single-print-container');
     }
     
     if (!container) {
@@ -3575,8 +3575,6 @@ export default function App() {
                     </button>
                     <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
                     <span className="text-slate-900 font-extrabold flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-0.5 rounded-lg border border-blue-200/80">
-                      {activeModule === 'recipe-4en1' && '💊 Récipes Médicos'}
-                      {activeModule === 'recipe-master' && '📄 Récipe Individual'}
                       {activeModule === 'informes' && '📋 Informe Médico'}
                       {activeModule === 'reposo' && '⏱️ Constancia / Reposo'}
                       {activeModule === 'historias' && '📁 Historia Clínica'}
@@ -3601,18 +3599,12 @@ export default function App() {
                 )}
               </div>
 
-              {/* Bottom Row: Proportional, Legible & Touch-Friendly Direct Module Tabs - MUCH LARGER & LLAMATIVOS */}
-              {/* Bottom Row: 2-Row Grid of Rounded, Strikingly Colorful & Eyecatching Module Buttons */}
+              {/* Bottom Row: Proportional, Legible & Touch-Friendly Direct Module Tabs */}
               <div className="bg-slate-200/80 p-2.5 sm:p-3 rounded-3xl border border-slate-300/80 shadow-inner space-y-2">
-                {/* Row 1: Récipes, Indicaciones, Informe Médico */}
                 <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
                   <button
                     onClick={() => handleNavigate('recipe-master')}
-                    className={`rounded-full px-3 py-2.5 sm:px-4 sm:py-3 font-black text-xs sm:text-sm transition-all cursor-pointer flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap shadow-sm hover:scale-[1.02] active:scale-95 ${
-                      activeModule === 'recipe-master' || activeModule === 'recipe' || activeModule === 'recipe-4en1'
-                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/30 ring-2 ring-blue-300 font-extrabold'
-                        : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 border border-blue-400/50'
-                    }`}
+                    className="rounded-full px-3 py-2.5 sm:px-4 sm:py-3 font-black text-xs sm:text-sm transition-all cursor-pointer flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap shadow-sm hover:scale-[1.02] active:scale-95 bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 border border-blue-400/50"
                     title="Ir a Récipes Médicos"
                   >
                     <span className="text-sm sm:text-base">💊</span>
@@ -3646,7 +3638,6 @@ export default function App() {
                   </button>
                 </div>
 
-                {/* Row 2: Reposo Médico, Historias, Estudio de Diseño */}
                 <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
                   <button
                     onClick={() => handleNavigate('reposo')}
@@ -3682,10 +3673,10 @@ export default function App() {
                           ? 'bg-gradient-to-r from-rose-500 via-purple-600 to-amber-500 text-white shadow-md ring-2 ring-amber-300 font-extrabold'
                           : 'bg-gradient-to-r from-rose-500 to-pink-600 text-white hover:from-rose-600 hover:to-pink-700 border border-rose-400/50'
                       }`}
-                      title="Estudio de Diseño PRO (Exclusivo Administrador y VIP)"
+                      title="Estudio de Diseño PRO"
                     >
                       <Palette className="w-4 h-4 text-amber-200" />
-                      <span>Diseño {config.isAdmin ? '(ADMIN)' : '(VIP)'}</span>
+                      <span>Diseño</span>
                     </button>
                   ) : (
                     <button
@@ -3703,16 +3694,16 @@ export default function App() {
             </div>
           )}
           
-          {/* Drug Bank Bar (Shown for recipes, indications and design preview) */}
-          {(activeModule === 'recipe-4en1' || activeModule === 'recipe-master' || activeModule === 'indicaciones') && !isPreviewMode && (
-            <div className={`w-full ${activeModule === 'indicaciones' ? 'max-w-[800px]' : 'max-w-[880px]'}`}>
+          {/* Banco de Fármacos y Medicamentos Oficial (para Récipes e Indicaciones) */}
+          {(activeModule === 'recipe-master' || activeModule === 'recipe' || activeModule === 'recipe-4en1' || activeModule === 'indicaciones') && !isPreviewMode && (
+            <div className={`w-full ${activeModule === 'indicaciones' ? 'max-w-[800px]' : 'max-w-[850px]'} mb-3 no-print`}>
               <DrugBankFloatingBar
                 onAddDrugToRecipe={
                   activeModule === 'indicaciones'
                     ? (text) => handleAddDrugToIndications(text)
                     : handleAddDrugToRecipe
                 }
-                recipesCount={activeModule === 'recipe-4en1' ? 4 : 1}
+                recipesCount={1}
                 activeRecipeIndex={activeRecipeIndex}
                 isIndicationsMode={activeModule === 'indicaciones'}
               />
@@ -3920,47 +3911,23 @@ export default function App() {
             <ProgressiveRecipeWizard
               config={config}
               recipe={recipes[activeRecipeIndex] || recipes[0]}
-              onChangeRecipe={(upd) => handleUpdateRecipe(activeRecipeIndex, upd)}
               indications={indications}
+              onChangeRecipe={(upd) => handleUpdateRecipe(activeRecipeIndex, upd)}
               onChangeIndications={(upd) => {
-                setIndications(prev => ({ ...prev, ...upd }));
-                try {
-                  localStorage.setItem('digital_medic_indications_v2', JSON.stringify({ ...indications, ...upd }));
-                } catch (_) {}
+                setIndications((prev) => ({ ...prev, ...upd }));
+                hasUserEditedStateRef.current = true;
               }}
+              onOpenPreviewModal={() => setIsWelcomeBlankRecipeOpen(true)}
               onUpdateConfig={updateCurrentConfig}
               onPrint={handleTriggerPrint}
               onDownloadPdf={() => handleDownloadRealPdf(null)}
               onOpenEmailModal={() => handleOpenEmailDirectly('recipe-master')}
               onSavePatientOnly={() => handleSavePatientOnly('recipe-master')}
-              onOpenPatientBank={() => setIsPatientBankOpen(true)}
-              onOpenPreviewModal={() => {
-                setPreviewInitialModule('recipe-master');
-                setIsUniversalPreviewOpen(true);
-              }}
               onClearRecipeToBlank={() => handleClearRecipeToBlank(activeRecipeIndex)}
+              onOpenPatientBank={() => setIsPatientBankOpen(true)}
               onBackToHome={() => handleNavigate('inicio')}
-              existingPatients={patientBank}
-              onSelectExistingPatient={(p) => {
-                handleUpdateRecipe(activeRecipeIndex, {
-                  patientName: p.patientName,
-                  patientCI: p.patientCI,
-                  patientAge: p.patientAge,
-                  patientPhone: p.patientPhone || '',
-                  patientEmail: p.patientEmail || '',
-                  diagnosis: p.diagnosis || '',
-                  rp: p.rp || '',
-                  indicationsNotes: p.indicationsNotes || '',
-                });
-                setIndications(prev => ({
-                  ...prev,
-                  patientName: p.patientName,
-                  patientCI: p.patientCI,
-                  patientAge: p.patientAge,
-                  patientPhone: p.patientPhone || '',
-                  diagnosis: p.diagnosis || prev.diagnosis,
-                }));
-              }}
+              existingPatients={availableSessionPatients as any}
+              onSelectExistingPatient={(p) => handleLoadPatientToAllFormats(p as any)}
             />
           )}
 

@@ -170,21 +170,22 @@ export async function exportElementAsPDF(
     const datos = customDatos || extractDatosFromApp();
     const filename = rawFilename || buildDocumentPdfFilename('Récipe', datos.nombrePaciente, datos.fecha);
 
-    let targetEl = element || 
-                   document.querySelector('#recipe-medico') ||
-                   document.querySelector('#recibo-medico') || 
-                   document.querySelector('.print-container') || 
-                   document.querySelector('#indications-print-container') ||
-                   document.querySelector('#recipe-quarter-print-container') ||
-                   document.querySelector('#recipe-single-print-container');
+    let targetEl: HTMLElement | null = element || 
+                   document.querySelector<HTMLElement>('#recipe-medico') ||
+                   document.querySelector<HTMLElement>('#recibo-medico') || 
+                   document.querySelector<HTMLElement>('.print-container') || 
+                   document.querySelector<HTMLElement>('#indications-print-container') ||
+                   document.querySelector<HTMLElement>('#recipe-quarter-print-container') ||
+                   document.querySelector<HTMLElement>('#recipe-single-print-container');
 
     if (!targetEl && typeof document !== 'undefined') {
-      targetEl = document.createElement('div');
-      targetEl.style.width = '816px';
-      targetEl.style.backgroundColor = '#ffffff';
-      targetEl.style.padding = '32px';
-      targetEl.id = 'recibo-medico';
-      targetEl.className = 'print-container recipe-single-container';
+      const fallbackDiv = document.createElement('div');
+      fallbackDiv.style.width = '816px';
+      fallbackDiv.style.backgroundColor = '#ffffff';
+      fallbackDiv.style.padding = '32px';
+      fallbackDiv.id = 'recibo-medico';
+      fallbackDiv.className = 'print-container recipe-single-container';
+      targetEl = fallbackDiv;
       targetEl.innerHTML = `
         <div style="border: 2px solid #1e3a8a; border-radius: 16px; padding: 24px; background: #fff;">
           <h2 style="color: #1e3a8a; text-align: center; margin: 0; font-size: 22px; font-weight: 900;">${(datos.nombreMedico || 'Dr. Carlos Leal').toUpperCase()}</h2>
@@ -212,17 +213,55 @@ export async function exportElementAsPDF(
       document.body.appendChild(targetEl);
     }
 
-    const opt = {
-      margin:       5,
-      filename:     filename,
-      image:        { type: 'jpeg', quality: 0.98 },
-      html2canvas:  { scale: 2.5, useCORS: true, logging: false, letterRendering: true },
-      jsPDF:        { unit: 'mm', format: 'letter', orientation: 'portrait' }
+    const getPdfRunner = () => {
+      if (typeof window !== 'undefined' && (window as any).html2pdf) {
+        return (window as any).html2pdf;
+      }
+      if (typeof html2pdf === 'function') return html2pdf;
+      if ((html2pdf as any)?.default) return (html2pdf as any).default;
+      return html2pdf;
     };
 
-    await html2pdf().from(targetEl).set(opt).save();
+    const sanitizeClonedDocForPdf = (clonedDoc: Document) => {
+      // 1. Remove all elements with .no-print
+      clonedDoc.querySelectorAll('.no-print').forEach((el) => el.remove());
 
-    if (targetEl && targetEl.parentNode === document.body && !element && !document.querySelector('#recibo-medico')) {
+      // 2. Convert all textareas to high-fidelity readable pre-wrap text divs so no medications are cut off
+      clonedDoc.querySelectorAll('textarea').forEach((ta) => {
+        const div = clonedDoc.createElement('div');
+        div.style.whiteSpace = 'pre-wrap';
+        div.style.fontFamily = ta.style.fontFamily || 'inherit';
+        div.style.fontSize = ta.style.fontSize || '13px';
+        div.style.lineHeight = ta.style.lineHeight || '1.6';
+        div.style.color = '#0f172a';
+        div.style.fontWeight = '600';
+        div.style.padding = '4px 0';
+        div.style.width = '100%';
+        div.textContent = ta.value || '';
+        ta.parentNode?.replaceChild(div, ta);
+      });
+    };
+
+    const isLandscape = targetEl?.id === 'recipe-indications-dual-sheet';
+
+    const opt = {
+      margin:       4,
+      filename:     filename,
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { 
+        scale: 2, 
+        useCORS: true, 
+        allowTaint: true, 
+        logging: false,
+        onclone: sanitizeClonedDocForPdf
+      },
+      jsPDF:        { unit: 'mm', format: 'letter', orientation: isLandscape ? 'landscape' : 'portrait' }
+    };
+
+    const runner = getPdfRunner();
+    await runner().from(targetEl).set(opt).save();
+
+    if (targetEl && targetEl.parentNode === document.body && !element && !document.querySelector('#recipe-medico') && !document.querySelector('#recibo-medico')) {
       try { document.body.removeChild(targetEl); } catch (_) {}
     }
 
@@ -248,15 +287,48 @@ export async function generatePDFBlob(
 ): Promise<Blob | null> {
   try {
     const datos = customDatos || extractDatosFromApp();
-    let targetEl = targetElement || document.querySelector('#recibo-medico') || document.querySelector('.print-container');
+    let targetEl = targetElement || 
+                   document.querySelector('#recipe-medico') || 
+                   document.querySelector('#recibo-medico') || 
+                   document.querySelector('[data-testid="recibo-medico"]') ||
+                   document.querySelector('.print-container');
     if (!targetEl) return null;
+    const isLandscape = targetEl?.id === 'recipe-indications-dual-sheet';
     const opt = {
-      margin: 5,
+      margin: 4,
       image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, logging: false },
-      jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' }
+      html2canvas: { 
+        scale: 2, 
+        useCORS: true, 
+        allowTaint: true, 
+        logging: false,
+        onclone: (clonedDoc: Document) => {
+          clonedDoc.querySelectorAll('.no-print').forEach((el) => el.remove());
+          clonedDoc.querySelectorAll('textarea').forEach((ta) => {
+            const div = clonedDoc.createElement('div');
+            div.style.whiteSpace = 'pre-wrap';
+            div.style.fontFamily = ta.style.fontFamily || 'inherit';
+            div.style.fontSize = ta.style.fontSize || '13px';
+            div.style.lineHeight = ta.style.lineHeight || '1.6';
+            div.style.color = '#0f172a';
+            div.style.fontWeight = '600';
+            div.style.padding = '4px 0';
+            div.style.width = '100%';
+            div.textContent = ta.value || '';
+            ta.parentNode?.replaceChild(div, ta);
+          });
+        }
+      },
+      jsPDF: { unit: 'mm', format: 'letter', orientation: isLandscape ? 'landscape' : 'portrait' }
     };
-    const pdfWorker = html2pdf().from(targetEl).set(opt).outputPdf('blob');
+    const getPdfRunner = () => {
+      if (typeof window !== 'undefined' && (window as any).html2pdf) return (window as any).html2pdf;
+      if (typeof html2pdf === 'function') return html2pdf;
+      if ((html2pdf as any)?.default) return (html2pdf as any).default;
+      return html2pdf;
+    };
+    const runner = getPdfRunner();
+    const pdfWorker = runner().from(targetEl).set(opt).outputPdf('blob');
     return await pdfWorker;
   } catch (e) {
     console.error('[Digital Medic] generatePDFBlob error:', e);

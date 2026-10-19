@@ -122,6 +122,7 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
   const [step2CatalogTab, setStep2CatalogTab] = useState<'drugs' | 'schedules' | 'diet' | 'alarms'>('drugs');
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [step4QuickDrugText, setStep4QuickDrugText] = useState('');
 
   // Custom drugs persistentes en localStorage (mismo banco que el sistema general)
   const [customDrugs, setCustomDrugs] = useState<DrugItem[]>(() => {
@@ -220,6 +221,27 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
     }
   };
 
+  // Auto-sincronizar indicaciones con los fármacos del récipe si las indicaciones están vacías
+  useEffect(() => {
+    if (recipe.rp && recipe.rp.trim() && (!localIndications.generalInstructions || !localIndications.generalInstructions.trim())) {
+      const lines = recipe.rp.split('\n').filter((l: string) => l.trim().length > 0);
+      const generated: string[] = [];
+      lines.forEach((line: string) => {
+        const cleanLine = line.replace(/^\d+[\.\-\)]\s*/, '').trim();
+        if (!cleanLine) return;
+        const matches = searchDrugs(cleanLine.split(' ')[0] || cleanLine, customDrugs);
+        if (matches.length > 0) {
+          generated.push(`• ${cleanLine}: ${matches[0].instructions}`);
+        } else {
+          generated.push(`• ${cleanLine}: Tomar según posología médica indicada.`);
+        }
+      });
+      if (generated.length > 0) {
+        updateIndicationsField('generalInstructions', generated.join('\n'));
+      }
+    }
+  }, [recipe.rp]);
+
   // Referencias a los contenedores de captura e impresión
   const printableDualRef = useRef<HTMLDivElement>(null);
   const printableRecipeRef = useRef<HTMLDivElement>(null);
@@ -299,6 +321,28 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
     setTimeout(() => setCopyFeedback(null), 2000);
   };
 
+  // Inserción directa de medicamento en Paso 4 (Final del Récipe)
+  const handleQuickAddDrugInStep4 = (text: string) => {
+    const clean = text.trim();
+    if (!clean) return;
+    const currentRp = recipe.rp ? recipe.rp.trim() : '';
+    const lines = currentRp ? currentRp.split('\n').filter((l: string) => l.trim().length > 0) : [];
+    const nextNumber = lines.length + 1;
+    const newEntry = `${nextNumber}. ${clean}`;
+    const updatedRp = currentRp ? `${currentRp}\n${newEntry}` : newEntry;
+    onChangeRecipe({ rp: updatedRp });
+
+    // Sincronizar automáticamente con las indicaciones
+    const currentInd = localIndications.generalInstructions ? localIndications.generalInstructions.trim() : '';
+    const newInd = `• ${clean}: Tomar según posología médica indicada.`;
+    const updatedInd = currentInd ? `${currentInd}\n${newInd}` : newInd;
+    updateIndicationsField('generalInstructions', updatedInd);
+
+    setCopyFeedback(`✓ "${clean}" añadido al récipe e indicaciones`);
+    setTimeout(() => setCopyFeedback(null), 2500);
+    setStep4QuickDrugText('');
+  };
+
   // Inserción de posología directa en Paso 3 (Indicaciones)
   const handleInsertPosologyToIndications = (text: string) => {
     const current = localIndications.generalInstructions ? localIndications.generalInstructions.trim() : '';
@@ -326,6 +370,56 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
     setTimeout(() => setCopyFeedback(null), 2000);
   };
 
+  // Sincronizar automáticamente los fármacos de Rp con la hoja de indicaciones
+  const syncIndicationsWithRecipeText = (rpText: string, forceOverwrite = false) => {
+    if (!rpText || !rpText.trim()) return;
+
+    const lines = rpText.split('\n').filter((l: string) => l.trim().length > 0);
+    if (lines.length === 0) return;
+
+    const currentInstructions = localIndications.generalInstructions?.trim() || '';
+
+    // Si está vacío o se pide forzar sobrescritura completa:
+    if (!currentInstructions || forceOverwrite) {
+      const generated: string[] = [];
+      lines.forEach((line: string) => {
+        const cleanLine = line.replace(/^\d+[\.\-\)]\s*/, '').trim();
+        if (!cleanLine) return;
+        const matches = searchDrugs(cleanLine.split(' ')[0] || cleanLine, customDrugs);
+        if (matches.length > 0) {
+          generated.push(`• ${cleanLine}: ${matches[0].instructions}`);
+        } else {
+          generated.push(`• ${cleanLine}: Tomar según posología médica indicada.`);
+        }
+      });
+      if (generated.length > 0) {
+        updateIndicationsField('generalInstructions', generated.join('\n'));
+      }
+      return;
+    }
+
+    // Si el médico ya escribió o modificó texto, respetar sus cambios y añadir solo los nuevos:
+    const newItems: string[] = [];
+    lines.forEach((line: string) => {
+      const cleanLine = line.replace(/^\d+[\.\-\)]\s*/, '').trim();
+      if (!cleanLine) return;
+      const drugKey = cleanLine.split(' ')[0].toLowerCase();
+      if (!currentInstructions.toLowerCase().includes(drugKey)) {
+        const matches = searchDrugs(cleanLine.split(' ')[0] || cleanLine, customDrugs);
+        if (matches.length > 0) {
+          newItems.push(`• ${cleanLine}: ${matches[0].instructions}`);
+        } else {
+          newItems.push(`• ${cleanLine}: Tomar según posología médica indicada.`);
+        }
+      }
+    });
+
+    if (newItems.length > 0) {
+      const merged = `${currentInstructions}\n${newItems.join('\n')}`;
+      updateIndicationsField('generalInstructions', merged);
+    }
+  };
+
   // Generar instrucciones sugeridas basadas en el Rp con búsqueda inteligente en el catálogo
   const handleAutoFillIndicationsFromRp = () => {
     if (!recipe.rp || !recipe.rp.trim()) {
@@ -333,30 +427,9 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
       setTimeout(() => setCopyFeedback(null), 2500);
       return;
     }
-
-    const lines = recipe.rp.split('\n').filter((l: string) => l.trim().length > 0);
-    const generatedIndications: string[] = [];
-
-    lines.forEach((line: string) => {
-      const cleanLine = line.replace(/^\d+[\.\-\)]\s*/, '').trim();
-      if (!cleanLine) return;
-
-      // Buscar si coincide con algún fármaco de nuestro catálogo
-      const matches = searchDrugs(cleanLine.split(' ')[0] || cleanLine, customDrugs);
-      if (matches.length > 0) {
-        const topMatch = matches[0];
-        generatedIndications.push(`• ${cleanLine}: ${topMatch.instructions}`);
-      } else {
-        generatedIndications.push(`• ${cleanLine}: Tomar según pauta médica indicada.`);
-      }
-    });
-
-    if (generatedIndications.length > 0) {
-      const resultText = generatedIndications.join('\n');
-      updateIndicationsField('generalInstructions', resultText);
-      setCopyFeedback(`✓ Sincronizadas ${generatedIndications.length} posologías del récipe`);
-      setTimeout(() => setCopyFeedback(null), 2500);
-    }
+    syncIndicationsWithRecipeText(recipe.rp, true);
+    setCopyFeedback('✓ Fármacos e indicaciones sincronizados');
+    setTimeout(() => setCopyFeedback(null), 2500);
   };
 
   // =========================================================
@@ -1196,8 +1269,7 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
             <button
               type="button"
               onClick={() => {
-                // Si las indicaciones están vacías, intentar sincronizar con lo escrito en Rp
-                if (!localIndications.generalInstructions || !localIndications.generalInstructions.trim()) {
+                if (recipe.rp && recipe.rp.trim()) {
                   handleAutoFillIndicationsFromRp();
                 }
                 setCurrentStep(3);
@@ -1646,192 +1718,95 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
       {currentStep === 4 && (
         <div className="w-full space-y-4 animate-in fade-in">
           
-          {/* Main Action Control Center Bar (sin botón de imprimir, enfocado en PDF y WhatsApp) */}
-          <div className="w-full bg-slate-900 text-white rounded-2xl border border-slate-800 p-3 sm:p-4 shadow-xl no-print space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-2.5">
-              {/* Selector de Documento: Récipe vs Indicaciones */}
-              <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setFinalPreviewTab('recipe')}
-                  className={`px-3.5 py-1.5 rounded-lg font-black text-xs transition-all cursor-pointer flex items-center gap-1.5 ${
-                    finalPreviewTab === 'recipe'
-                      ? 'bg-blue-600 text-white shadow-xs'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <Pill className="w-4 h-4 text-cyan-300" />
-                  <span>Récipe Médico</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setFinalPreviewTab('indications')}
-                  className={`px-3.5 py-1.5 rounded-lg font-black text-xs transition-all cursor-pointer flex items-center gap-1.5 ${
-                    finalPreviewTab === 'indications'
-                      ? 'bg-indigo-600 text-white shadow-xs'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <ClipboardList className="w-4 h-4 text-indigo-200" />
-                  <span>Indicaciones Médicas</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Action Buttons for Recipe View */}
-            {finalPreviewTab === 'recipe' && (
-              <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 w-full">
-                {/* 1. Descargar PDF Completo (2 en 1) */}
-                <button
-                  type="button"
-                  onClick={handleDownloadDualPdfDirect}
-                  className="w-full min-h-[46px] p-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl font-black text-xs flex items-center justify-center gap-1.5 shadow-md transition-all hover:scale-[1.01] active:scale-95 cursor-pointer border border-blue-400/40"
-                  title="Descargar PDF Completo con Récipe e Indicaciones juntas en 1 hoja"
-                >
-                  <Download className="w-4 h-4 text-cyan-200 shrink-0" />
-                  <span className="truncate">PDF 2 en 1 (Completo)</span>
-                </button>
-
-                {/* 2. Descargar solo Récipe */}
-                <button
-                  type="button"
-                  onClick={handleDownloadRecipePdfDirect}
-                  className="w-full min-h-[46px] p-2 bg-blue-700 hover:bg-blue-600 text-white rounded-xl font-black text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all hover:scale-[1.01] active:scale-95 cursor-pointer border border-blue-400/30"
-                  title="Descargar PDF solo del Récipe Médico"
-                >
-                  <Download className="w-4 h-4 text-cyan-100 shrink-0" />
-                  <span className="truncate">Descargar solo Récipe</span>
-                </button>
-
-                {/* 3. Descargar solo Indicaciones */}
-                <button
-                  type="button"
-                  onClick={handleDownloadIndicationsPdfDirect}
-                  className="w-full min-h-[46px] p-2 bg-indigo-700 hover:bg-indigo-600 text-white rounded-xl font-black text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all hover:scale-[1.01] active:scale-95 cursor-pointer border border-indigo-400/30"
-                  title="Descargar PDF solo de las Indicaciones Médicas"
-                >
-                  <Download className="w-4 h-4 text-indigo-200 shrink-0" />
-                  <span className="truncate">Descargar solo Indicaciones</span>
-                </button>
-
-                {/* 4. Enviar por WhatsApp */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    exportAndSendWhatsAppBusiness({
-                      element: printableRecipeRef.current,
-                      patientName: recipe.patientName || 'Carlos leal',
-                      documentTitle: 'Récipe Médico',
-                      dateStr: recipe.date || '14/10/26',
-                      patientPhone: recipe.patientPhone,
-                      doctorName: config.doctorName || 'Dr. Carlos Leal',
-                      treatmentDetails: recipe.rp?.trim() || '',
-                      documentType: 'recipe',
-                      recipe,
-                      indications: localIndications,
-                      config
-                    });
-                  }}
-                  className="w-full min-h-[46px] p-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black text-xs flex items-center justify-center gap-1.5 shadow-md transition-all hover:scale-[1.01] active:scale-95 cursor-pointer border border-emerald-400/40"
-                  title="Enviar récipe e indicaciones por WhatsApp con PDF"
-                >
-                  <span className="text-sm shrink-0">📱</span>
-                  <span className="truncate">WhatsApp</span>
-                </button>
-
-                {/* 5. Seguir a Indicaciones */}
-                <button
-                  type="button"
-                  onClick={() => setFinalPreviewTab('indications')}
-                  className="w-full min-h-[46px] p-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-black text-xs flex items-center justify-center gap-1.5 shadow-md transition-all hover:scale-[1.01] active:scale-95 cursor-pointer border border-slate-700"
-                >
-                  <span className="truncate">Ver Indicaciones</span>
-                  <ArrowRight className="w-4 h-4 text-cyan-200 shrink-0" />
-                </button>
-              </div>
-            )}
-
-            {/* Action Buttons for Indications View */}
-            {finalPreviewTab === 'indications' && (
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 w-full">
-
-                {/* 1. Descargar solo Indicaciones */}
-                <button
-                  type="button"
-                  onClick={handleDownloadIndicationsPdfDirect}
-                  className="w-full min-h-[46px] p-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-black text-xs flex items-center justify-center gap-2 shadow-md transition-all hover:scale-[1.01] active:scale-95 cursor-pointer border border-indigo-400/40"
-                  title="Descargar PDF de Indicaciones Médicas solas"
-                >
-                  <Download className="w-4 h-4 text-cyan-200 shrink-0" />
-                  <span>Descargar Indicaciones Solas</span>
-                </button>
-
-                {/* 2. Descargar 2 en 1 */}
-                <button
-                  type="button"
-                  onClick={handleDownloadDualPdfDirect}
-                  className="w-full min-h-[46px] p-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-black text-xs flex items-center justify-center gap-2 shadow-md transition-all hover:scale-[1.01] active:scale-95 cursor-pointer border border-blue-400/40"
-                  title="Descargar PDF Completo (Récipe e Indicaciones Juntas)"
-                >
-                  <Download className="w-4 h-4 text-cyan-200 shrink-0" />
-                  <span>PDF 2 en 1 Completo</span>
-                </button>
-
-                {/* 3. Volver al Récipe */}
-                <button
-                  type="button"
-                  onClick={() => setFinalPreviewTab('recipe')}
-                  className="w-full min-h-[46px] p-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-black text-xs flex items-center justify-center gap-2 shadow-xs transition-all hover:scale-[1.01] active:scale-95 cursor-pointer border border-slate-700"
-                >
-                  <ArrowLeft className="w-4 h-4 text-blue-300 shrink-0" />
-                  <span>Volver al Récipe</span>
-                </button>
-
-                {/* 4. Finalizar Consulta / Nuevo Paciente */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (onSavePatientOnly) onSavePatientOnly();
-                    if (onClearRecipeToBlank) onClearRecipeToBlank();
-                    setCurrentStep(1);
-                  }}
-                  className="w-full min-h-[46px] p-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white rounded-xl font-black text-xs flex items-center justify-center gap-2 shadow-md transition-all hover:scale-[1.01] active:scale-95 cursor-pointer border border-emerald-400/40"
-                  title="Guardar consulta y dejar récipe en blanco para el próximo paciente"
-                >
-                  <Check className="w-4 h-4 text-emerald-200 shrink-0" />
-                  <span>Nuevo Paciente</span>
-                </button>
-              </div>
-            )}
-
-            {/* Extra Row: Correo y Guardar Paciente */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 pt-2 border-t border-slate-800/80 text-xs w-full">
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
-
-                <button
-                  type="button"
-                  onClick={() => setIsEmailModalOpen(true)}
-                  className="w-full sm:w-auto px-4 py-2 bg-indigo-600/90 hover:bg-indigo-500 text-white font-black rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer border border-indigo-400/30"
-                  title="Enviar documento por correo electrónico"
-                >
-                  <Mail className="w-3.5 h-3.5" />
-                  <span>Correo</span>
-                </button>
-
-                {onSavePatientOnly && (
-                  <button
-                    type="button"
-                    onClick={onSavePatientOnly}
-                    className="w-full sm:w-auto px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-slate-700"
-                  >
-                    <Save className="w-3.5 h-3.5 text-blue-400" />
-                    <span>Guardar Paciente</span>
-                  </button>
+          {/* Main Action Control Center Bar: SOLO los 3 íconos y la pestaña a indicaciones */}
+          <div className="w-full bg-slate-900 text-white rounded-2xl border border-slate-800 p-2.5 sm:p-3 shadow-xl no-print flex flex-wrap items-center justify-between gap-2.5 text-xs">
+            {/* Pestaña de Seguir a Indicaciones / Volver al Récipe */}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setFinalPreviewTab(finalPreviewTab === 'recipe' ? 'indications' : 'recipe')}
+                className={`px-4 py-2 rounded-xl font-black text-xs transition-all cursor-pointer flex items-center gap-2 shadow-sm ${
+                  finalPreviewTab === 'recipe'
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white'
+                    : 'bg-gradient-to-r from-indigo-600 to-teal-600 hover:from-indigo-500 hover:to-teal-500 text-white'
+                }`}
+                title={finalPreviewTab === 'recipe' ? "Pasar a la hoja de indicaciones" : "Volver a ver el récipe"}
+              >
+                {finalPreviewTab === 'recipe' ? (
+                  <>
+                    <span>Seguir a Indicaciones</span>
+                    <ArrowRight className="w-4 h-4 text-cyan-200" />
+                  </>
+                ) : (
+                  <>
+                    <ArrowLeft className="w-4 h-4 text-cyan-200" />
+                    <span>Volver a Récipe</span>
+                  </>
                 )}
-              </div>
+              </button>
             </div>
 
+            {/* Los 3 Íconos Esenciales: [📥 PDF] [💬 WhatsApp] [✉️ Correo] */}
+            <div className="flex items-center gap-2">
+              {/* [📥 PDF] */}
+              <button
+                type="button"
+                onClick={finalPreviewTab === 'recipe' ? handleDownloadRecipePdfDirect : handleDownloadIndicationsPdfDirect}
+                className="px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-blue-400/30"
+                title="Descargar PDF oficial"
+              >
+                <Download className="w-4 h-4 text-white" />
+                <span>PDF</span>
+              </button>
+
+              {/* [💬 WhatsApp] */}
+              <button
+                type="button"
+                onClick={() => {
+                  exportAndSendWhatsAppBusiness({
+                    element: finalPreviewTab === 'recipe' ? printableRecipeRef.current : printableIndicationsRef.current,
+                    patientName: recipe.patientName || 'Paciente',
+                    documentTitle: finalPreviewTab === 'recipe' ? 'Récipe Médico' : 'Indicaciones Médicas',
+                    dateStr: recipe.date || new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+                    patientPhone: recipe.patientPhone,
+                    doctorName: config.doctorName || 'Dr. Carlos Leal',
+                    treatmentDetails: finalPreviewTab === 'recipe' ? (recipe.rp?.trim() || '') : (localIndications.generalInstructions?.trim() || ''),
+                    documentType: finalPreviewTab === 'recipe' ? 'recipe' : 'indications',
+                    recipe,
+                    indications: localIndications,
+                    config
+                  });
+                }}
+                className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-emerald-400/40"
+                title="Enviar por WhatsApp"
+              >
+                <span className="text-sm">📱</span>
+                <span>WhatsApp</span>
+              </button>
+
+              {/* [✉️ Correo] */}
+              <button
+                type="button"
+                onClick={() => setIsEmailModalOpen(true)}
+                className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-indigo-400/30"
+                title="Enviar por Correo Electrónico"
+              >
+                <Mail className="w-4 h-4 text-white" />
+                <span>Correo</span>
+              </button>
+
+              {/* [📄 Récipe + Indicaciones Horizontal] */}
+              <button
+                type="button"
+                onClick={handleDownloadDualPdfDirect}
+                className="px-3.5 py-2 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-teal-400/30"
+                title="Descargar Récipe e Indicaciones juntos en 1 sola hoja horizontal"
+              >
+                <Download className="w-4 h-4 text-white" />
+                <span className="hidden sm:inline">Récipe + Indicaciones (Horizontal)</span>
+                <span className="sm:hidden">2 en 1</span>
+              </button>
+            </div>
           </div>
 
           {/* ========================================================= */}
@@ -1854,7 +1829,7 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
                   : 'max-w-[800px] p-6 sm:p-8'
               } bg-white shadow-2xl rounded-2xl transition-all recipe-single-card print-container border border-slate-200/90 ${textureClass} ${
                 config.enforcePureBlackText ? 'enforce-pure-black' : ''
-              }`}
+              } ${printFourInSheet ? 'print:hidden' : ''}`}
               style={{
                 backgroundColor: config.tonePapel || '#ffffff',
                 border: borderStyle,
@@ -1898,9 +1873,9 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
                           <span className="font-bold text-slate-700 uppercase text-[9px] shrink-0">Paciente:</span>
                           <input
                             type="text"
-                            value={recipe.patientName || 'Carlos leal'}
+                            value={recipe.patientName || ''}
                             onChange={(e) => onChangeRecipe({ patientName: e.target.value })}
-                            placeholder="Carlos leal"
+                            placeholder="Nombre del Paciente"
                             className="w-full bg-transparent font-black text-slate-900 border-b border-dashed border-slate-300 focus:border-blue-600 outline-none text-xs"
                           />
                         </div>
@@ -1909,7 +1884,7 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
                             <span className="font-bold text-slate-700 uppercase text-[9px] shrink-0">C.I.:</span>
                             <input
                               type="text"
-                              value={recipe.patientCI || 'V-18.456.789'}
+                              value={recipe.patientCI || ''}
                               onChange={(e) => onChangeRecipe({ patientCI: e.target.value })}
                               placeholder="Cédula"
                               className="w-full bg-transparent font-bold text-slate-900 border-b border-dashed border-slate-300 focus:border-blue-600 outline-none text-[10px]"
@@ -1919,7 +1894,7 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
                             <span className="font-bold text-slate-700 uppercase text-[9px] shrink-0">Edad:</span>
                             <input
                               type="text"
-                              value={recipe.patientAge || '35 años'}
+                              value={recipe.patientAge || ''}
                               onChange={(e) => onChangeRecipe({ patientAge: e.target.value })}
                               placeholder="Edad"
                               className="w-full bg-transparent font-bold text-slate-900 border-b border-dashed border-slate-300 focus:border-blue-600 outline-none text-[10px]"
@@ -1941,9 +1916,9 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
                             <span className="font-bold text-slate-700 uppercase text-[9px]">Fecha:</span>
                             <input
                               type="text"
-                              value={recipe.date || '14/10/26'}
+                              value={recipe.date || ''}
                               onChange={(e) => onChangeRecipe({ date: e.target.value })}
-                              placeholder="14/10/26"
+                              placeholder="DD/MM/AAAA"
                               className="w-20 bg-transparent font-black text-slate-900 border-b border-dashed border-slate-300 focus:border-blue-600 outline-none text-[10px] text-right"
                             />
                           </div>
@@ -1956,9 +1931,9 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
                           <span className="font-bold text-slate-700 uppercase text-[10px] shrink-0">Paciente:</span>
                           <input
                             type="text"
-                            value={recipe.patientName || 'Carlos leal'}
+                            value={recipe.patientName || ''}
                             onChange={(e) => onChangeRecipe({ patientName: e.target.value })}
-                            placeholder="Carlos leal"
+                            placeholder="Nombre del Paciente"
                             className="w-full bg-transparent font-black text-slate-900 border-b border-dashed border-slate-300 focus:border-blue-600 outline-none text-xs sm:text-sm"
                           />
                         </div>
@@ -1966,7 +1941,7 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
                           <span className="font-bold text-slate-700 uppercase text-[10px] shrink-0">C.I.:</span>
                           <input
                             type="text"
-                            value={recipe.patientCI || 'V-18.456.789'}
+                            value={recipe.patientCI || ''}
                             onChange={(e) => onChangeRecipe({ patientCI: e.target.value })}
                             placeholder="Cédula"
                             className="w-full bg-transparent font-bold text-slate-900 border-b border-dashed border-slate-300 focus:border-blue-600 outline-none text-xs"
@@ -1976,7 +1951,7 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
                           <span className="font-bold text-slate-700 uppercase text-[10px] shrink-0">Edad:</span>
                           <input
                             type="text"
-                            value={recipe.patientAge || '35 años'}
+                            value={recipe.patientAge || ''}
                             onChange={(e) => onChangeRecipe({ patientAge: e.target.value })}
                             placeholder="Edad"
                             className="w-full bg-transparent font-bold text-slate-900 border-b border-dashed border-slate-300 focus:border-blue-600 outline-none text-xs"
@@ -1986,9 +1961,9 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
                           <span className="font-bold text-slate-700 uppercase text-[10px] shrink-0">Fecha:</span>
                           <input
                             type="text"
-                            value={recipe.date || '14/10/26'}
+                            value={recipe.date || ''}
                             onChange={(e) => onChangeRecipe({ date: e.target.value })}
-                            placeholder="14/10/26"
+                            placeholder="DD/MM/AAAA"
                             className="w-full bg-transparent font-black text-slate-900 border-b border-dashed border-slate-300 focus:border-blue-600 outline-none text-xs text-right"
                           />
                         </div>
@@ -2008,30 +1983,80 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <span 
-                      className={`${recipeSize === 'quarter' ? 'text-lg' : 'text-2xl'} font-serif font-black`}
-                      style={{ color: config.rxTitleColor || config.primaryDocColor }}
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <div className="flex items-center gap-2">
+                      <span 
+                        className={`${recipeSize === 'quarter' ? 'text-lg' : 'text-2xl'} font-serif font-black`}
+                        style={{ color: config.rxTitleColor || config.primaryDocColor }}
+                      >
+                        {config.rxTitle || 'Rp.'}
+                      </span>
+                      <span className="text-[10px] sm:text-xs text-slate-400 font-bold uppercase tracking-wider">
+                        Prescripción Facultativa
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => onChangeRecipe({ rp: '' })}
+                      className="text-[10px] text-rose-500 hover:text-rose-700 font-bold no-print cursor-pointer"
+                      title="Borrar medicamentos"
                     >
-                      {config.rxTitle || 'Rp.'}
-                    </span>
-                    <span className="text-[10px] sm:text-xs text-slate-400 font-bold uppercase tracking-wider">
-                      Prescripción Facultativa
-                    </span>
+                      Vaciar
+                    </button>
                   </div>
 
+                  {/* Edición directa en pantalla */}
                   <textarea
                     value={recipe.rp || ''}
-                    onChange={(e) => onChangeRecipe({ rp: e.target.value })}
-                    placeholder="Escriba la prescripción médica facultativa..."
-                    rows={recipeSize === 'quarter' ? 4 : 5}
-                    className={`w-full p-2.5 sm:p-3 bg-white/70 rounded-xl border border-slate-200 ${
-                      recipeSize === 'quarter' ? 'min-h-[110px] text-xs' : 'min-h-[140px] text-xs sm:text-sm'
-                    } font-semibold text-slate-900 outline-none focus:border-blue-500 leading-relaxed resize-none shadow-inner`}
+                    onChange={(e) => {
+                      const newRp = e.target.value;
+                      onChangeRecipe({ rp: newRp });
+                      syncIndicationsWithRecipeText(newRp);
+                    }}
+                    placeholder="1. Amoxicilina 875mg (Comprimidos)&#10;2. Ibuprofeno 600mg (Tabletas)&#10;Escriba o agregue los medicamentos..."
+                    rows={Math.max(6, (recipe.rp?.split('\n').length || 1) + 2)}
+                    className="w-full p-3 bg-white/80 rounded-xl border border-slate-300 focus:border-blue-600 focus:bg-white min-h-[160px] text-xs sm:text-sm font-semibold text-slate-900 outline-none leading-relaxed resize-y shadow-inner print:hidden transition-all focus:ring-2 focus:ring-blue-100"
                     style={{
                       fontFamily: config.rxBodyFontFamily || "'Roboto', sans-serif",
                     }}
                   />
+
+                  {/* Botón directo en el formato para agregar más medicamentos sin bloqueos */}
+                  <div className="mt-2 flex items-center justify-between no-print gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const cur = recipe.rp ? recipe.rp.trim() : '';
+                        const lines = cur ? cur.split('\n').filter((l: string) => l.trim().length > 0) : [];
+                        const nextNum = lines.length + 1;
+                        const updated = cur ? `${cur}\n${nextNum}. ` : `${nextNum}. `;
+                        onChangeRecipe({ rp: updated });
+                        syncIndicationsWithRecipeText(updated);
+                      }}
+                      className="px-3.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs rounded-xl border border-blue-200 transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                      title="Añadir una nueva línea de medicamento"
+                    >
+                      <Plus className="w-3.5 h-3.5 text-blue-600" />
+                      <span>+ Agregar Medicamento</span>
+                    </button>
+
+                    {recipe.rp && (
+                      <span className="text-[11px] font-bold text-slate-500">
+                        ✓ {recipe.rp.split('\n').filter((l: string) => l.trim().length > 0).length} fármaco(s) listados
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Vista 100% fiel para PDF e Impresión (Garantiza que ningún medicamento se corte) */}
+                  <div 
+                    className="hidden print:block whitespace-pre-wrap font-semibold text-slate-900 leading-relaxed text-xs sm:text-sm py-1.5"
+                    style={{
+                      fontFamily: config.rxBodyFontFamily || "'Roboto', sans-serif",
+                    }}
+                  >
+                    {recipe.rp || 'Prescripción médica.'}
+                  </div>
                 </div>
 
                 <div className="pt-2 mt-2 border-t border-slate-200">
@@ -2049,7 +2074,7 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
               id="recipe-4copies-print-sheet"
               className={`w-full flex justify-center print-container ${printFourInSheet ? 'block' : 'hidden print:hidden'} mt-4`}
             >
-              <div
+               <div
                 className={`relative w-full max-w-[816px] h-[1056px] min-h-[1056px] max-h-[1056px] bg-white transition-all recipe-4en1-container shadow-2xl rounded-2xl border border-slate-200 ${textureClass}`}
                 style={{
                   backgroundColor: config.tonePapel || '#ffffff',
@@ -2061,7 +2086,7 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
                   minHeight: '1056px',
                   maxHeight: '1056px',
                   boxSizing: 'border-box',
-                  padding: '15px',
+                  padding: '10px',
                   overflow: 'hidden',
                 }}
               >
@@ -2070,20 +2095,22 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
                   style={{
                     display: 'grid',
                     gridTemplateColumns: 'repeat(2, 1fr)',
-                    gridTemplateRows: 'repeat(2, 1fr)',
-                    gap: '15px',
+                    gridTemplateRows: 'repeat(2, minmax(0, 1fr))',
+                    gap: '8px',
                     width: '100%',
-                    height: '100%',
+                    height: 'calc(1056px - 20px)',
                     boxSizing: 'border-box',
+                    overflow: 'hidden',
                   }}
                 >
                   {[0, 1, 2, 3].map((quadrantIdx) => (
                     <div
                       key={quadrantIdx}
-                      className="relative border border-slate-200/90 rounded-xl p-3 bg-white shadow-2xs flex flex-col justify-between overflow-hidden recipe-quadrant-card"
+                      className="relative border border-slate-200/90 rounded-xl p-2 bg-white shadow-2xs flex flex-col justify-between overflow-hidden recipe-quadrant-card"
                       style={{
                         width: '100%',
                         height: '100%',
+                        maxHeight: '100%',
                         boxSizing: 'border-box',
                         display: 'flex',
                         flexDirection: 'column',
@@ -2226,10 +2253,32 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
 
                   <div className="space-y-3.5 my-3">
                     <div className="p-3 bg-white/70 rounded-xl border border-slate-200 min-h-[160px]">
-                      <span className="text-xs font-black text-indigo-950 block mb-1 uppercase tracking-wide">
-                        💊 Instrucciones de Medicación y Horarios:
-                      </span>
-                      <div className="text-xs sm:text-sm font-semibold text-slate-900 whitespace-pre-wrap leading-relaxed">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs font-black text-indigo-950 uppercase tracking-wide">
+                          💊 Instrucciones de Medicación y Horarios (Editable):
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleAutoFillIndicationsFromRp}
+                          className="no-print px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-lg border border-indigo-200 text-[10px] flex items-center gap-1 cursor-pointer transition-colors"
+                          title="Sincronizar fármacos del récipe automáticamente"
+                        >
+                          <Sparkles className="w-3 h-3 text-indigo-600" />
+                          <span>Sincronizar del Récipe</span>
+                        </button>
+                      </div>
+
+                      {/* Textarea para edición directa por el médico */}
+                      <textarea
+                        value={localIndications.generalInstructions || ''}
+                        onChange={(e) => updateIndicationsField('generalInstructions', e.target.value)}
+                        rows={Math.max(5, (localIndications.generalInstructions?.split('\n').length || 1) + 1)}
+                        placeholder="Instrucciones de medicación y horarios..."
+                        className="w-full p-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 outline-none focus:bg-white focus:border-indigo-500 transition-colors print:hidden leading-relaxed resize-y shadow-inner"
+                      />
+
+                      {/* Div visible para PDF e Impresión */}
+                      <div className="hidden print:block text-xs sm:text-sm font-semibold text-slate-900 whitespace-pre-wrap leading-relaxed py-1">
                         {localIndications.generalInstructions || 'Continuar medicación según prescripción del récipe adjunto.'}
                       </div>
                     </div>
@@ -2276,12 +2325,12 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
           </div>
 
           {/* ========================================================= */}
-          {/* CONTENEDOR OCULTO/IMPRESIÓN 2 EN 1: RÉCIPE + INDICACIONES */}
+          {/* CONTENEDOR OCULTO/IMPRESIÓN 2 EN 1: RÉCIPE + INDICACIONES (HORIZONTAL / LANDSCAPE) */}
           {/* ========================================================= */}
           <div
             ref={printableDualRef}
             id="recipe-indications-dual-sheet"
-            className="hidden print:block w-full max-w-[816px] min-h-[1056px] bg-white p-6 rounded-2xl print-container border border-slate-200 shadow-2xl relative overflow-hidden my-4"
+            className="hidden print:grid w-full max-w-[1056px] min-h-[760px] grid-cols-2 gap-6 bg-white p-6 rounded-2xl print-container border border-slate-200 shadow-2xl relative overflow-hidden my-4 items-stretch"
             style={{
               backgroundColor: config.tonePapel || '#ffffff',
               border: borderStyle,
@@ -2305,60 +2354,73 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
               </div>
             )}
 
-            <div className="relative z-10 flex flex-col justify-between h-full space-y-4">
-              {/* PARTE SUPERIOR: RÉCIPE MÉDICO */}
-              <div className="border-b-2 border-dashed border-slate-300 pb-4">
+            {/* COLUMNA IZQUIERDA: RÉCIPE MÉDICO OFICIAL */}
+            <div className="relative z-10 flex flex-col justify-between border-r-2 border-dashed border-slate-300 pr-5">
+              <div>
                 <DocumentHeader config={config} compact={true} editableInline={false} />
                 
                 <div className="my-1.5 pb-1 border-b border-slate-200 flex items-center justify-between">
-                  <span className="text-sm font-black tracking-wide uppercase font-serif" style={{ color: config.primaryDocColor }}>
+                  <span className="text-xs font-black tracking-wide uppercase font-serif" style={{ color: config.primaryDocColor }}>
                     RÉCIPE MÉDICO OFICIAL
                   </span>
-                  <span className="text-xs font-semibold text-slate-700">
+                  <span className="text-[11px] font-semibold text-slate-700">
                     Fecha: <strong>{recipe.date || '14/10/26'}</strong>
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-2 bg-slate-50/90 rounded-xl border border-slate-200 text-xs my-1.5">
+                <div className="p-2 bg-slate-50/90 rounded-xl border border-slate-200 text-[11px] my-1 space-y-0.5">
                   <div><span className="font-bold text-slate-700">Paciente:</span> <strong>{recipe.patientName || 'Carlos leal'}</strong></div>
-                  <div><span className="font-bold text-slate-700">C.I.:</span> {recipe.patientCI || 'V-18.456.789'}</div>
-                  <div><span className="font-bold text-slate-700">Edad:</span> {recipe.patientAge || '35 años'}</div>
-                  <div className="text-right"><span className="font-bold text-slate-700">Fecha:</span> <strong>{recipe.date || '14/10/26'}</strong></div>
-                </div>
-
-                <div className="my-2">
-                  <span className="text-xl font-serif font-black" style={{ color: config.rxTitleColor || config.primaryDocColor }}>
-                    {config.rxTitle || 'Rp.'}
-                  </span>
-                  <div className="p-2.5 bg-white/80 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 whitespace-pre-wrap leading-relaxed min-h-[140px]">
-                    {recipe.rp || 'Prescripción médica.'}
+                  <div className="grid grid-cols-2 gap-1">
+                    <div><span className="font-bold text-slate-700">C.I.:</span> {recipe.patientCI || 'V-18.456.789'}</div>
+                    <div><span className="font-bold text-slate-700">Edad:</span> {recipe.patientAge || '35 años'}</div>
                   </div>
                 </div>
 
-                <DocumentFooter config={config} compact={true} />
+                <div className="my-2">
+                  <span className="text-lg font-serif font-black" style={{ color: config.rxTitleColor || config.primaryDocColor }}>
+                    {config.rxTitle || 'Rp.'}
+                  </span>
+                  <div className="p-2 bg-white/80 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 whitespace-pre-wrap leading-relaxed min-h-[140px]">
+                    {recipe.rp || 'Prescripción médica.'}
+                  </div>
+                </div>
               </div>
 
-              {/* PARTE INFERIOR: INDICACIONES MÉDICAS */}
-              <div className="pt-2">
+              <div className="pt-2 border-t border-slate-200">
+                <DocumentFooter config={config} compact={true} />
+              </div>
+            </div>
+
+            {/* COLUMNA DERECHA: INDICACIONES MÉDICAS Y POSOLOGÍA */}
+            <div className="relative z-10 flex flex-col justify-between pl-1">
+              <div>
                 <DocumentHeader config={config} compact={true} editableInline={false} />
 
                 <div className="my-1.5 pb-1 border-b border-slate-200 flex items-center justify-between">
-                  <span className="text-sm font-black tracking-wide uppercase font-serif text-indigo-900">
-                    INDICACIONES MÉDICAS Y POSOLOGÍA
+                  <span className="text-xs font-black tracking-wide uppercase font-serif text-indigo-900">
+                    INDICACIONES Y POSOLOGÍA
                   </span>
-                  <span className="text-xs font-semibold text-slate-700">
+                  <span className="text-[11px] font-semibold text-slate-700">
                     Fecha: <strong>{localIndications.date || recipe.date || '14/10/26'}</strong>
                   </span>
                 </div>
 
-                <div className="p-2 bg-indigo-50/70 rounded-xl border border-indigo-200 text-xs my-1.5">
-                  <strong>Indicaciones para:</strong> {localIndications.patientName || recipe.patientName || 'Carlos leal'} — {localIndications.date || recipe.date || '14/10/26'}
+                <div className="p-2 bg-indigo-50/70 rounded-xl border border-indigo-200 text-[11px] my-1">
+                  <strong>Indicaciones para:</strong> {localIndications.patientName || recipe.patientName || 'Carlos leal'}
                 </div>
 
-                <div className="p-2.5 bg-white/80 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 whitespace-pre-wrap leading-relaxed min-h-[140px] my-2">
+                <div className="p-2 bg-white/80 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 whitespace-pre-wrap leading-relaxed min-h-[140px] my-2">
                   {localIndications.generalInstructions || 'Tomar medicamentos indicados en el récipe según horarios.'}
                 </div>
 
+                {localIndications.dietAndRest && (
+                  <div className="text-[11px] text-slate-700 mt-1">
+                    <strong>Dieta/Reposo:</strong> {localIndications.dietAndRest}
+                  </div>
+                )}
+              </div>
+
+              <div className="pt-2 border-t border-slate-200">
                 <DocumentFooter config={config} compact={true} />
               </div>
             </div>
