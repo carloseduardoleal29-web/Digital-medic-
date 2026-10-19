@@ -202,7 +202,7 @@ export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
         )}
 
         {/* Cajón 2: Nombre del Médico / Colega Flanqueado por 2 Símbolos de la Medicina */}
-        <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 my-0.5">
+        <div className="flex items-center justify-center gap-1.5 sm:gap-2 my-1 max-w-full">
           {showSymbols && (
             <span 
               className="shrink-0 inline-flex items-center justify-center opacity-85 select-none print:opacity-100"
@@ -213,8 +213,8 @@ export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
                 alt="Símbolo de la Medicina" 
                 className="inline-block transition-transform hover:scale-110"
                 style={{ 
-                  width: compact ? '13px' : '17px', 
-                  height: compact ? '13px' : '17px' 
+                  width: compact ? '12px' : '16px', 
+                  height: compact ? '12px' : '16px' 
                 }} 
               />
             </span>
@@ -224,16 +224,19 @@ export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
             contentEditable={editableInline}
             suppressContentEditableWarning
             onBlur={(e) => onUpdateField?.('doctorName', e.currentTarget.innerText)}
-            className={`font-bold tracking-normal transition-all outline-none cursor-text break-words inline-block text-center ${
+            className={`font-bold tracking-normal transition-all outline-none cursor-text break-words text-center max-w-full ${
               editableInline ? 'hover:bg-blue-50/70 hover:ring-1 hover:ring-blue-300 rounded px-1.5' : ''
             }`}
             style={{
-              color: config.nombreColor,
+              color: config.nombreColor || '#0f172a',
               fontFamily: config.fuenteNombre,
-              fontSize: compact ? `calc(${config.nombreSize} * ${scaleCompact})` : config.nombreSize,
-              letterSpacing: '0.015em',
-              lineHeight: '1.35',
-              whiteSpace: 'normal',
+              fontSize: compact
+                ? `clamp(11px, calc(${config.nombreSize || '18px'} * ${scaleCompact}), 14.5px)`
+                : (config.nombreSize || '18px'),
+              letterSpacing: '0.01em',
+              lineHeight: '1.25',
+              wordBreak: 'break-word',
+              overflowWrap: 'break-word',
             }}
             title="Haga clic para editar el Nombre del Médico"
           >
@@ -250,8 +253,8 @@ export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
                 alt="Símbolo de la Medicina" 
                 className="inline-block transition-transform hover:scale-110"
                 style={{ 
-                  width: compact ? '13px' : '17px', 
-                  height: compact ? '13px' : '17px' 
+                  width: compact ? '12px' : '16px', 
+                  height: compact ? '12px' : '16px' 
                 }} 
               />
             </span>

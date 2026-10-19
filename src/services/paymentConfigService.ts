@@ -111,26 +111,42 @@ export async function fetchPaymentConfig(): Promise<PaymentConfig> {
   try {
     const fireConfig = await fetchPaymentConfigDirectFromFirestore();
     if (fireConfig && isPaymentConfigured(fireConfig)) {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(fireConfig));
+      const merged: PaymentConfig = {
+        ...DEFAULT_PAYMENT_CONFIG,
+        ...(localConfig || {}),
+        ...fireConfig,
+        pagoMovil: { ...DEFAULT_PAYMENT_CONFIG.pagoMovil, ...(localConfig?.pagoMovil || {}), ...(fireConfig.pagoMovil || {}) },
+        binance: { ...DEFAULT_PAYMENT_CONFIG.binance, ...(localConfig?.binance || {}), ...(fireConfig.binance || {}) },
+        zinli: { ...DEFAULT_PAYMENT_CONFIG.zinli, ...(localConfig?.zinli || {}), ...(fireConfig.zinli || {}) },
+      };
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(merged));
       if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('digital-medic-payment-updated', { detail: fireConfig }));
+        window.dispatchEvent(new CustomEvent('digital-medic-payment-updated', { detail: merged }));
       }
-      return fireConfig;
+      return merged;
     }
   } catch (err) {
     console.warn('[PaymentConfig] Error consultando Firestore directo:', err);
   }
 
-  // 2. Consultar el ecosistema de la sesión activa del usuario en Firestore (ej. carloseduardoleal29@gmail.com)
+  // 2. Consultar el ecosistema de la sesión activa del usuario en Firestore
   try {
     const activeUser = resolveActiveUserIdentifier();
     const userEco = await fetchDirectFromFirestore(activeUser);
     if (userEco?.paymentConfig && isPaymentConfigured(userEco.paymentConfig)) {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(userEco.paymentConfig));
+      const merged: PaymentConfig = {
+        ...DEFAULT_PAYMENT_CONFIG,
+        ...(localConfig || {}),
+        ...userEco.paymentConfig,
+        pagoMovil: { ...DEFAULT_PAYMENT_CONFIG.pagoMovil, ...(localConfig?.pagoMovil || {}), ...(userEco.paymentConfig.pagoMovil || {}) },
+        binance: { ...DEFAULT_PAYMENT_CONFIG.binance, ...(localConfig?.binance || {}), ...(userEco.paymentConfig.binance || {}) },
+        zinli: { ...DEFAULT_PAYMENT_CONFIG.zinli, ...(localConfig?.zinli || {}), ...(userEco.paymentConfig.zinli || {}) },
+      };
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(merged));
       if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('digital-medic-payment-updated', { detail: userEco.paymentConfig }));
+        window.dispatchEvent(new CustomEvent('digital-medic-payment-updated', { detail: merged }));
       }
-      return userEco.paymentConfig;
+      return merged;
     }
   } catch (err) {
     console.warn('[PaymentConfig] Error consultando ecosistema del usuario en Firestore:', err);
@@ -142,18 +158,25 @@ export async function fetchPaymentConfig(): Promise<PaymentConfig> {
     if (res.ok) {
       const data = await res.json();
       if (data?.config && isPaymentConfigured(data.config)) {
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data.config));
+        const merged: PaymentConfig = {
+          ...DEFAULT_PAYMENT_CONFIG,
+          ...(localConfig || {}),
+          ...data.config,
+          pagoMovil: { ...DEFAULT_PAYMENT_CONFIG.pagoMovil, ...(localConfig?.pagoMovil || {}), ...(data.config.pagoMovil || {}) },
+          binance: { ...DEFAULT_PAYMENT_CONFIG.binance, ...(localConfig?.binance || {}), ...(data.config.binance || {}) },
+          zinli: { ...DEFAULT_PAYMENT_CONFIG.zinli, ...(localConfig?.zinli || {}), ...(data.config.zinli || {}) },
+        };
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(merged));
         if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('digital-medic-payment-updated', { detail: data.config }));
+          window.dispatchEvent(new CustomEvent('digital-medic-payment-updated', { detail: merged }));
         }
-        return data.config;
+        return merged;
       }
     }
   } catch (err) {
     console.warn('[PaymentConfig] Could not fetch payment config from server:', err);
   }
 
-  // 4. Si el almacenamiento local ya tiene datos configurados pero la nube no los tenía, retornar local
   if (localConfig && isPaymentConfigured(localConfig)) {
     return localConfig;
   }
@@ -162,21 +185,52 @@ export async function fetchPaymentConfig(): Promise<PaymentConfig> {
 }
 
 export async function savePaymentConfig(config: PaymentConfig): Promise<boolean> {
+  let existing: PaymentConfig = DEFAULT_PAYMENT_CONFIG;
+  try {
+    const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (saved) existing = JSON.parse(saved);
+  } catch (_) {}
+
+  // Fusión estricta no destructiva para garantizar que ningún campo se borre
+  const merged: PaymentConfig = {
+    ...DEFAULT_PAYMENT_CONFIG,
+    ...existing,
+    ...config,
+    pagoMovil: {
+      ...DEFAULT_PAYMENT_CONFIG.pagoMovil,
+      ...(existing.pagoMovil || {}),
+      ...(config.pagoMovil || {}),
+    },
+    binance: {
+      ...DEFAULT_PAYMENT_CONFIG.binance,
+      ...(existing.binance || {}),
+      ...(config.binance || {}),
+    },
+    zinli: {
+      ...DEFAULT_PAYMENT_CONFIG.zinli,
+      ...(existing.zinli || {}),
+      ...(config.zinli || {}),
+    },
+    tasaBinanceUsd: config.tasaBinanceUsd > 0 ? config.tasaBinanceUsd : (existing.tasaBinanceUsd || 0),
+    tasaFuente: config.tasaFuente || existing.tasaFuente || 'Binance P2P Venezuela',
+    tasaUltimaActualizacion: config.tasaUltimaActualizacion || existing.tasaUltimaActualizacion || new Date().toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' }),
+  };
+
   // 1. Guardar en local storage inmediatamente
   try {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(config));
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(merged));
   } catch (_) {}
 
   // 2. Disparar evento para actualizar instantáneamente cualquier pantalla en este dispositivo
   try {
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('digital-medic-payment-updated', { detail: config }));
+      window.dispatchEvent(new CustomEvent('digital-medic-payment-updated', { detail: merged }));
     }
   } catch (_) {}
 
   // 3. Guardar DIRECTO en la nube de Google Firebase Firestore (settings/payment_config)
   try {
-    await savePaymentConfigDirectToFirestore(config);
+    await savePaymentConfigDirectToFirestore(merged);
   } catch (err) {
     console.warn('[PaymentConfig] Error guardando directo en Firestore settings:', err);
   }
@@ -186,14 +240,14 @@ export async function savePaymentConfig(config: PaymentConfig): Promise<boolean>
     const activeUser = resolveActiveUserIdentifier();
     await saveDirectToFirestore({
       identifier: activeUser,
-      paymentConfig: config,
+      paymentConfig: merged,
       updatedAt: Date.now(),
     });
 
     if (activeUser !== 'carloseduardoleal29@gmail.com') {
       await saveDirectToFirestore({
         identifier: 'carloseduardoleal29@gmail.com',
-        paymentConfig: config,
+        paymentConfig: merged,
         updatedAt: Date.now(),
       }).catch(() => {});
     }
@@ -206,7 +260,7 @@ export async function savePaymentConfig(config: PaymentConfig): Promise<boolean>
     const res = await fetch('/api/payment-config', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ config })
+      body: JSON.stringify({ config: merged })
     });
     if (res.ok) {
       return true;

@@ -521,6 +521,7 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
 
             return (
               <div
+                id="recipe-medico"
                 data-recipe-size={recipePreviewSize}
                 className={`relative ${
                   recipePreviewSize === 'quarter' 
@@ -545,8 +546,8 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
                       alt="Marca de agua"
                       className="marca-agua-img"
                       style={{
-                        opacity: config.watermarkOpacity ?? 0.1,
-                        width: `${Math.min(60, config.watermarkScale || 50)}%`,
+                        opacity: config.watermarkOpacity ?? 0.16,
+                        width: `${config.watermarkScale || 50}%`,
                         transform: `rotate(${config.watermarkRotation || 0}deg)`,
                       }}
                     />
@@ -743,8 +744,8 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
                             alt="Marca de agua"
                             className="marca-agua-img"
                             style={{
-                              opacity: config.watermarkOpacity ?? 0.08,
-                              width: `${Math.min(55, config.watermarkScale || 45)}%`,
+                              opacity: config.watermarkOpacity ?? 0.16,
+                              width: `${config.watermarkScale || 50}%`,
                               transform: `rotate(${config.watermarkRotation || 0}deg)`,
                             }}
                           />

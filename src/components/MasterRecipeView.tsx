@@ -66,73 +66,34 @@ export const MasterRecipeView: React.FC<MasterRecipeViewProps> = ({
 
   return (
     <div className="w-full flex flex-col items-center">
-      {/* Top Action Bar */}
-      <div className="w-full max-w-[850px] flex flex-wrap items-center justify-between gap-2 mb-3 bg-white p-3 rounded-2xl border border-slate-200 text-xs no-print shadow-xs">
-        <div className="flex items-center gap-2 flex-wrap">
+      {/* Minimalist Floating / Top Toolbar */}
+      <div className="w-full max-w-[850px] flex items-center justify-between gap-3 mb-3 bg-slate-900 text-white px-4 py-2.5 rounded-2xl border border-slate-800 text-xs no-print shadow-xl">
+        <div className="flex items-center gap-2">
           {onBackToHome && (
             <button
               type="button"
               onClick={onBackToHome}
-              className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg flex items-center gap-1.5 transition-colors border border-slate-300/80 cursor-pointer"
+              className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
             >
-              <ArrowLeft className="w-3.5 h-3.5 text-blue-600" />
+              <ArrowLeft className="w-3.5 h-3.5 text-blue-400" />
               <span>Inicio</span>
             </button>
           )}
-
-          <div className="flex items-center gap-1.5 bg-blue-50 px-2.5 py-1 rounded-xl border border-blue-200 text-blue-900">
-            <span className="font-bold text-[11px]">
-              📄 Formato Hoja Carta · 1 Récipe (Cuadrante 1)
-            </span>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setShowCutGuides(!showCutGuides)}
-            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors cursor-pointer flex items-center gap-1 ${
-              showCutGuides ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200'
-            }`}
-          >
-            <span>✂ Guías de corte</span>
-          </button>
+          <span className="font-bold text-xs text-white">Récipe Médico (Vista Principal)</span>
         </div>
 
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <button
-            type="button"
-            onClick={() => {
-              onChangeRecipe({
-                patientName: '',
-                patientAge: '',
-                patientCI: '',
-                patientPhone: '',
-                diagnosis: '',
-                rp: '',
-                indicationsNotes: '',
-              });
-              if (onClearRecipeToBlank) onClearRecipeToBlank();
-            }}
-            className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl flex items-center gap-1.5 shadow-xs transition-all cursor-pointer text-xs"
-            title="Borrar todos los campos y dejar el récipe en blanco"
-          >
-            <Trash2 className="w-3.5 h-3.5 text-white" />
-            <span>🧹 Dejar en Blanco / Borrar</span>
-          </button>
+        <div className="flex items-center gap-2">
+          {onDownloadPdf && (
+            <button
+              type="button"
+              onClick={onDownloadPdf}
+              className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-xl text-xs flex items-center gap-1 shadow-sm transition-all cursor-pointer border border-blue-400/40"
+              title="Descargar PDF"
+            >
+              <span>📥 PDF</span>
+            </button>
+          )}
 
-          <button
-            type="button"
-            onClick={() => {
-              if (onSavePatientOnly) onSavePatientOnly();
-              else if (onSaveAndShare) onSaveAndShare(false);
-            }}
-            className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer border border-slate-300"
-            title="Guardar paciente en su banco de datos"
-          >
-            <Save className="w-3.5 h-3.5 text-slate-600" />
-            <span>💾 Guardar Paciente</span>
-          </button>
-
-          {/* Enviar por WhatsApp */}
           <button
             type="button"
             onClick={() => {
@@ -143,67 +104,29 @@ export const MasterRecipeView: React.FC<MasterRecipeViewProps> = ({
 
               exportAndSendWhatsAppBusiness({
                 element: printableSheetRef.current,
-                patientName: recipe.patientName || 'Carlos leal',
+                patientName: recipe.patientName || 'Carlos Pérez',
                 documentTitle: 'Récipe Médico',
-                dateStr: recipe.date || '14/10/26',
+                dateStr: recipe.date || new Date().toLocaleDateString('es-VE'),
                 patientPhone: recipe.patientPhone,
                 doctorName: config.doctorName || 'Dr. Carlos Leal',
                 treatmentDetails: treatment,
                 documentType: 'recipe',
               });
             }}
-            className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-sm hover:scale-105 active:scale-95 transition-all cursor-pointer border border-emerald-500"
-            title="Enviar récipe por WhatsApp con PDF y tratamiento"
+            className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl text-xs flex items-center gap-1 shadow-sm transition-all cursor-pointer border border-emerald-400/40"
+            title="Enviar por WhatsApp"
           >
-            <span className="text-sm">📱</span>
-            <span>Enviar por WhatsApp</span>
+            <span>💬 WhatsApp</span>
           </button>
-
-          {onDownloadPdf && (
-            <button
-              type="button"
-              onClick={onDownloadPdf}
-              className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-sm hover:scale-105 active:scale-95 transition-all cursor-pointer border border-slate-700"
-              title="Descargar archivo PDF con el nombre del paciente y fecha"
-            >
-              <Download className="w-3.5 h-3.5 text-white" />
-              <span>📥 Descargar PDF</span>
-            </button>
-          )}
 
           {onOpenEmailModal && (
             <button
               type="button"
               onClick={onOpenEmailModal}
-              className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-sm hover:scale-105 active:scale-95 transition-all cursor-pointer"
-              title="Enviar récipe por correo electrónico al paciente"
+              className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-xl text-xs flex items-center gap-1 shadow-sm transition-all cursor-pointer border border-indigo-400/40"
+              title="Enviar por Correo"
             >
-              <Mail className="w-3.5 h-3.5 text-white" />
-              <span>✉️ Enviar por Correo</span>
-            </button>
-          )}
-
-          {onOpenPreview && (
-            <button
-              type="button"
-              onClick={onOpenPreview}
-              className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl flex items-center gap-1.5 text-xs cursor-pointer shadow-xs border border-slate-700"
-              title="Ver vista previa de cómo saldrá en la hoja carta impresa"
-            >
-              <Eye className="w-3.5 h-3.5 text-cyan-300" />
-              <span>👁️ Vista Previa</span>
-            </button>
-          )}
-
-          {onDownloadPdf && (
-            <button
-              type="button"
-              onClick={onDownloadPdf}
-              className="px-4 py-1.5 bg-gradient-to-r from-blue-700 to-indigo-700 hover:from-blue-800 hover:to-indigo-800 text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
-              title="Descargar y guardar récipe oficial en PDF"
-            >
-              <Download className="w-3.5 h-3.5 text-white" />
-              <span>Descargar PDF</span>
+              <span>✉️ Correo</span>
             </button>
           )}
         </div>
@@ -213,6 +136,7 @@ export const MasterRecipeView: React.FC<MasterRecipeViewProps> = ({
       <div className="w-full flex justify-center">
         <div
           ref={printableSheetRef}
+          id="recibo-medico"
           className={`relative w-full max-w-[660px] min-h-[680px] bg-white shadow-xl p-6 sm:p-7 rounded-2xl transition-all print-container recipe-single-container flex flex-col justify-between ${textureClass} ${
             config.enforcePureBlackText ? 'enforce-pure-black' : ''
           }`}

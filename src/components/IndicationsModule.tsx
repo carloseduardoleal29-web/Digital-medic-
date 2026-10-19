@@ -1183,7 +1183,7 @@ export const IndicationsModule: React.FC<IndicationsModuleProps> = ({
       <div className={`w-full flex justify-center py-2 ${currentStep === 4 ? 'block' : 'hidden print:block'}`}>
         <div
           ref={printableSheetRef}
-          id="indications-print-container"
+          id="recibo-medico indications-print-container"
           className={`relative w-full max-w-[816px] bg-white shadow-2xl p-6 sm:p-8 rounded-2xl transition-all report-sheet-container indications-container print-container border border-slate-200/90 ${textureClass} ${
             safeConfig.enforcePureBlackText ? 'enforce-pure-black' : ''
           }`}

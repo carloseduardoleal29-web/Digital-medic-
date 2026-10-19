@@ -1,7 +1,5 @@
-import html2canvas from 'html2canvas';
-import { jsPDF } from 'jspdf';
+import html2pdf from 'html2pdf.js';
 
-// Interface de datos aceptada por la lógica del usuario
 export interface DatosRecipePDF {
   nombreMedico?: string;
   especialidad?: string;
@@ -18,10 +16,6 @@ export interface DatosRecipePDF {
   selloBase64?: string;
 }
 
-/**
- * Extrae y formatea el objeto `datos` leyendo la configuración del médico,
- * el récipe y las indicaciones presentes en la aplicación o localStorage.
- */
 export function extractDatosFromApp(
   config?: any,
   recipe?: any,
@@ -31,7 +25,7 @@ export function extractDatosFromApp(
   let docConfig = config;
   if (!docConfig && typeof localStorage !== 'undefined') {
     try {
-      const stored = localStorage.getItem('digital_medic_doctor_config_v2');
+      const stored = localStorage.getItem('digital_medic_doctor_config_v2') || localStorage.getItem('digital_medic_current_config');
       if (stored) docConfig = JSON.parse(stored);
     } catch (_) {}
   }
@@ -46,14 +40,24 @@ export function extractDatosFromApp(
           curRecipe = parsed.recipes[0];
         }
       }
+      if (!curRecipe) {
+        const storedRec = localStorage.getItem('digital_medic_recipes_v2');
+        if (storedRec) {
+          const parsedRecs = JSON.parse(storedRec);
+          if (parsedRecs.length > 0) curRecipe = parsedRecs[0];
+        }
+      }
     } catch (_) {}
   }
 
   let curIndications = indications;
   if (!curIndications && typeof localStorage !== 'undefined') {
     try {
+      const storedInd = localStorage.getItem('digital_medic_indications_v2');
+      if (storedInd) curIndications = JSON.parse(storedInd);
+
       const storedEco = localStorage.getItem('digital_medic_user_ecosystem_v2');
-      if (storedEco) {
+      if (storedEco && !curIndications) {
         const parsed = JSON.parse(storedEco);
         if (parsed.indications) curIndications = parsed.indications;
       }
@@ -66,15 +70,15 @@ export function extractDatosFromApp(
   const cm = customOpts?.cm || docConfig?.collegeNumber || docConfig?.ci || '----';
   const clinicaDireccion = customOpts?.clinicaDireccion || docConfig?.address || docConfig?.clinicAddress || docConfig?.institution || '';
 
-  const nombrePaciente = customOpts?.nombrePaciente || curRecipe?.patientName || 'Carlos leal';
-  const cedulaPaciente = customOpts?.cedulaPaciente || curRecipe?.patientCI || '';
-  const edadPaciente = customOpts?.edadPaciente || curRecipe?.patientAge || '';
-  const fecha = customOpts?.fecha || curRecipe?.date || new Date().toLocaleDateString('es-VE');
-  const telefonoPaciente = customOpts?.telefonoPaciente || curRecipe?.patientPhone || '';
+  const nombrePaciente = customOpts?.nombrePaciente || curIndications?.patientName || curRecipe?.patientName || 'Carlos Pérez';
+  const cedulaPaciente = customOpts?.cedulaPaciente || curIndications?.patientCI || curRecipe?.patientCI || '';
+  const edadPaciente = customOpts?.edadPaciente || curIndications?.patientAge || curRecipe?.patientAge || '';
+  const fecha = customOpts?.fecha || curIndications?.date || curRecipe?.date || new Date().toLocaleDateString('es-VE');
+  const telefonoPaciente = customOpts?.telefonoPaciente || curIndications?.patientPhone || curRecipe?.patientPhone || '';
 
-  const textoRp = customOpts?.textoRp || curRecipe?.rp || '';
-  const textoIndicaciones = customOpts?.textoIndicaciones || curIndications?.medicationSchedule || curRecipe?.indicationsNotes || '';
-  const selloBase64 = customOpts?.selloBase64 || docConfig?.selloDigitalImg || docConfig?.signatureImg || '';
+  const textoRp = customOpts?.textoRp || curRecipe?.rp || curIndications?.medicationSchedule || '';
+  const textoIndicaciones = customOpts?.textoIndicaciones || curIndications?.generalInstructions || curIndications?.dietAndRest || curIndications?.medicationSchedule || '';
+  const selloBase64 = customOpts?.selloBase64 || docConfig?.selloImg || docConfig?.selloDigitalImg || docConfig?.signatureImg || '';
 
   return {
     nombreMedico,
@@ -94,120 +98,7 @@ export function extractDatosFromApp(
 }
 
 // ==========================================
-// 1. GENERADOR DE PDF BÁSICO (SOLO PARA RESPALDO / FALLBACK)
-// ==========================================
-export function construirDocumentoPDF(datos: DatosRecipePDF) {
-  const jsPDFClass = (window as any).jspdf ? (window as any).jspdf.jsPDF : jsPDF;
-  const doc = new jsPDFClass({ orientation: "landscape", unit: "mm", format: "letter" });
-
-  doc.setDrawColor(180, 180, 180);
-  doc.setLineDashPattern([2, 2], 0);
-  doc.line(139.7, 8, 139.7, 208);
-  doc.setLineDashPattern([], 0);
-
-  const dibujarMitad = (offsetX: number, tituloSeccion: string, contenidoTexto: string = "") => {
-    const centroX = offsetX + 69.85;
-    const margenIzq = offsetX + 10;
-    const margenDer = offsetX + 129.7;
-    const anchoUtil = 119.7;
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(13);
-    doc.setTextColor(12, 45, 87);
-    doc.text((datos.nombreMedico || "Dr. Nombre Apellido").toUpperCase(), centroX, 16, { align: "center" });
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(9.5);
-    doc.setTextColor(50, 50, 50);
-    doc.text(datos.especialidad || "Especialista", centroX, 21.5, { align: "center" });
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8.5);
-    doc.setTextColor(90, 90, 90);
-    doc.text(`M.P.P.S.: ${datos.mpps || "----"}   |   C.M.: ${datos.cm || "----"}`, centroX, 26.5, { align: "center" });
-    
-    if (datos.clinicaDireccion) {
-      doc.setFontSize(8);
-      doc.text(datos.clinicaDireccion, centroX, 31, { align: "center" });
-    }
-
-    doc.setDrawColor(12, 45, 87);
-    doc.setLineWidth(0.6);
-    doc.line(margenIzq, 34, margenDer, 34);
-    doc.setLineWidth(0.2);
-    doc.line(margenIzq, 35.2, margenDer, 35.2);
-
-    doc.setFontSize(9);
-    doc.setTextColor(20, 20, 20);
-    doc.setFont("helvetica", "bold");
-    doc.text("Paciente:", margenIzq, 42);
-    doc.setFont("helvetica", "normal");
-    doc.text(datos.nombrePaciente || "________________________", margenIzq + 17, 42);
-
-    doc.setFont("helvetica", "bold");
-    doc.text("C.I.:", margenIzq, 48);
-    doc.setFont("helvetica", "normal");
-    doc.text(datos.cedulaPaciente || "____________", margenIzq + 8, 48);
-
-    doc.setFont("helvetica", "bold");
-    doc.text("Edad:", margenIzq + 45, 48);
-    doc.setFont("helvetica", "normal");
-    doc.text(datos.edadPaciente ? `${datos.edadPaciente}` : "____", margenIzq + 56, 48);
-
-    const fechaHoy = datos.fecha || new Date().toLocaleDateString("es-VE");
-    doc.setFont("helvetica", "bold");
-    doc.text("Fecha:", margenDer - 32, 48);
-    doc.setFont("helvetica", "normal");
-    doc.text(fechaHoy, margenDer, 48, { align: "right" });
-
-    doc.setDrawColor(210, 210, 210);
-    doc.setLineWidth(0.3);
-    doc.line(margenIzq, 52, margenDer, 52);
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(12);
-    doc.setTextColor(12, 45, 87);
-    doc.text(tituloSeccion, margenIzq, 60);
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.setTextColor(15, 15, 15);
-    const lineas = doc.splitTextToSize(contenidoTexto || "", anchoUtil);
-    doc.text(lineas, margenIzq, 67);
-
-    if (datos.selloBase64) {
-      try {
-        doc.addImage(datos.selloBase64, "PNG", centroX - 22, 160, 44, 22);
-      } catch (e) {
-        console.warn("No se pudo insertar imagen de sello:", e);
-      }
-    }
-
-    doc.setDrawColor(80, 80, 80);
-    doc.setLineWidth(0.3);
-    doc.line(centroX - 30, 185, centroX + 30, 185);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(8.5);
-    doc.setTextColor(60, 60, 60);
-    doc.text("Firma y Sello del Médico", centroX, 190, { align: "center" });
-
-    doc.setDrawColor(220, 220, 220);
-    doc.line(margenIzq, 196, margenDer, 196);
-    
-    doc.setFont("helvetica", "italic");
-    doc.setFontSize(7.5);
-    doc.setTextColor(130, 130, 130);
-    doc.text("Generado digitalmente con Digital Medic — C.E. Leal Studio", centroX, 202, { align: "center" });
-  };
-
-  dibujarMitad(0, "Rp./", datos.textoRp);
-  dibujarMitad(139.7, "INDICACIONES:", datos.textoIndicaciones);
-
-  return doc;
-}
-
-// ==========================================
-// 2. CONSTRUCTOR DE MENSAJE DE WHATSAPP: ESTRICTAMENTE LOS FÁRMACOS DEL RÉCIPE
+// 1. CONSTRUCTOR DE MENSAJE DE WHATSAPP
 // ==========================================
 export function buildWhatsAppPharmacologicalMessage(options: {
   patientName?: string;
@@ -221,16 +112,15 @@ export function buildWhatsAppPharmacologicalMessage(options: {
   indicationsText?: string;
   documentType?: string;
 }): string {
-  const patient = (options.patientName || 'Carlos leal').trim();
+  const patient = (options.patientName || 'Carlos Pérez').trim();
   const doctor = (options.doctorName || 'Dr. Carlos Leal').trim();
   const specialty = (options.doctorSpecialty || 'Médico').trim();
   const date = options.dateStr || new Date().toLocaleDateString('es-VE');
   
-  // Limpieza estricta de fármacos prescritos
   const rawRp = (options.rpText || '').trim();
   const rawIndications = (options.indicationsText || '').trim();
 
-  let msg = `*RÉCIPE MÉDICO OFICIAL* 🩺\n`;
+  let msg = `*RÉCIPE Y TRATAMIENTO MÉDICO OFICIAL* 🩺\n`;
   msg += `*Médico Tratante:* Dr(a). ${doctor} (${specialty})\n`;
   msg += `*Paciente:* ${patient}`;
   if (options.patientCI) {
@@ -238,15 +128,15 @@ export function buildWhatsAppPharmacologicalMessage(options: {
   }
   msg += ` | *Fecha:* ${date}\n\n`;
 
-  msg += `*💊 FÁRMACOS Y TRATAMIENTO PRESCRITO (Rp.):*\n`;
+  msg += `*💊 FÁRMACOS Y TRATAMIENTO (Rp.):*\n`;
   if (rawRp) {
     msg += `${rawRp}\n\n`;
   } else {
-    msg += `(Consulte la lista detallada de fármacos en el archivo PDF del récipe adjunto)\n\n`;
+    msg += `(Ver archivo PDF adjunto)\n\n`;
   }
 
   if (rawIndications && rawIndications !== rawRp) {
-    msg += `*📋 INDICACIONES MÉDICAS:*\n`;
+    msg += `*📋 INDICACIONES Y RECOMENDACIONES:*\n`;
     msg += `${rawIndications}\n\n`;
   }
 
@@ -269,143 +159,7 @@ export function buildWhatsAppTreatmentMessage(params: any): string {
 }
 
 // ==========================================
-// 3. CAPTURA DE ALTA DEFINICIÓN DEL FORMATO REAL DEL MÉDICO CON HTML2CANVAS
-// ==========================================
-function findActivePrintElement(explicitElement?: HTMLElement | null): HTMLElement | null {
-  if (explicitElement && typeof explicitElement.getBoundingClientRect === 'function') {
-    return explicitElement;
-  }
-  if (typeof document === 'undefined') return null;
-
-  const selectors = [
-    '#recipe-quarter-print-container',
-    '#recipe-single-print-container',
-    '#recipe-4copies-print-sheet',
-    '#recipe-4en1-print-sheet',
-    '#dual-recipe-print-container',
-    '#report-print-container',
-    '#indications-print-container',
-    '#rest-print-container',
-    '#history-print-container',
-    '.recipe-single-card',
-    '.recipe-single-container',
-    '.dual-recipe-sheet',
-    '.dual-recipe-container',
-    '.recipe-4en1-container',
-    '.report-sheet-container',
-    '.indications-container',
-    '.rest-container',
-    '.clinical-history-container',
-    '.print-container'
-  ];
-
-  for (const sel of selectors) {
-    const el = document.querySelector<HTMLElement>(sel);
-    if (el && el.offsetParent !== null) { // visible
-      return el;
-    }
-  }
-
-  return document.querySelector<HTMLElement>('.print-container');
-}
-
-/**
- * Convierte el elemento DOM del médico exactamente como se ve en pantalla
- * a un documento jsPDF con resolución nítida y proporciones oficiales de hoja carta.
- */
-async function renderElementToJsPDF(targetEl: HTMLElement): Promise<jsPDF> {
-  // Asegurar captura con dimensiones de hoja médica limpia y reemplazo de inputs por texto puro
-  const canvas = await html2canvas(targetEl, {
-    scale: 2.5, // 2.5x resolución para impresión médica ultra nítida
-    useCORS: true,
-    allowTaint: true,
-    backgroundColor: '#ffffff',
-    logging: false,
-    onclone: (clonedDoc, clonedEl) => {
-      // 1. Ocultar botones y elementos de interfaz de usuario
-      const noPrints = clonedEl.querySelectorAll('.no-print, button, .pwa-floating-btn-container');
-      noPrints.forEach((el) => {
-        (el as HTMLElement).style.display = 'none';
-      });
-
-      // 2. Establecer ancho estable para evitar que la vista móvil comprima la hoja del PDF
-      const isQuarter = clonedEl.classList.contains('recipe-size-quarter') || clonedEl.id.includes('quarter');
-      const isDual = clonedEl.classList.contains('dual-recipe-container') || clonedEl.id.includes('dual');
-      
-      if (isQuarter) {
-        clonedEl.style.width = '420px';
-        clonedEl.style.maxWidth = '420px';
-      } else if (isDual) {
-        clonedEl.style.width = '900px';
-        clonedEl.style.maxWidth = '900px';
-      } else {
-        clonedEl.style.width = '800px';
-        clonedEl.style.maxWidth = '800px';
-      }
-
-      clonedEl.style.margin = '0 auto';
-      clonedEl.style.boxShadow = 'none';
-      clonedEl.style.borderRadius = '0px';
-
-      // 3. Reemplazar inputs y textareas por texto limpio para que no salgan bordes de formulario en el PDF
-      const inputs = clonedEl.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('input, textarea');
-      inputs.forEach((inp) => {
-        const val = inp.value || inp.getAttribute('value') || '';
-        const div = clonedDoc.createElement('div');
-        const comp = window.getComputedStyle(inp);
-        div.style.fontFamily = comp.fontFamily;
-        div.style.fontSize = comp.fontSize;
-        div.style.fontWeight = comp.fontWeight;
-        div.style.color = comp.color || '#0f172a';
-        div.style.lineHeight = comp.lineHeight;
-        div.style.whiteSpace = 'pre-wrap';
-        div.style.wordBreak = 'break-word';
-        div.style.border = 'none';
-        div.style.background = 'transparent';
-        div.style.padding = '0';
-        div.style.margin = '0';
-        div.textContent = val;
-        inp.parentNode?.replaceChild(div, inp);
-      });
-    }
-  });
-
-  const isLandscape = canvas.width > canvas.height * 1.15;
-  const orientation = isLandscape ? 'landscape' : 'portrait';
-  const pdf = new jsPDF({
-    orientation,
-    unit: 'mm',
-    format: 'letter',
-  });
-
-  const pageWidth = isLandscape ? 279.4 : 215.9;
-  const pageHeight = isLandscape ? 215.9 : 279.4;
-
-  const marginX = 8;
-  const marginY = 8;
-  const maxW = pageWidth - marginX * 2;
-  const maxH = pageHeight - marginY * 2;
-
-  const aspect = canvas.width / canvas.height;
-  let renderW = maxW;
-  let renderH = renderW / aspect;
-
-  if (renderH > maxH) {
-    renderH = maxH;
-    renderW = renderH * aspect;
-  }
-
-  const posX = (pageWidth - renderW) / 2;
-  const posY = (pageHeight - renderH) / 2;
-
-  const imgData = canvas.toDataURL('image/png', 1.0);
-  pdf.addImage(imgData, 'PNG', posX, posY, renderW, renderH, undefined, 'FAST');
-
-  return pdf;
-}
-
-// ==========================================
-// 4. DESCARGA OFICIAL DE PDF RESPETANDO 100% EL FORMATO VISUAL DEL MÉDICO
+// 2. DESCARGA DE PDF USANDO html2pdf.js CON #recibo-medico
 // ==========================================
 export async function exportElementAsPDF(
   element?: HTMLElement | null,
@@ -413,30 +167,70 @@ export async function exportElementAsPDF(
   customDatos?: DatosRecipePDF
 ): Promise<boolean> {
   try {
-    const targetEl = findActivePrintElement(element);
-    const filename = rawFilename || `Recipe_${Date.now()}.pdf`;
+    const datos = customDatos || extractDatosFromApp();
+    const filename = rawFilename || buildDocumentPdfFilename('Récipe', datos.nombrePaciente, datos.fecha);
 
-    if (targetEl) {
-      const pdf = await renderElementToJsPDF(targetEl);
-      pdf.save(filename);
-      return true;
+    let targetEl = element || 
+                   document.querySelector('#recipe-medico') ||
+                   document.querySelector('#recibo-medico') || 
+                   document.querySelector('.print-container') || 
+                   document.querySelector('#indications-print-container') ||
+                   document.querySelector('#recipe-quarter-print-container') ||
+                   document.querySelector('#recipe-single-print-container');
+
+    if (!targetEl && typeof document !== 'undefined') {
+      targetEl = document.createElement('div');
+      targetEl.style.width = '816px';
+      targetEl.style.backgroundColor = '#ffffff';
+      targetEl.style.padding = '32px';
+      targetEl.id = 'recibo-medico';
+      targetEl.className = 'print-container recipe-single-container';
+      targetEl.innerHTML = `
+        <div style="border: 2px solid #1e3a8a; border-radius: 16px; padding: 24px; background: #fff;">
+          <h2 style="color: #1e3a8a; text-align: center; margin: 0; font-size: 22px; font-weight: 900;">${(datos.nombreMedico || 'Dr. Carlos Leal').toUpperCase()}</h2>
+          <p style="text-align: center; color: #475569; font-weight: 700; font-size: 14px; margin: 4px 0;">${datos.especialidad || 'Médico Especialista'} · MPPS: ${datos.mpps || '----'}</p>
+          <hr style="border: 1px solid #1e3a8a; margin: 16px 0;" />
+          <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; background: #f8fafc; padding: 10px 14px; border-radius: 8px; margin-bottom: 16px;">
+            <div><strong>Paciente:</strong> ${datos.nombrePaciente || 'Carlos Pérez'}</div>
+            <div><strong>C.I.:</strong> ${datos.cedulaPaciente || 'V-00.000.000'}</div>
+            <div><strong>Fecha:</strong> ${datos.fecha || new Date().toLocaleDateString('es-VE')}</div>
+          </div>
+          <div style="margin-bottom: 24px;">
+            <h3 style="color: #1e3a8a; font-size: 14px; font-weight: 800; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">Rp. / Tratamiento / Indicaciones</h3>
+            <div style="font-size: 14px; color: #0f172a; white-space: pre-wrap; line-height: 1.6;">${datos.textoRp || datos.textoIndicaciones || 'Tratamiento prescrito...'}</div>
+          </div>
+          <div style="text-align: center; margin-top: 40px;">
+            ${datos.selloBase64 ? `<img src="${datos.selloBase64}" style="max-height: 70px; margin-bottom: 4px;" alt="Sello y Firma" />` : ''}
+            <div style="border-top: 1px solid #475569; width: 200px; margin: 10px auto 4px auto;"></div>
+            <p style="font-size: 11px; font-weight: 700; color: #475569; margin: 0;">Firma y Sello del Médico</p>
+          </div>
+          <div style="text-align: center; margin-top: 24px; font-size: 10px; color: #94a3b8;">
+            Fecha de emisión: ${datos.fecha || new Date().toLocaleDateString('es-VE')} — Generado con Digital Medic
+          </div>
+        </div>
+      `;
+      document.body.appendChild(targetEl);
     }
 
-    // Si por alguna razón no hay DOM, usar fallback estructurado
-    const datos = customDatos || extractDatosFromApp();
-    const doc = construirDocumentoPDF(datos);
-    doc.save(filename);
+    const opt = {
+      margin:       5,
+      filename:     filename,
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { scale: 2.5, useCORS: true, logging: false, letterRendering: true },
+      jsPDF:        { unit: 'mm', format: 'letter', orientation: 'portrait' }
+    };
+
+    await html2pdf().from(targetEl).set(opt).save();
+
+    if (targetEl && targetEl.parentNode === document.body && !element && !document.querySelector('#recibo-medico')) {
+      try { document.body.removeChild(targetEl); } catch (_) {}
+    }
+
     return true;
   } catch (err) {
-    console.error('[Digital Medic] Error al renderizar PDF con formato real:', err);
-    try {
-      const datos = customDatos || extractDatosFromApp();
-      const doc = construirDocumentoPDF(datos);
-      doc.save(rawFilename || 'Recipe.pdf');
-      return true;
-    } catch (_) {
-      return false;
-    }
+    console.error('[Digital Medic] html2pdf error:', err);
+    window.print();
+    return true;
   }
 }
 
@@ -453,23 +247,20 @@ export async function generatePDFBlob(
   customDatos?: DatosRecipePDF
 ): Promise<Blob | null> {
   try {
-    const targetEl = findActivePrintElement(targetElement);
-    if (targetEl) {
-      const pdf = await renderElementToJsPDF(targetEl);
-      return pdf.output('blob');
-    }
     const datos = customDatos || extractDatosFromApp();
-    const doc = construirDocumentoPDF(datos);
-    return doc.output('blob');
+    let targetEl = targetElement || document.querySelector('#recibo-medico') || document.querySelector('.print-container');
+    if (!targetEl) return null;
+    const opt = {
+      margin: 5,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, logging: false },
+      jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' }
+    };
+    const pdfWorker = html2pdf().from(targetEl).set(opt).outputPdf('blob');
+    return await pdfWorker;
   } catch (e) {
-    console.error('[Digital Medic] Error al generar Blob con formato real:', e);
-    try {
-      const datos = customDatos || extractDatosFromApp();
-      const doc = construirDocumentoPDF(datos);
-      return doc.output('blob');
-    } catch (_) {
-      return null;
-    }
+    console.error('[Digital Medic] generatePDFBlob error:', e);
+    return null;
   }
 }
 
@@ -498,32 +289,26 @@ export function downloadBlobAsFile(blob: Blob, filename: string): void {
 }
 
 // ==========================================
-// 5. ENVIAR POR WHATSAPP CON DESCARGA DEL PDF Y RECORDATORIO VISUAL DEL CLIP 📎
+// 3. WHATSAPP & CLIP SHARING
 // ==========================================
 export async function compartirPDFAdjuntoWhatsApp(datos: DatosRecipePDF, targetElement?: HTMLElement | null) {
   const cleanPatient = (datos.nombrePaciente || "Paciente").replace(/[^a-zA-Z0-9]/g, "_");
-  const nombreArchivo = `Recipe_${cleanPatient}.pdf`;
+  const nombreArchivo = buildDocumentPdfFilename('Récipe', datos.nombrePaciente, datos.fecha);
 
-  // a) Disparar la descarga automática del PDF oficial del récipe al dispositivo
   try {
-    const targetEl = findActivePrintElement(targetElement);
-    await exportElementAsPDF(targetEl, nombreArchivo, datos);
-  } catch (_) {
-    const doc = construirDocumentoPDF(datos);
-    doc.save(nombreArchivo);
+    await exportElementAsPDF(targetElement, nombreArchivo, datos);
+  } catch (err) {
+    console.warn('WhatsApp PDF export warning:', err);
   }
 
-  // b) Notificación explicativa en pantalla
   showWhatsAppClipAlert('📎 Se ha descargado el archivo PDF oficial en su dispositivo. Por favor, pulse el clip en este chat y adjúntelo para su validez.');
-
-  // c) Abrir la API de WhatsApp copiando el mensaje al portapapeles
   enviarWhatsAppDirectoNumero(datos, false);
 }
 
 export function enviarWhatsAppDirectoNumero(datos: DatosRecipePDF, descargarTambien = false) {
   if (descargarTambien) {
-    const cleanPatient = (datos.nombrePaciente || "Paciente").replace(/[^a-zA-Z0-9]/g, "_");
-    exportElementAsPDF(null, `Recipe_${cleanPatient}.pdf`, datos).catch(console.warn);
+    const filename = buildDocumentPdfFilename('Récipe', datos.nombrePaciente, datos.fecha);
+    exportElementAsPDF(null, filename, datos).catch(console.warn);
   }
 
   let telefono = (datos.telefonoPaciente || "").replace(/\D/g, "");
@@ -545,7 +330,6 @@ export function enviarWhatsAppDirectoNumero(datos: DatosRecipePDF, descargarTamb
     indicationsText: datos.textoIndicaciones,
   });
 
-  // Copiar al portapapeles el mensaje
   try {
     if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(mensaje).catch(() => {});
@@ -565,13 +349,14 @@ export function enviarWhatsAppDirectoNumero(datos: DatosRecipePDF, descargarTamb
 }
 
 export function buildDocumentPdfFilename(
-  docType: string = 'récipe',
+  docType: string = 'Récipe',
   patientName: string = '',
   dateStr: string = ''
 ): string {
-  const cleanP = (patientName || 'Paciente').replace(/[^a-zA-Z0-9]/g, '_');
-  const cleanD = (docType || 'Documento').replace(/[^a-zA-Z0-9]/g, '_');
-  return `${cleanD}_${cleanP}.pdf`;
+  const cleanP = (patientName || 'Carlos Pérez').trim();
+  const cleanD = (docType || 'Récipe').trim();
+  const cleanDate = (dateStr || new Date().toLocaleDateString('es-VE')).replace(/[/\\?%*:|"<>]/g, '-');
+  return `${cleanD} - ${cleanP} - ${cleanDate}.pdf`.replace(/\s+/g, ' ');
 }
 
 export function sanitizeToAsciiFilename(filename: string): string {
@@ -594,7 +379,7 @@ export async function sharePDFViaWebShare(
   return { 
     success: true, 
     method: 'download_whatsapp', 
-    filename: rawFilename || `Recipe_${(datos.nombrePaciente || 'Paciente').replace(/[^a-zA-Z0-9]/g, '_')}.pdf` 
+    filename: rawFilename || buildDocumentPdfFilename('Récipe', datos.nombrePaciente, datos.fecha)
   };
 }
 
@@ -622,7 +407,7 @@ export async function exportAndSendWhatsAppBusiness(options: any): Promise<boole
     telefonoPaciente: options.patientPhone,
     nombreMedico: options.doctorName,
     textoRp: options.recipe?.rp || options.treatmentDetails,
-    textoIndicaciones: options.indications?.medicationSchedule || options.indicationsNotes,
+    textoIndicaciones: options.indications?.generalInstructions || options.indications?.medicationSchedule || options.indicationsNotes,
     fecha: options.dateStr
   });
   await compartirPDFAdjuntoWhatsApp(datos, options.element);
@@ -634,7 +419,6 @@ export function showWhatsAppClipAlert(customMessage?: string): void {
     if (typeof window !== 'undefined') {
       const msg = customMessage || '📎 ¡PDF Descargado! Recuerda tocar el clip (📎) en WhatsApp para adjuntarlo al paciente.';
       window.dispatchEvent(new CustomEvent('app-toast', { detail: msg }));
-      // Also broadcast custom event for clip modal
       window.dispatchEvent(new CustomEvent('whatsapp-clip-reminder', { detail: { message: msg } }));
     }
   } catch (_) {}

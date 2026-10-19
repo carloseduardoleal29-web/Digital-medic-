@@ -1681,19 +1681,41 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
 
             {/* Action Buttons for Recipe View */}
             {finalPreviewTab === 'recipe' && (
-              <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2 w-full">
-                {/* 1. Descargar / Guardar PDF */}
+              <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 w-full">
+                {/* 1. Descargar PDF Completo (2 en 1) */}
+                <button
+                  type="button"
+                  onClick={handleDownloadDualPdfDirect}
+                  className="w-full min-h-[46px] p-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl font-black text-xs flex items-center justify-center gap-1.5 shadow-md transition-all hover:scale-[1.01] active:scale-95 cursor-pointer border border-blue-400/40"
+                  title="Descargar PDF Completo con Récipe e Indicaciones juntas en 1 hoja"
+                >
+                  <Download className="w-4 h-4 text-cyan-200 shrink-0" />
+                  <span className="truncate">PDF 2 en 1 (Completo)</span>
+                </button>
+
+                {/* 2. Descargar solo Récipe */}
                 <button
                   type="button"
                   onClick={handleDownloadRecipePdfDirect}
-                  className="w-full min-h-[46px] p-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-black text-xs flex items-center justify-center gap-2 shadow-md transition-all hover:scale-[1.01] active:scale-95 cursor-pointer border border-blue-400/40"
-                  title="Descargar y guardar PDF oficial firmado y sellado"
+                  className="w-full min-h-[46px] p-2 bg-blue-700 hover:bg-blue-600 text-white rounded-xl font-black text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all hover:scale-[1.01] active:scale-95 cursor-pointer border border-blue-400/30"
+                  title="Descargar PDF solo del Récipe Médico"
                 >
-                  <Download className="w-4 h-4 text-cyan-200 shrink-0" />
-                  <span className="truncate">Descargar / Guardar PDF</span>
+                  <Download className="w-4 h-4 text-cyan-100 shrink-0" />
+                  <span className="truncate">Descargar solo Récipe</span>
                 </button>
 
-                {/* 2. Enviar por WhatsApp */}
+                {/* 3. Descargar solo Indicaciones */}
+                <button
+                  type="button"
+                  onClick={handleDownloadIndicationsPdfDirect}
+                  className="w-full min-h-[46px] p-2 bg-indigo-700 hover:bg-indigo-600 text-white rounded-xl font-black text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all hover:scale-[1.01] active:scale-95 cursor-pointer border border-indigo-400/30"
+                  title="Descargar PDF solo de las Indicaciones Médicas"
+                >
+                  <Download className="w-4 h-4 text-indigo-200 shrink-0" />
+                  <span className="truncate">Descargar solo Indicaciones</span>
+                </button>
+
+                {/* 4. Enviar por WhatsApp */}
                 <button
                   type="button"
                   onClick={() => {
@@ -1707,35 +1729,24 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
                       treatmentDetails: recipe.rp?.trim() || '',
                       documentType: 'recipe',
                       recipe,
-                      indications,
+                      indications: localIndications,
                       config
                     });
                   }}
-                  className="w-full min-h-[46px] p-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black text-xs flex items-center justify-center gap-2 shadow-md transition-all hover:scale-[1.01] active:scale-95 cursor-pointer border border-emerald-400/40"
-                  title="Enviar récipe por WhatsApp con PDF y tratamiento"
+                  className="w-full min-h-[46px] p-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black text-xs flex items-center justify-center gap-1.5 shadow-md transition-all hover:scale-[1.01] active:scale-95 cursor-pointer border border-emerald-400/40"
+                  title="Enviar récipe e indicaciones por WhatsApp con PDF"
                 >
-                  <span className="text-base shrink-0">📱</span>
-                  <span className="truncate">Enviar por WhatsApp</span>
+                  <span className="text-sm shrink-0">📱</span>
+                  <span className="truncate">WhatsApp</span>
                 </button>
 
-                {/* 3. Enviar por Correo */}
-                <button
-                  type="button"
-                  onClick={() => setIsEmailModalOpen(true)}
-                  className="w-full min-h-[46px] p-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-black text-xs flex items-center justify-center gap-2 shadow-md transition-all hover:scale-[1.01] active:scale-95 cursor-pointer border border-indigo-400/40"
-                  title="Enviar récipe por correo electrónico"
-                >
-                  <Mail className="w-4 h-4 text-cyan-200 shrink-0" />
-                  <span className="truncate">Enviar por Correo</span>
-                </button>
-
-                {/* 4. Continuar a Indicaciones */}
+                {/* 5. Seguir a Indicaciones */}
                 <button
                   type="button"
                   onClick={() => setFinalPreviewTab('indications')}
-                  className="w-full min-h-[46px] p-2.5 bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 hover:to-purple-800 text-white rounded-xl font-black text-xs flex items-center justify-center gap-2 shadow-md transition-all hover:scale-[1.01] active:scale-95 cursor-pointer border border-indigo-400/40"
+                  className="w-full min-h-[46px] p-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-black text-xs flex items-center justify-center gap-1.5 shadow-md transition-all hover:scale-[1.01] active:scale-95 cursor-pointer border border-slate-700"
                 >
-                  <span className="truncate">Seguir a Indicaciones</span>
+                  <span className="truncate">Ver Indicaciones</span>
                   <ArrowRight className="w-4 h-4 text-cyan-200 shrink-0" />
                 </button>
               </div>
@@ -1743,20 +1754,31 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
 
             {/* Action Buttons for Indications View */}
             {finalPreviewTab === 'indications' && (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 w-full">
 
-                {/* 1. Descargar PDF Indicaciones */}
+                {/* 1. Descargar solo Indicaciones */}
                 <button
                   type="button"
                   onClick={handleDownloadIndicationsPdfDirect}
                   className="w-full min-h-[46px] p-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-black text-xs flex items-center justify-center gap-2 shadow-md transition-all hover:scale-[1.01] active:scale-95 cursor-pointer border border-indigo-400/40"
-                  title="Descargar PDF de Indicaciones Médicas"
+                  title="Descargar PDF de Indicaciones Médicas solas"
                 >
                   <Download className="w-4 h-4 text-cyan-200 shrink-0" />
-                  <span>Descargar PDF Indicaciones</span>
+                  <span>Descargar Indicaciones Solas</span>
                 </button>
 
-                {/* 2. Volver al Récipe */}
+                {/* 2. Descargar 2 en 1 */}
+                <button
+                  type="button"
+                  onClick={handleDownloadDualPdfDirect}
+                  className="w-full min-h-[46px] p-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-black text-xs flex items-center justify-center gap-2 shadow-md transition-all hover:scale-[1.01] active:scale-95 cursor-pointer border border-blue-400/40"
+                  title="Descargar PDF Completo (Récipe e Indicaciones Juntas)"
+                >
+                  <Download className="w-4 h-4 text-cyan-200 shrink-0" />
+                  <span>PDF 2 en 1 Completo</span>
+                </button>
+
+                {/* 3. Volver al Récipe */}
                 <button
                   type="button"
                   onClick={() => setFinalPreviewTab('recipe')}
@@ -1766,7 +1788,7 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
                   <span>Volver al Récipe</span>
                 </button>
 
-                {/* 3. Finalizar Consulta / Nuevo Paciente */}
+                {/* 4. Finalizar Consulta / Nuevo Paciente */}
                 <button
                   type="button"
                   onClick={() => {
@@ -2249,6 +2271,95 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
                     compact={true}
                   />
                 </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ========================================================= */}
+          {/* CONTENEDOR OCULTO/IMPRESIÓN 2 EN 1: RÉCIPE + INDICACIONES */}
+          {/* ========================================================= */}
+          <div
+            ref={printableDualRef}
+            id="recipe-indications-dual-sheet"
+            className="hidden print:block w-full max-w-[816px] min-h-[1056px] bg-white p-6 rounded-2xl print-container border border-slate-200 shadow-2xl relative overflow-hidden my-4"
+            style={{
+              backgroundColor: config.tonePapel || '#ffffff',
+              border: borderStyle,
+              borderRadius: config.docCornerRadius || '16px',
+              boxSizing: 'border-box',
+            }}
+          >
+            {/* Marca de agua */}
+            {config.marcaAgua && !config.marcaAgua.includes('DIGITAL') && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
+                <img
+                  src={config.marcaAgua}
+                  alt="Marca de agua"
+                  className="marca-agua-img"
+                  style={{
+                    opacity: config.watermarkOpacity ?? 0.16,
+                    width: `${config.watermarkScale || 50}%`,
+                    transform: `rotate(${config.watermarkRotation || 0}deg)`,
+                  }}
+                />
+              </div>
+            )}
+
+            <div className="relative z-10 flex flex-col justify-between h-full space-y-4">
+              {/* PARTE SUPERIOR: RÉCIPE MÉDICO */}
+              <div className="border-b-2 border-dashed border-slate-300 pb-4">
+                <DocumentHeader config={config} compact={true} editableInline={false} />
+                
+                <div className="my-1.5 pb-1 border-b border-slate-200 flex items-center justify-between">
+                  <span className="text-sm font-black tracking-wide uppercase font-serif" style={{ color: config.primaryDocColor }}>
+                    RÉCIPE MÉDICO OFICIAL
+                  </span>
+                  <span className="text-xs font-semibold text-slate-700">
+                    Fecha: <strong>{recipe.date || '14/10/26'}</strong>
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-2 bg-slate-50/90 rounded-xl border border-slate-200 text-xs my-1.5">
+                  <div><span className="font-bold text-slate-700">Paciente:</span> <strong>{recipe.patientName || 'Carlos leal'}</strong></div>
+                  <div><span className="font-bold text-slate-700">C.I.:</span> {recipe.patientCI || 'V-18.456.789'}</div>
+                  <div><span className="font-bold text-slate-700">Edad:</span> {recipe.patientAge || '35 años'}</div>
+                  <div className="text-right"><span className="font-bold text-slate-700">Fecha:</span> <strong>{recipe.date || '14/10/26'}</strong></div>
+                </div>
+
+                <div className="my-2">
+                  <span className="text-xl font-serif font-black" style={{ color: config.rxTitleColor || config.primaryDocColor }}>
+                    {config.rxTitle || 'Rp.'}
+                  </span>
+                  <div className="p-2.5 bg-white/80 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 whitespace-pre-wrap leading-relaxed min-h-[140px]">
+                    {recipe.rp || 'Prescripción médica.'}
+                  </div>
+                </div>
+
+                <DocumentFooter config={config} compact={true} />
+              </div>
+
+              {/* PARTE INFERIOR: INDICACIONES MÉDICAS */}
+              <div className="pt-2">
+                <DocumentHeader config={config} compact={true} editableInline={false} />
+
+                <div className="my-1.5 pb-1 border-b border-slate-200 flex items-center justify-between">
+                  <span className="text-sm font-black tracking-wide uppercase font-serif text-indigo-900">
+                    INDICACIONES MÉDICAS Y POSOLOGÍA
+                  </span>
+                  <span className="text-xs font-semibold text-slate-700">
+                    Fecha: <strong>{localIndications.date || recipe.date || '14/10/26'}</strong>
+                  </span>
+                </div>
+
+                <div className="p-2 bg-indigo-50/70 rounded-xl border border-indigo-200 text-xs my-1.5">
+                  <strong>Indicaciones para:</strong> {localIndications.patientName || recipe.patientName || 'Carlos leal'} — {localIndications.date || recipe.date || '14/10/26'}
+                </div>
+
+                <div className="p-2.5 bg-white/80 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 whitespace-pre-wrap leading-relaxed min-h-[140px] my-2">
+                  {localIndications.generalInstructions || 'Tomar medicamentos indicados en el récipe según horarios.'}
+                </div>
+
+                <DocumentFooter config={config} compact={true} />
               </div>
             </div>
           </div>
