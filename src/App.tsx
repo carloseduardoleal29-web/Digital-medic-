@@ -98,7 +98,7 @@ import {
 } from './services/ecosystemSync';
 import { saveDirectToFirestore, subscribeToPaymentConfig, subscribeToUserEcosystem } from './services/firebaseClient';
 import { fetchPaymentConfig } from './services/paymentConfigService';
-import { exportElementAsPDF, sharePDFViaWebShare, generatePDFBlob, buildDocumentPdfFilename, showWhatsAppClipAlert, buildWhatsAppTreatmentMessage } from './utils/exportDocument';
+import { exportElementAsPDF, sharePDFViaWebShare, generatePDFBlob, buildDocumentPdfFilename, showWhatsAppClipAlert, buildWhatsAppTreatmentMessage, extractDatosFromApp } from './utils/exportDocument';
 import { compressDoctorConfigImages } from './utils/imageCompressor';
 
 /**
@@ -2598,15 +2598,14 @@ export default function App() {
     } else if (activeModule === 'recipe-4en1') {
       container = document.querySelector<HTMLElement>('#recipe-4en1-print-sheet, .recipe-4en1-container') ||
         document.querySelector<HTMLElement>('#recipe-quarter-print-container, .recipe-single-card');
-    } else if (activeModule === 'recipe-master' || activeModule === 'recipe') {
-      container = document.querySelector<HTMLElement>('#recipe-medico, #recibo-medico, [data-testid="recibo-medico"], .recipe-single-container, #recipe-quarter-print-container');
+    } else if (activeModule === 'recipe-master' || activeModule === 'recipe' || (activeModule as any) === 'recipes') {
+      container = document.querySelector<HTMLElement>('#recipe-medico, #recibo-medico, [data-testid="recibo-medico"], .recipe-single-container, .recipe-single-card, #recipe-quarter-print-container, #recipe-single-print-container');
     } else {
-      container = document.querySelector<HTMLElement>('#recipe-medico, #recibo-medico, #recipe-4en1-print-sheet, .recipe-4en1-container, #recipe-single-print-container');
+      container = document.querySelector<HTMLElement>('#recipe-medico, #recibo-medico, .recipe-single-container, .recipe-single-card, #recipe-4en1-print-sheet, .recipe-4en1-container, #recipe-single-print-container');
     }
     
     if (!container) {
-      showToast('⚠️ No se encontró la hoja médica activa en pantalla.');
-      return false;
+      container = document.body;
     }
 
     try {
@@ -2641,17 +2640,265 @@ export default function App() {
       else if (activeModule === 'recipe-4en1') prefix = 'récipe';
 
       const fileName = buildDocumentPdfFilename(prefix, pName || 'Carlos leal', docDate || '14/10/26');
-      const success = await exportElementAsPDF(container, fileName);
+      const curRec = recipes[activeRecipeIndex] || recipes[0];
+      const curRec2 = recipes[1];
+      const customDatos = extractDatosFromApp(
+        config,
+        curRec,
+        indications,
+        {
+          nombrePaciente: pName,
+          fecha: docDate,
+          textoRp: curRec?.rp || '',
+          textoIndicaciones: indications?.medicationSchedule
+            ? `${indications.medicationSchedule}${indications.dietAndRest ? `\n\n${indications.dietAndRest}` : ''}`
+            : (curRec?.indicationsNotes || ''),
+          textoRecipe2: curRec2?.rp || '',
+        }
+      );
+      // Lógica de Clonación de Réplica Visual Exacta hacia #hidden-pdf-landscape-mold
+      let hiddenMold = document.getElementById('hidden-pdf-landscape-mold') as HTMLElement | null;
+      if (!hiddenMold) {
+        hiddenMold = document.createElement('div');
+        hiddenMold.id = 'hidden-pdf-landscape-mold';
+        hiddenMold.setAttribute('data-pdf-architecture', 'lienzo-oculto-medidas-fijas');
+        document.body.appendChild(hiddenMold);
+      }
+
+      hiddenMold.style.cssText = `
+        position: fixed;
+        left: 0px;
+        top: 0px;
+        width: 1056px;
+        min-width: 1056px;
+        max-width: 1056px;
+        height: 816px;
+        min-height: 816px;
+        max-height: 816px;
+        overflow: hidden;
+        background-color: #ffffff;
+        margin: 0;
+        padding: 0;
+        z-index: -9999;
+        pointer-events: none;
+        display: flex;
+        flex-direction: row;
+        box-sizing: border-box;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      `;
+      hiddenMold.innerHTML = '';
+
+      // Función para clonar la estructura DOM, clases CSS, estilos inline y aplicar explícitamente getComputedStyle
+      const cloneWithExactComputedStyles = (sourceEl: HTMLElement): HTMLElement => {
+        const clone = sourceEl.cloneNode(true) as HTMLElement;
+
+        // 1. Remover elementos interactivos y botones no imprimibles
+        const noPrintEls = clone.querySelectorAll('.no-print, button, svg.lucide-camera, [title*="editar"], [title*="Haga clic"], [title*="Arrastre"], .no-pdf');
+        noPrintEls.forEach((el) => el.remove());
+
+        // 2. Sincronizar e inyectar valores reales de los campos <input> a texto plano <span>
+        const origInputs = Array.from(sourceEl.querySelectorAll('input'));
+        const cloneInputs = Array.from(clone.querySelectorAll('input'));
+        origInputs.forEach((origInput, idx) => {
+          const cloneInput = cloneInputs[idx];
+          if (!cloneInput) return;
+          const comp = window.getComputedStyle(origInput);
+          const val = origInput.value !== undefined && origInput.value !== null ? origInput.value : (origInput.getAttribute('value') || '');
+          const span = document.createElement('span');
+          span.textContent = val;
+          span.className = cloneInput.className;
+          span.style.cssText = cloneInput.style.cssText;
+          span.style.fontFamily = comp.fontFamily;
+          span.style.fontSize = comp.fontSize;
+          span.style.fontWeight = comp.fontWeight;
+          span.style.color = comp.color || '#0f172a';
+          span.style.letterSpacing = comp.letterSpacing;
+          span.style.textAlign = comp.textAlign;
+          span.style.display = 'inline-block';
+          span.style.minWidth = '16px';
+          if (comp.borderBottomWidth && comp.borderBottomStyle !== 'none' && comp.borderBottomColor) {
+            span.style.borderBottom = `${comp.borderBottomWidth} ${comp.borderBottomStyle} ${comp.borderBottomColor}`;
+            span.style.paddingBottom = comp.paddingBottom || '1px';
+          } else if (cloneInput.className.includes('border-b') || cloneInput.className.includes('border-dashed')) {
+            span.style.borderBottom = '1px dashed #cbd5e1';
+            span.style.paddingBottom = '1px';
+          }
+          cloneInput.parentNode?.replaceChild(span, cloneInput);
+        });
+
+        // 3. Sincronizar <textarea> a <div> plano preservando contenido real y salto de líneas
+        const origTextareas = Array.from(sourceEl.querySelectorAll('textarea'));
+        const cloneTextareas = Array.from(clone.querySelectorAll('textarea'));
+        origTextareas.forEach((origTa, idx) => {
+          const cloneTa = cloneTextareas[idx];
+          if (!cloneTa) return;
+          const comp = window.getComputedStyle(origTa);
+          const val = origTa.value !== undefined && origTa.value !== null ? origTa.value : (origTa.textContent || '');
+          const div = document.createElement('div');
+          div.textContent = val;
+          div.className = cloneTa.className;
+          div.style.cssText = cloneTa.style.cssText;
+          div.style.fontFamily = comp.fontFamily;
+          div.style.fontSize = comp.fontSize;
+          div.style.fontWeight = comp.fontWeight;
+          div.style.lineHeight = comp.lineHeight;
+          div.style.color = comp.color || '#0f172a';
+          div.style.whiteSpace = 'pre-wrap';
+          div.style.wordBreak = 'break-word';
+          div.style.display = 'block';
+          div.style.width = '100%';
+          div.style.background = 'transparent';
+          div.style.border = 'none';
+          cloneTa.parentNode?.replaceChild(div, cloneTa);
+        });
+
+        // 4. Copiar exhaustivamente estilos calculados con getComputedStyle (colores, fuentes, espaciados y dimensiones)
+        const sourceNodes = [sourceEl, ...Array.from(sourceEl.querySelectorAll<HTMLElement>('*'))];
+        const cloneNodes = [clone, ...Array.from(clone.querySelectorAll<HTMLElement>('*'))];
+
+        const styleAttributes = [
+          'color', 'backgroundColor',
+          'fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'letterSpacing', 'lineHeight', 'textAlign', 'textTransform',
+          'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
+          'marginTop', 'marginRight', 'marginBottom', 'marginLeft',
+          'gap', 'rowGap', 'columnGap',
+          'borderColor', 'borderTopColor', 'borderRightColor', 'borderBottomColor', 'borderLeftColor',
+          'borderWidth', 'borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth',
+          'borderStyle', 'borderTopStyle', 'borderRightStyle', 'borderBottomStyle', 'borderLeftStyle',
+          'borderRadius', 'borderTopLeftRadius', 'borderTopRightRadius', 'borderBottomLeftRadius', 'borderBottomRightRadius',
+          'display', 'flexDirection', 'justifyContent', 'alignItems', 'flexWrap', 'flexGrow', 'flexShrink',
+          'objectFit', 'objectPosition', 'opacity', 'boxShadow'
+        ] as const;
+
+        const totalNodes = Math.min(sourceNodes.length, cloneNodes.length);
+        for (let i = 0; i < totalNodes; i++) {
+          const s = sourceNodes[i];
+          const c = cloneNodes[i];
+          if (!s || !c) continue;
+
+          try {
+            const comp = window.getComputedStyle(s);
+
+            // Asegurar clases CSS
+            if (s.className && typeof s.className === 'string') {
+              c.className = s.className;
+            }
+
+            // Aplicar explícitamente estilos computados de getComputedStyle
+            for (const prop of styleAttributes) {
+              const val = comp[prop as any];
+              if (val && val !== 'initial' && val !== 'none' && val !== '0px' && val !== 'normal' && val !== 'auto') {
+                (c.style as any)[prop] = val;
+              } else if (val && (prop === 'backgroundColor' || prop === 'color' || prop === 'fontSize' || prop === 'fontFamily' || prop === 'fontWeight')) {
+                (c.style as any)[prop] = val;
+              }
+            }
+
+            // Tratamiento explícito de logos e imágenes: dimensiones, URL y object-fit
+            if (s instanceof HTMLImageElement && c instanceof HTMLImageElement) {
+              c.setAttribute('crossOrigin', 'anonymous');
+              c.crossOrigin = 'anonymous';
+              c.src = s.src;
+              c.style.width = comp.width;
+              c.style.height = comp.height;
+              c.style.maxWidth = comp.maxWidth;
+              c.style.maxHeight = comp.maxHeight;
+              c.style.objectFit = comp.objectFit || 'contain';
+              c.style.display = 'block';
+            }
+
+            // Tratamiento explícito de cajas de datos del paciente y membrete
+            if (s.className && (s.className.includes('bg-slate-50') || s.className.includes('patient') || s.id?.includes('patient'))) {
+              c.style.backgroundColor = comp.backgroundColor;
+              c.style.borderColor = comp.borderColor;
+              c.style.borderRadius = comp.borderRadius;
+              c.style.padding = comp.padding;
+              c.style.boxShadow = comp.boxShadow;
+            }
+          } catch (_) {
+            // ignorar nodos desconectados
+          }
+        }
+
+        // 5. Limpieza de contenteditable y cajas de enfoque
+        clone.querySelectorAll('[contenteditable]').forEach((el) => {
+          el.removeAttribute('contenteditable');
+          (el as HTMLElement).style.outline = 'none';
+        });
+        clone.style.boxShadow = 'none';
+        clone.style.margin = '0';
+        clone.style.position = 'relative';
+
+        return clone;
+      };
+
+      if (container && container !== document.body) {
+        // Documentos de página completa o 4-en-1
+        const isFullWidthDoc = activeModule === 'informes' || 
+          activeModule === 'reposo' || 
+          activeModule === 'historias' || 
+          activeModule === 'recipe-4en1' ||
+          container.id === 'report-print-container' ||
+          container.id === 'rest-print-container' ||
+          container.id === 'clinical-history-print-container' ||
+          container.id === 'recipe-4en1-print-sheet';
+
+        if (isFullWidthDoc) {
+          hiddenMold.style.display = 'block';
+          const clonedDoc = cloneWithExactComputedStyles(container);
+          clonedDoc.style.width = '100%';
+          clonedDoc.style.height = '100%';
+          clonedDoc.style.boxSizing = 'border-box';
+          hiddenMold.appendChild(clonedDoc);
+        } else {
+          // Récipe estándar: Formato Horizontal 2-en-1 (50% Récipe + 50% Indicaciones/Copia)
+          hiddenMold.style.display = 'flex';
+          hiddenMold.style.flexDirection = 'row';
+
+          const leftHalf = document.createElement('div');
+          leftHalf.style.cssText = 'width: 50%; height: 100%; box-sizing: border-box; border-right: 1px dashed #cbd5e1; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; background-color: #ffffff;';
+
+          const rightHalf = document.createElement('div');
+          rightHalf.style.cssText = 'width: 50%; height: 100%; box-sizing: border-box; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; background-color: #ffffff;';
+
+          const leftClone = cloneWithExactComputedStyles(container);
+          leftClone.style.width = '100%';
+          leftClone.style.height = '100%';
+          leftHalf.appendChild(leftClone);
+
+          // Buscar si existe contenedor de indicaciones activo en pantalla
+          const indicationsEl = document.querySelector<HTMLElement>('#indications-print-container, .indications-container');
+          if (indicationsEl && indicationsEl !== container) {
+            const rightClone = cloneWithExactComputedStyles(indicationsEl);
+            rightClone.style.width = '100%';
+            rightClone.style.height = '100%';
+            rightHalf.appendChild(rightClone);
+          } else {
+            const rightClone = cloneWithExactComputedStyles(container);
+            rightClone.style.width = '100%';
+            rightClone.style.height = '100%';
+            rightHalf.appendChild(rightClone);
+          }
+
+          hiddenMold.appendChild(leftHalf);
+          hiddenMold.appendChild(rightHalf);
+        }
+      }
+
+      const targetToExport = (hiddenMold && hiddenMold.children.length > 0) ? hiddenMold : container;
+      const success = await exportElementAsPDF(targetToExport, fileName, customDatos);
       if (success) {
         showToast(`✓ ¡PDF "${fileName}" descargado con éxito!`);
         return true;
       } else {
-        showToast('⚠️ No se pudo completar la descarga del PDF.');
+        showToast('⚠️ No se pudo completar la descarga. Abriendo vista de impresión...');
+        window.print();
         return false;
       }
     } catch (err) {
       console.warn('PDF export error:', err);
-      showToast('⚠️ Error al procesar el documento PDF.');
+      showToast('⚠️ Error al generar el PDF. Abriendo vista de impresión...');
+      window.print();
       return false;
     }
   };
@@ -3097,7 +3344,23 @@ export default function App() {
         const targetElement = document.querySelector<HTMLElement>(
           '#recipe-4en1-print-sheet, .recipe-4en1-container, #dual-recipe-print-container, #recipe-single-print-container, #indications-print-container, .dual-recipe-container, .dual-recipe-sheet, .print-container, .report-sheet-container, .recipe-single-container, .recipe-single-card, .indications-container, .rest-container, .clinical-history-container'
         );
-        const blob = await generatePDFBlob(targetElement);
+        const curRec = recipes[activeRecipeIndex] || recipes[0];
+        const curRec2 = recipes[1];
+        const customDatos = extractDatosFromApp(
+          config,
+          curRec,
+          indications,
+          {
+            nombrePaciente: patientName,
+            fecha: todayStr,
+            textoRp: curRec?.rp || '',
+            textoIndicaciones: indications?.medicationSchedule 
+              ? `${indications.medicationSchedule}${indications.dietAndRest ? `\n\n${indications.dietAndRest}` : ''}`
+              : (curRec?.indicationsNotes || ''),
+            textoRecipe2: curRec2?.rp || '',
+          }
+        );
+        const blob = await generatePDFBlob(targetElement, customDatos);
         if (blob) {
           generatedBlobForMobile = blob;
           const reader = new FileReader();

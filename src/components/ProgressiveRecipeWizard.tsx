@@ -54,7 +54,8 @@ import {
   exportElementAsPDF, 
   exportMultipleElementsAsPDF, 
   buildDocumentPdfFilename,
-  exportAndSendWhatsAppBusiness 
+  exportAndSendWhatsAppBusiness,
+  validateDoctorFormatForExport
 } from '../utils/exportDocument';
 import { EmailShareModal } from './EmailShareModal';
 
@@ -111,7 +112,7 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
   // 'quarter': 1/4 Hoja Carta (Pequeño, 4 caben en una hoja carta) -> Activo por defecto como pidió el usuario
   // 'half': Media Carta Horizontal (2 caben en una hoja carta)
   // 'letter': Hoja Carta Completa
-  const [recipeSize, setRecipeSize] = useState<'quarter' | 'half' | 'letter'>('quarter');
+  const [recipeSize, setRecipeSize] = useState<'quarter' | 'half' | 'letter'>('half');
   const [printFourInSheet, setPrintFourInSheet] = useState<boolean>(false);
   const printableFourInSheetRef = useRef<HTMLDivElement>(null);
 
@@ -122,6 +123,7 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
   const [step2CatalogTab, setStep2CatalogTab] = useState<'drugs' | 'schedules' | 'diet' | 'alarms'>('drugs');
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [activePrintMode, setActivePrintMode] = useState<'recipe' | 'fourInSheet' | 'indications' | 'dual'>('recipe');
   const [step4QuickDrugText, setStep4QuickDrugText] = useState('');
 
   // Custom drugs persistentes en localStorage (mismo banco que el sistema general)
@@ -249,6 +251,38 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
 
   const borderStyle = getDocumentBorderStyle(config.borderStyle, config.primaryDocColor);
   const textureClass = getPaperTextureClass(config.paperTexture);
+
+  // Estado para validación estricta de membrete
+  const [validationErrorModal, setValidationErrorModal] = useState<string | null>(null);
+
+  const validateDoctorProfileAsync = async (): Promise<string | null> => {
+    // 1. Validar longitud del nombre del médico
+    if (config.doctorName && config.doctorName.length > 55) {
+      return "Atención: El nombre del médico excede los límites permitidos para el diseño de la cuadrícula. Por favor, ajuste su formato en la configuración de perfil antes de imprimir.";
+    }
+    // 2. Validar longitud de especialidad / credenciales
+    if (config.specialty && config.specialty.length > 60) {
+      return "Atención: La especialidad o credenciales exceden los límites. Por favor, ajuste su formato en la configuración de perfil antes de imprimir.";
+    }
+    // 3. Validar dimensiones del logo si está configurado
+    const logoToCheck = config.logoIzq || config.logoDer;
+    if (logoToCheck && logoToCheck.startsWith('data:image')) {
+      try {
+        const img = new Image();
+        await new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = reject;
+          img.src = logoToCheck;
+        });
+        if ((img as HTMLImageElement).width > 800 || (img as HTMLImageElement).height > 800) {
+          return "Atención: El tamaño de la imagen del logo excede las dimensiones máximas permitidas para el contenedor del membrete. Por favor, ajuste su formato en la configuración de perfil antes de imprimir.";
+        }
+      } catch {
+        // Ignorar error de carga de imagen de prueba
+      }
+    }
+    return null;
+  };
 
   // Estado para categoría de medicamentos seleccionada en Paso 2
   const [selectedDrugCategory, setSelectedDrugCategory] = useState<string>('todas');
@@ -436,42 +470,106 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
   // EXPORTACIONES Y DESCARGAS
   // =========================================================
 
-  // 1. Descarga en 1 Sola Hoja (2 en 1: Récipe e Indicaciones Juntos)
+  // 1. Descarga en 1 Sola Hoja (Landscape Letter 2 en 1: Caso A o Caso B)
   const handleDownloadDualPdfDirect = async () => {
-    setIsExporting(true);
-    const filename = buildDocumentPdfFilename('récipe', recipe.patientName || 'Carlos leal', recipe.date || '14/10/26');
-    await exportElementAsPDF(printableDualRef.current, filename);
-    setIsExporting(false);
+    try {
+      const errorMsg = await validateDoctorProfileAsync();
+      if (errorMsg) {
+        setValidationErrorModal(errorMsg);
+        return;
+      }
+      setIsExporting(true);
+      setActivePrintMode('dual');
+      const filename = buildDocumentPdfFilename(
+        'récipe e indicaciones',
+        recipe.patientName || 'Paciente',
+        recipe.date || new Date().toLocaleDateString('es-ES')
+      );
+      const success = await exportElementAsPDF(printableDualRef.current, filename);
+      if (!success) {
+        window.print();
+      }
+    } catch (err) {
+      console.error(err);
+      window.print();
+    } finally {
+      setIsExporting(false);
+    }
   };
 
-  // 2. Descarga directa del Récipe individual (1 Hoja o 1/4 Hoja)
+  // 2. Descarga directa del Récipe individual (1 Hoja o 1/2 Hoja)
   const handleDownloadRecipePdfDirect = async () => {
-    setIsExporting(true);
-    const filename = buildDocumentPdfFilename('récipe', recipe.patientName || 'Carlos leal', recipe.date || '14/10/26');
-    await exportElementAsPDF(printableRecipeRef.current, filename);
-    setIsExporting(false);
+    try {
+      if (onDownloadPdf) {
+        await onDownloadPdf();
+        return;
+      }
+      setIsExporting(true);
+      setActivePrintMode('recipe');
+      const filename = buildDocumentPdfFilename('récipe', recipe.patientName || 'Paciente', recipe.date || new Date().toLocaleDateString('es-ES'));
+      const success = await exportElementAsPDF(printableRecipeRef.current, filename);
+      if (!success) {
+        window.print();
+      }
+    } catch (err) {
+      console.error('Error al descargar PDF:', err);
+      window.print();
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   // 2-B. Descarga directa de Hoja Carta Completa con 4 copias del récipe (para recortar)
   const handleDownloadFourInSheetDirect = async () => {
-    setIsExporting(true);
-    const filename = buildDocumentPdfFilename('récipe 4 en 1', recipe.patientName || 'Carlos leal', recipe.date || '14/10/26');
-    await exportElementAsPDF(printableFourInSheetRef.current, filename);
-    setIsExporting(false);
+    try {
+      setIsExporting(true);
+      setActivePrintMode('fourInSheet');
+      const filename = buildDocumentPdfFilename('récipe 4 en 1', recipe.patientName || 'Paciente', recipe.date || new Date().toLocaleDateString('es-ES'));
+      const success = await exportElementAsPDF(printableFourInSheetRef.current, filename);
+      if (!success) {
+        window.print();
+      }
+    } catch (err) {
+      console.error('Error al descargar PDF:', err);
+      window.print();
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   // 3. Descarga directa de las Indicaciones individuales (1 Hoja)
   const handleDownloadIndicationsPdfDirect = async () => {
-    setIsExporting(true);
-    const filename = buildDocumentPdfFilename('indicaciones', recipe.patientName || 'Carlos leal', recipe.date || '14/10/26');
-    await exportElementAsPDF(printableIndicationsRef.current, filename);
-    setIsExporting(false);
+    try {
+      if (onDownloadPdf) {
+        await onDownloadPdf();
+        return;
+      }
+      setIsExporting(true);
+      setActivePrintMode('indications');
+      const filename = buildDocumentPdfFilename('indicaciones', recipe.patientName || 'Paciente', recipe.date || new Date().toLocaleDateString('es-ES'));
+      const success = await exportElementAsPDF(printableIndicationsRef.current, filename);
+      if (!success) {
+        window.print();
+      }
+    } catch (err) {
+      console.error('Error al descargar PDF:', err);
+      window.print();
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   // 4. Impresión física inmediata con asignación garantizada de título para 'Guardar como PDF'
   const handlePrintSpecific = (tab: 'recipe' | 'indications', printFourCopies: boolean = false) => {
     setFinalPreviewTab(tab);
     setPrintFourInSheet(printFourCopies);
+    if (printFourCopies) {
+      setActivePrintMode('fourInSheet');
+    } else if (tab === 'recipe') {
+      setActivePrintMode('recipe');
+    } else {
+      setActivePrintMode('indications');
+    }
 
     const pName = recipe.patientName || 'Carlos leal';
     const pDate = recipe.date || '14/10/26';
@@ -1751,7 +1849,20 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
               {/* [📥 PDF] */}
               <button
                 type="button"
-                onClick={finalPreviewTab === 'recipe' ? handleDownloadRecipePdfDirect : handleDownloadIndicationsPdfDirect}
+                onClick={async () => {
+                  try {
+                    if (onDownloadPdf) {
+                      await onDownloadPdf();
+                    } else if (finalPreviewTab === 'recipe') {
+                      await handleDownloadRecipePdfDirect();
+                    } else {
+                      await handleDownloadIndicationsPdfDirect();
+                    }
+                  } catch (err) {
+                    console.error('Error al descargar PDF:', err);
+                    window.print();
+                  }
+                }}
                 className="px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-blue-400/30"
                 title="Descargar PDF oficial"
               >
@@ -1794,18 +1905,6 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
                 <Mail className="w-4 h-4 text-white" />
                 <span>Correo</span>
               </button>
-
-              {/* [📄 Récipe + Indicaciones Horizontal] */}
-              <button
-                type="button"
-                onClick={handleDownloadDualPdfDirect}
-                className="px-3.5 py-2 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-teal-400/30"
-                title="Descargar Récipe e Indicaciones juntos en 1 sola hoja horizontal"
-              >
-                <Download className="w-4 h-4 text-white" />
-                <span className="hidden sm:inline">Récipe + Indicaciones (Horizontal)</span>
-                <span className="sm:hidden">2 en 1</span>
-              </button>
             </div>
           </div>
 
@@ -1819,22 +1918,15 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
             {/* Tarjeta del Récipe */}
             <div
               ref={printableRecipeRef}
-              id={recipeSize === 'quarter' ? 'recipe-quarter-print-container' : 'recipe-single-print-container'}
-              data-recipe-size={recipeSize}
-              className={`relative w-full ${
-                recipeSize === 'quarter'
-                  ? 'max-w-[420px] p-3.5 sm:p-4 recipe-size-quarter'
-                  : recipeSize === 'half'
-                  ? 'max-w-[800px] p-4 sm:p-6'
-                  : 'max-w-[800px] p-6 sm:p-8'
-              } bg-white shadow-2xl rounded-2xl transition-all recipe-single-card print-container border border-slate-200/90 ${textureClass} ${
+              id="recipe-medico"
+              data-testid="recibo-medico"
+              className={`relative w-full max-w-[660px] min-h-[680px] p-5 sm:p-7 bg-white shadow-2xl rounded-2xl transition-all recipe-single-card recipe-single-container print-container border border-slate-200/90 ${textureClass} ${
                 config.enforcePureBlackText ? 'enforce-pure-black' : ''
-              } ${printFourInSheet ? 'print:hidden' : ''}`}
+              } ${activePrintMode === 'recipe' && !printFourInSheet ? 'print:block' : 'print:hidden'}`}
               style={{
                 backgroundColor: config.tonePapel || '#ffffff',
                 border: borderStyle,
                 borderRadius: config.docCornerRadius || '16px',
-                minHeight: recipeSize === 'quarter' ? '520px' : recipeSize === 'half' ? '460px' : '860px',
                 boxSizing: 'border-box',
               }}
             >
@@ -1854,133 +1946,72 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
                 </div>
               )}
 
-              <div className={`relative z-10 flex flex-col justify-between h-full ${recipeSize === 'quarter' ? 'min-h-[490px]' : recipeSize === 'half' ? 'min-h-[430px]' : 'min-h-[800px]'}`}>
+              <div className="relative z-10 flex flex-col justify-between h-full min-h-[640px]">
                 <div>
                   <DocumentHeader
                     config={config}
-                    compact={recipeSize !== 'letter'}
+                    compact={false}
                     hideHeader={false}
                     editableInline={true}
                     onUpdateField={(field, val) => onUpdateConfig?.({ [field]: val })}
                   />
 
                   {/* Barra Oficial de Paciente y Fecha */}
-                  <div className={`my-2 p-2 bg-slate-50/90 rounded-xl border border-slate-200/90 ${recipeSize === 'quarter' ? 'text-[10px]' : 'text-xs'}`}>
-                    {recipeSize === 'quarter' ? (
-                      /* Layout compacto 2 columnas para 1/4 de hoja carta */
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-bold text-slate-700 uppercase text-[9px] shrink-0">Paciente:</span>
-                          <input
-                            type="text"
-                            value={recipe.patientName || ''}
-                            onChange={(e) => onChangeRecipe({ patientName: e.target.value })}
-                            placeholder="Nombre del Paciente"
-                            className="w-full bg-transparent font-black text-slate-900 border-b border-dashed border-slate-300 focus:border-blue-600 outline-none text-xs"
-                          />
-                        </div>
-                        <div className="grid grid-cols-2 gap-1.5">
-                          <div className="flex items-center gap-1">
-                            <span className="font-bold text-slate-700 uppercase text-[9px] shrink-0">C.I.:</span>
-                            <input
-                              type="text"
-                              value={recipe.patientCI || ''}
-                              onChange={(e) => onChangeRecipe({ patientCI: e.target.value })}
-                              placeholder="Cédula"
-                              className="w-full bg-transparent font-bold text-slate-900 border-b border-dashed border-slate-300 focus:border-blue-600 outline-none text-[10px]"
-                            />
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <span className="font-bold text-slate-700 uppercase text-[9px] shrink-0">Edad:</span>
-                            <input
-                              type="text"
-                              value={recipe.patientAge || ''}
-                              onChange={(e) => onChangeRecipe({ patientAge: e.target.value })}
-                              placeholder="Edad"
-                              className="w-full bg-transparent font-bold text-slate-900 border-b border-dashed border-slate-300 focus:border-blue-600 outline-none text-[10px]"
-                            />
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between gap-1 pt-1 border-t border-slate-200/60">
-                          <div className="flex items-center gap-1 flex-1 truncate">
-                            <span className="font-bold text-slate-700 uppercase text-[9px] shrink-0">Dx:</span>
-                            <input
-                              type="text"
-                              value={recipe.diagnosis || ''}
-                              onChange={(e) => onChangeRecipe({ diagnosis: e.target.value })}
-                              placeholder="Diagnóstico (opcional)"
-                              className="w-full bg-transparent font-semibold text-slate-800 border-b border-dashed border-slate-300 focus:border-blue-600 outline-none text-[10px] truncate"
-                            />
-                          </div>
-                          <div className="flex items-center gap-1 shrink-0">
-                            <span className="font-bold text-slate-700 uppercase text-[9px]">Fecha:</span>
-                            <input
-                              type="text"
-                              value={recipe.date || ''}
-                              onChange={(e) => onChangeRecipe({ date: e.target.value })}
-                              placeholder="DD/MM/AAAA"
-                              className="w-20 bg-transparent font-black text-slate-900 border-b border-dashed border-slate-300 focus:border-blue-600 outline-none text-[10px] text-right"
-                            />
-                          </div>
-                        </div>
+                  <div className="my-2.5 p-2.5 bg-slate-50/90 rounded-xl border border-slate-200/90 text-xs">
+                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
+                      <div className="sm:col-span-5 flex items-center gap-1.5">
+                        <span className="font-bold text-slate-700 uppercase text-[10px] shrink-0">Paciente:</span>
+                        <input
+                          type="text"
+                          value={recipe.patientName || ''}
+                          onChange={(e) => onChangeRecipe({ patientName: e.target.value })}
+                          placeholder="Nombre del Paciente"
+                          className="w-full bg-transparent font-black text-slate-900 border-b border-dashed border-slate-300 focus:border-blue-600 outline-none text-xs sm:text-sm"
+                        />
                       </div>
-                    ) : (
-                      /* Layout extendido para Media Carta y Hoja Entera */
-                      <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
-                        <div className="sm:col-span-5 flex items-center gap-1.5">
-                          <span className="font-bold text-slate-700 uppercase text-[10px] shrink-0">Paciente:</span>
-                          <input
-                            type="text"
-                            value={recipe.patientName || ''}
-                            onChange={(e) => onChangeRecipe({ patientName: e.target.value })}
-                            placeholder="Nombre del Paciente"
-                            className="w-full bg-transparent font-black text-slate-900 border-b border-dashed border-slate-300 focus:border-blue-600 outline-none text-xs sm:text-sm"
-                          />
-                        </div>
-                        <div className="sm:col-span-3 flex items-center gap-1.5">
-                          <span className="font-bold text-slate-700 uppercase text-[10px] shrink-0">C.I.:</span>
-                          <input
-                            type="text"
-                            value={recipe.patientCI || ''}
-                            onChange={(e) => onChangeRecipe({ patientCI: e.target.value })}
-                            placeholder="Cédula"
-                            className="w-full bg-transparent font-bold text-slate-900 border-b border-dashed border-slate-300 focus:border-blue-600 outline-none text-xs"
-                          />
-                        </div>
-                        <div className="sm:col-span-2 flex items-center gap-1.5">
-                          <span className="font-bold text-slate-700 uppercase text-[10px] shrink-0">Edad:</span>
-                          <input
-                            type="text"
-                            value={recipe.patientAge || ''}
-                            onChange={(e) => onChangeRecipe({ patientAge: e.target.value })}
-                            placeholder="Edad"
-                            className="w-full bg-transparent font-bold text-slate-900 border-b border-dashed border-slate-300 focus:border-blue-600 outline-none text-xs"
-                          />
-                        </div>
-                        <div className="sm:col-span-2 flex items-center gap-1.5">
-                          <span className="font-bold text-slate-700 uppercase text-[10px] shrink-0">Fecha:</span>
-                          <input
-                            type="text"
-                            value={recipe.date || ''}
-                            onChange={(e) => onChangeRecipe({ date: e.target.value })}
-                            placeholder="DD/MM/AAAA"
-                            className="w-full bg-transparent font-black text-slate-900 border-b border-dashed border-slate-300 focus:border-blue-600 outline-none text-xs text-right"
-                          />
-                        </div>
-                        {recipe.diagnosis && (
-                          <div className="sm:col-span-12 pt-1.5 mt-1 border-t border-slate-200/60 flex items-center gap-1.5">
-                            <span className="text-slate-500 font-bold text-[10px] uppercase shrink-0">Diagnóstico:</span>
-                            <input
-                              type="text"
-                              value={recipe.diagnosis || ''}
-                              onChange={(e) => onChangeRecipe({ diagnosis: e.target.value })}
-                              placeholder="Diagnóstico clínico (opcional)"
-                              className="w-full bg-transparent font-semibold text-slate-800 border-b border-dashed border-slate-300 focus:border-blue-600 outline-none text-xs truncate"
-                            />
-                          </div>
-                        )}
+                      <div className="sm:col-span-3 flex items-center gap-1.5">
+                        <span className="font-bold text-slate-700 uppercase text-[10px] shrink-0">C.I.:</span>
+                        <input
+                          type="text"
+                          value={recipe.patientCI || ''}
+                          onChange={(e) => onChangeRecipe({ patientCI: e.target.value })}
+                          placeholder="Cédula"
+                          className="w-full bg-transparent font-bold text-slate-900 border-b border-dashed border-slate-300 focus:border-blue-600 outline-none text-xs"
+                        />
                       </div>
-                    )}
+                      <div className="sm:col-span-2 flex items-center gap-1.5">
+                        <span className="font-bold text-slate-700 uppercase text-[10px] shrink-0">Edad:</span>
+                        <input
+                          type="text"
+                          value={recipe.patientAge || ''}
+                          onChange={(e) => onChangeRecipe({ patientAge: e.target.value })}
+                          placeholder="Edad"
+                          className="w-full bg-transparent font-bold text-slate-900 border-b border-dashed border-slate-300 focus:border-blue-600 outline-none text-xs"
+                        />
+                      </div>
+                      <div className="sm:col-span-2 flex items-center gap-1.5">
+                        <span className="font-bold text-slate-700 uppercase text-[10px] shrink-0">Fecha:</span>
+                        <input
+                          type="text"
+                          value={recipe.date || ''}
+                          onChange={(e) => onChangeRecipe({ date: e.target.value })}
+                          placeholder="DD/MM/AAAA"
+                          className="w-full bg-transparent font-black text-slate-900 border-b border-dashed border-slate-300 focus:border-blue-600 outline-none text-xs text-right"
+                        />
+                      </div>
+                      {recipe.diagnosis && (
+                        <div className="sm:col-span-12 pt-1.5 mt-1 border-t border-slate-200/60 flex items-center gap-1.5">
+                          <span className="text-slate-500 font-bold text-[10px] uppercase shrink-0">Diagnóstico:</span>
+                          <input
+                            type="text"
+                            value={recipe.diagnosis || ''}
+                            onChange={(e) => onChangeRecipe({ diagnosis: e.target.value })}
+                            placeholder="Diagnóstico clínico (opcional)"
+                            className="w-full bg-transparent font-semibold text-slate-800 border-b border-dashed border-slate-300 focus:border-blue-600 outline-none text-xs truncate"
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div className="flex items-center justify-between gap-2 mb-1.5">
@@ -2072,7 +2103,7 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
             <div
               ref={printableFourInSheetRef}
               id="recipe-4copies-print-sheet"
-              className={`w-full flex justify-center print-container ${printFourInSheet ? 'block' : 'hidden print:hidden'} mt-4`}
+              className={`w-full flex justify-center print-container ${printFourInSheet ? 'block' : 'hidden'} ${activePrintMode === 'fourInSheet' || printFourInSheet ? 'print:block' : 'print:hidden'} mt-4`}
             >
                <div
                 className={`relative w-full max-w-[816px] h-[1056px] min-h-[1056px] max-h-[1056px] bg-white transition-all recipe-4en1-container shadow-2xl rounded-2xl border border-slate-200 ${textureClass}`}
@@ -2183,7 +2214,7 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
               id="indications-print-container"
               className={`relative w-full max-w-[816px] bg-white shadow-2xl p-4 sm:p-7 md:p-8 rounded-2xl transition-all indications-container print-container border border-slate-200/90 ${textureClass} ${
                 config.enforcePureBlackText ? 'enforce-pure-black' : ''
-              }`}
+              } ${activePrintMode === 'indications' && finalPreviewTab === 'indications' ? 'print:block' : 'print:hidden'}`}
               style={{
                 backgroundColor: config.tonePapel || '#ffffff',
                 border: borderStyle,
@@ -2325,26 +2356,35 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
           </div>
 
           {/* ========================================================= */}
-          {/* CONTENEDOR OCULTO/IMPRESIÓN 2 EN 1: RÉCIPE + INDICACIONES (HORIZONTAL / LANDSCAPE) */}
+          {/* CONTENEDOR AISLADO DE IMPRESIÓN (1056x816px - LANDSCAPE)  */}
           {/* ========================================================= */}
           <div
             ref={printableDualRef}
             id="recipe-indications-dual-sheet"
-            className="hidden print:grid w-full max-w-[1056px] min-h-[760px] grid-cols-2 gap-6 bg-white p-6 rounded-2xl print-container border border-slate-200 shadow-2xl relative overflow-hidden my-4 items-stretch"
+            className="print-container"
             style={{
+              position: 'fixed',
+              left: '0px',
+              top: '0px',
+              width: '1056px',
+              height: '816px',
+              opacity: isExporting ? 0.01 : 0,
+              pointerEvents: 'none',
+              zIndex: isExporting ? 99999 : -9999,
               backgroundColor: config.tonePapel || '#ffffff',
-              border: borderStyle,
-              borderRadius: config.docCornerRadius || '16px',
+              display: 'flex',
+              flexDirection: 'row',
               boxSizing: 'border-box',
+              overflow: 'hidden',
+              fontFamily: 'system-ui, -apple-system, sans-serif'
             }}
           >
-            {/* Marca de agua */}
+            {/* Marca de agua opcional */}
             {config.marcaAgua && !config.marcaAgua.includes('DIGITAL') && (
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', zIndex: 0, overflow: 'hidden' }}>
                 <img
                   src={config.marcaAgua}
                   alt="Marca de agua"
-                  className="marca-agua-img"
                   style={{
                     opacity: config.watermarkOpacity ?? 0.16,
                     width: `${config.watermarkScale || 50}%`,
@@ -2354,74 +2394,138 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
               </div>
             )}
 
-            {/* COLUMNA IZQUIERDA: RÉCIPE MÉDICO OFICIAL */}
-            <div className="relative z-10 flex flex-col justify-between border-r-2 border-dashed border-slate-300 pr-5">
+            {/* COLUMNA IZQUIERDA: RÉCIPE MÉDICO OFICIAL (528px x 816px, padding 40px) */}
+            <div style={{ width: '528px', height: '816px', padding: '40px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', borderRight: '2px dashed #94a3b8', boxSizing: 'border-box', position: 'relative', zIndex: 10 }}>
               <div>
-                <DocumentHeader config={config} compact={true} editableInline={false} />
-                
-                <div className="my-1.5 pb-1 border-b border-slate-200 flex items-center justify-between">
-                  <span className="text-xs font-black tracking-wide uppercase font-serif" style={{ color: config.primaryDocColor }}>
+                {/* Membrete del Médico con anchos fijos en px */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', borderBottom: '2px solid ' + (config.primaryDocColor || '#1e3a8a'), paddingBottom: '12px' }}>
+                  {config.logoIzq ? (
+                    <img src={config.logoIzq} alt="Logo Izq" style={{ width: '70px', height: '70px', objectFit: 'contain' }} />
+                  ) : <div style={{ width: '70px' }} />}
+
+                  <div style={{ textAlign: 'center', flex: 1, padding: '0 10px' }}>
+                    <h1 style={{ fontSize: '18px', fontWeight: 900, color: config.primaryDocColor || '#1e3a8a', margin: 0, lineHeight: 1.2 }}>
+                      {config.doctorName || 'Dr. Carlos Leal'}
+                    </h1>
+                    <p style={{ fontSize: '12px', fontWeight: 700, color: '#475569', margin: '3px 0' }}>
+                      {config.specialty || 'Médico Cirujano'} · MPPS: {config.mpps || '---'}
+                    </p>
+                    {config.collegeNumber && (
+                      <p style={{ fontSize: '10px', fontWeight: 600, color: '#64748b', margin: 0 }}>
+                        C.M.C.: {config.collegeNumber} {config.ci ? `| C.I.: ${config.ci}` : ''}
+                      </p>
+                    )}
+                  </div>
+
+                  {config.logoDer ? (
+                    <img src={config.logoDer} alt="Logo Der" style={{ width: '70px', height: '70px', objectFit: 'contain' }} />
+                  ) : <div style={{ width: '70px' }} />}
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid #e2e8f0', paddingBottom: '6px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 900, textTransform: 'uppercase', color: config.primaryDocColor || '#1e3a8a', letterSpacing: '0.5px' }}>
                     RÉCIPE MÉDICO OFICIAL
                   </span>
-                  <span className="text-[11px] font-semibold text-slate-700">
-                    Fecha: <strong>{recipe.date || '14/10/26'}</strong>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: '#334155' }}>
+                    Fecha: {recipe.date || new Date().toLocaleDateString('es-ES')}
                   </span>
                 </div>
 
-                <div className="p-2 bg-slate-50/90 rounded-xl border border-slate-200 text-[11px] my-1 space-y-0.5">
-                  <div><span className="font-bold text-slate-700">Paciente:</span> <strong>{recipe.patientName || 'Carlos leal'}</strong></div>
-                  <div className="grid grid-cols-2 gap-1">
-                    <div><span className="font-bold text-slate-700">C.I.:</span> {recipe.patientCI || 'V-18.456.789'}</div>
-                    <div><span className="font-bold text-slate-700">Edad:</span> {recipe.patientAge || '35 años'}</div>
+                <div style={{ backgroundColor: '#f8fafc', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '11px', marginBottom: '16px' }}>
+                  <div style={{ marginBottom: '4px' }}><strong>Paciente:</strong> {recipe.patientName || 'Paciente'}</div>
+                  <div style={{ display: 'flex', gap: '16px' }}>
+                    <div><strong>C.I.:</strong> {recipe.patientCI || 'V-00.000.000'}</div>
+                    <div><strong>Edad:</strong> {recipe.patientAge || '—'}</div>
                   </div>
                 </div>
 
-                <div className="my-2">
-                  <span className="text-lg font-serif font-black" style={{ color: config.rxTitleColor || config.primaryDocColor }}>
+                <div>
+                  <span style={{ fontSize: '20px', fontWeight: 900, fontFamily: 'serif', color: config.rxTitleColor || config.primaryDocColor || '#1e3a8a', display: 'block', marginBottom: '6px' }}>
                     {config.rxTitle || 'Rp.'}
                   </span>
-                  <div className="p-2 bg-white/80 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 whitespace-pre-wrap leading-relaxed min-h-[140px]">
+                  <div style={{ padding: '12px', backgroundColor: '#ffffff', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '13px', fontWeight: 600, color: '#0f172a', whiteSpace: 'pre-wrap', lineHeight: 1.6, minHeight: '180px' }}>
                     {recipe.rp || 'Prescripción médica.'}
                   </div>
                 </div>
               </div>
 
-              <div className="pt-2 border-t border-slate-200">
-                <DocumentFooter config={config} compact={true} />
+              <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '12px', textAlign: 'center' }}>
+                {config.selloImg ? (
+                  <img src={config.selloImg} alt="Sello y Firma" style={{ maxHeight: '60px', margin: '0 auto 4px auto', display: 'block' }} />
+                ) : null}
+                <div style={{ borderTop: '1px solid #475569', width: '180px', margin: '8px auto 4px auto' }}></div>
+                <p style={{ fontSize: '10px', fontWeight: 700, color: '#475569', margin: 0 }}>Firma y Sello del Médico</p>
+                <p style={{ fontSize: '9px', color: '#94a3b8', margin: '2px 0 0 0' }}>{config.phone ? `Tel: ${config.phone}` : ''} {config.email ? `| ${config.email}` : ''}</p>
               </div>
             </div>
 
-            {/* COLUMNA DERECHA: INDICACIONES MÉDICAS Y POSOLOGÍA */}
-            <div className="relative z-10 flex flex-col justify-between pl-1">
+            {/* COLUMNA DERECHA: INDICACIONES MÉDICAS Y POSOLOGÍA (528px x 816px, padding 40px) */}
+            <div style={{ width: '528px', height: '816px', padding: '40px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxSizing: 'border-box', position: 'relative', zIndex: 10 }}>
               <div>
-                <DocumentHeader config={config} compact={true} editableInline={false} />
+                {/* Membrete del Médico (Columna Derecha) */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', borderBottom: '2px solid ' + (config.primaryDocColor || '#1e3a8a'), paddingBottom: '12px' }}>
+                  {config.logoIzq ? (
+                    <img src={config.logoIzq} alt="Logo Izq" style={{ width: '70px', height: '70px', objectFit: 'contain' }} />
+                  ) : <div style={{ width: '70px' }} />}
 
-                <div className="my-1.5 pb-1 border-b border-slate-200 flex items-center justify-between">
-                  <span className="text-xs font-black tracking-wide uppercase font-serif text-indigo-900">
-                    INDICACIONES Y POSOLOGÍA
-                  </span>
-                  <span className="text-[11px] font-semibold text-slate-700">
-                    Fecha: <strong>{localIndications.date || recipe.date || '14/10/26'}</strong>
-                  </span>
-                </div>
-
-                <div className="p-2 bg-indigo-50/70 rounded-xl border border-indigo-200 text-[11px] my-1">
-                  <strong>Indicaciones para:</strong> {localIndications.patientName || recipe.patientName || 'Carlos leal'}
-                </div>
-
-                <div className="p-2 bg-white/80 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 whitespace-pre-wrap leading-relaxed min-h-[140px] my-2">
-                  {localIndications.generalInstructions || 'Tomar medicamentos indicados en el récipe según horarios.'}
-                </div>
-
-                {localIndications.dietAndRest && (
-                  <div className="text-[11px] text-slate-700 mt-1">
-                    <strong>Dieta/Reposo:</strong> {localIndications.dietAndRest}
+                  <div style={{ textAlign: 'center', flex: 1, padding: '0 10px' }}>
+                    <h1 style={{ fontSize: '18px', fontWeight: 900, color: config.primaryDocColor || '#1e3a8a', margin: 0, lineHeight: 1.2 }}>
+                      {config.doctorName || 'Dr. Carlos Leal'}
+                    </h1>
+                    <p style={{ fontSize: '12px', fontWeight: 700, color: '#475569', margin: '3px 0' }}>
+                      {config.specialty || 'Médico Cirujano'} · MPPS: {config.mpps || '---'}
+                    </p>
+                    {config.collegeNumber && (
+                      <p style={{ fontSize: '10px', fontWeight: 600, color: '#64748b', margin: 0 }}>
+                        C.M.C.: {config.collegeNumber} {config.ci ? `| C.I.: ${config.ci}` : ''}
+                      </p>
+                    )}
                   </div>
-                )}
+
+                  {config.logoDer ? (
+                    <img src={config.logoDer} alt="Logo Der" style={{ width: '70px', height: '70px', objectFit: 'contain' }} />
+                  ) : <div style={{ width: '70px' }} />}
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid #e2e8f0', paddingBottom: '6px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 900, textTransform: 'uppercase', color: '#312e81', letterSpacing: '0.5px' }}>
+                    INDICACIONES Y POSOLOGÍA MÉDICA
+                  </span>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: '#334155' }}>
+                    Fecha: {localIndications.date || recipe.date || new Date().toLocaleDateString('es-ES')}
+                  </span>
+                </div>
+
+                <div style={{ backgroundColor: '#eef2ff', padding: '10px 14px', borderRadius: '10px', border: '1px solid #c7d2fe', fontSize: '11px', marginBottom: '16px' }}>
+                  <strong>Indicaciones para el paciente:</strong> {localIndications.patientName || recipe.patientName || 'Paciente'}
+                </div>
+
+                <div>
+                  <div style={{ padding: '12px', backgroundColor: '#ffffff', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '13px', fontWeight: 600, color: '#0f172a', whiteSpace: 'pre-wrap', lineHeight: 1.6, minHeight: '180px' }}>
+                    {localIndications.generalInstructions || 'Tomar medicamentos indicados en el récipe según horarios.'}
+                  </div>
+
+                  {localIndications.dietAndRest && (
+                    <div style={{ marginTop: '12px', fontSize: '11px', color: '#334155', backgroundColor: '#f8fafc', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                      <strong>Dieta y Reposo:</strong> {localIndications.dietAndRest}
+                    </div>
+                  )}
+
+                  {localIndications.alarmSigns && (
+                    <div style={{ marginTop: '8px', fontSize: '11px', color: '#991b1b', backgroundColor: '#fef2f2', padding: '10px', borderRadius: '8px', border: '1px solid #fecaca' }}>
+                      <strong>Signos de Alarma:</strong> {localIndications.alarmSigns}
+                    </div>
+                  )}
+                </div>
               </div>
 
-              <div className="pt-2 border-t border-slate-200">
-                <DocumentFooter config={config} compact={true} />
+              <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '12px', textAlign: 'center' }}>
+                {config.selloImg ? (
+                  <img src={config.selloImg} alt="Sello y Firma" style={{ maxHeight: '60px', margin: '0 auto 4px auto', display: 'block' }} />
+                ) : null}
+                <div style={{ borderTop: '1px solid #475569', width: '180px', margin: '8px auto 4px auto' }}></div>
+                <p style={{ fontSize: '10px', fontWeight: 700, color: '#475569', margin: 0 }}>Firma y Sello del Médico</p>
+                <p style={{ fontSize: '9px', color: '#94a3b8', margin: '2px 0 0 0' }}>{config.phone ? `Tel: ${config.phone}` : ''} {config.email ? `| ${config.email}` : ''}</p>
               </div>
             </div>
           </div>
@@ -2555,6 +2659,37 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
               </div>
             </form>
 
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Validación de Formato de Membrete */}
+      {validationErrorModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
+          <div className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-red-200 space-y-4">
+            <div className="flex items-center gap-3">
+              <span className="p-3 bg-red-100 text-red-600 rounded-2xl">
+                <AlertCircle className="w-6 h-6" />
+              </span>
+              <div>
+                <h3 className="font-black text-base text-slate-900">Validación de Formato Requerida</h3>
+                <p className="text-xs text-red-600 font-bold">Impresión detenida por el sistema</p>
+              </div>
+            </div>
+
+            <p className="text-xs sm:text-sm font-semibold text-slate-700 leading-relaxed bg-red-50/70 p-4 rounded-2xl border border-red-100">
+              {validationErrorModal}
+            </p>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setValidationErrorModal(null)}
+                className="px-6 py-2.5 bg-red-600 hover:bg-red-500 text-white font-black text-xs rounded-xl shadow-md cursor-pointer transition-all"
+              >
+                Entendido
+              </button>
+            </div>
           </div>
         </div>
       )}

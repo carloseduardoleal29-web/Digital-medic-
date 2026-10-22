@@ -101,7 +101,26 @@ export const MasterRecipeView: React.FC<MasterRecipeViewProps> = ({
               } else {
                 const el = printableSheetRef.current || document.getElementById('recipe-medico') || document.getElementById('recibo-medico');
                 const filename = buildDocumentPdfFilename('Récipe', recipe.patientName || 'Carlos Pérez', recipe.date || new Date().toLocaleDateString('es-VE'));
-                await exportElementAsPDF(el, filename);
+                await exportElementAsPDF(el, filename, {
+                  nombrePaciente: recipe.patientName,
+                  cedulaPaciente: recipe.patientCI,
+                  edadPaciente: recipe.patientAge,
+                  fecha: recipe.date,
+                  telefonoPaciente: recipe.patientPhone,
+                  diagnostico: recipe.diagnosis,
+                  textoRp: recipe.rp,
+                  textoIndicaciones: recipe.indicationsNotes,
+                  nombreMedico: config.doctorName,
+                  especialidad: config.specialty,
+                  mpps: config.mpps,
+                  cm: config.ci || config.collegeNumber,
+                  primaryColor: config.primaryDocColor,
+                  logoIzq: config.logoIzq,
+                  logoDer: config.logoDer,
+                  marcaAgua: config.marcaAgua,
+                  selloBase64: config.selloImg,
+                  firmaBase64: config.firmaImg,
+                });
               }
             }}
             className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-xl text-xs flex items-center gap-1 shadow-sm transition-all cursor-pointer border border-blue-400/40"

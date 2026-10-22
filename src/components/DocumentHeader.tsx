@@ -96,7 +96,7 @@ export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
 
   return (
     <div 
-      className={`relative w-full border-b-2 flex items-center justify-between gap-3 pb-3 mb-3 transition-all ${
+      className={`relative w-full border-b-2 flex items-center justify-between gap-3 pb-3 mb-3 transition-all shrink-0 ${
         compact ? 'pb-2 mb-2' : 'pb-3.5 mb-3.5'
       } ${
         (config.headerStyle as string) === 'destacado' 
@@ -412,8 +412,8 @@ export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
           </div>
         )}
 
-        {/* Cajón 6: Contacto / Teléfono / Redes / Correo (Editable Inline) */}
-        {(config.phone || config.email || config.socialHandle || config.socialHandle2 || editableInline) && (
+        {/* Cajón 6: Contacto / Teléfono / Redes / Correo */}
+        {(Boolean(config.phone?.trim()) || Boolean(config.email?.trim()) || Boolean(config.socialHandle?.trim())) && (
           <div 
             className="mt-1 text-[9px] flex items-center justify-center flex-wrap gap-2 text-slate-500"
             style={{
@@ -422,7 +422,7 @@ export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
               fontSize: config.contactSize || '9px',
             }}
           >
-            {(config.phone || editableInline) && (
+            {config.phone && config.phone.trim() && (
               <span>
                 Tel:{' '}
                 <span
@@ -432,11 +432,11 @@ export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
                   className={`outline-none font-medium ${editableInline ? 'hover:bg-blue-50/70 rounded px-0.5 cursor-text' : ''}`}
                   title="Haga clic para editar Teléfono"
                 >
-                  {config.phone || (editableInline ? '[Teléfono]' : '')}
+                  {config.phone}
                 </span>
               </span>
             )}
-            {(config.email || editableInline) && (
+            {config.email && config.email.trim() && (
               <span>
                 <span
                   contentEditable={editableInline}
@@ -445,11 +445,11 @@ export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
                   className={`outline-none font-medium ${editableInline ? 'hover:bg-blue-50/70 rounded px-0.5 cursor-text' : ''}`}
                   title="Haga clic para editar Correo"
                 >
-                  {config.email || (editableInline ? '[Correo Electrónico]' : '')}
+                  {config.email}
                 </span>
               </span>
             )}
-            {(config.socialHandle || editableInline) && (
+            {config.socialHandle && config.socialHandle.trim() && (
               <span>
                 <span
                   contentEditable={editableInline}
@@ -458,7 +458,7 @@ export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
                   className={`outline-none font-medium ${editableInline ? 'hover:bg-blue-50/70 rounded px-0.5 cursor-text' : ''}`}
                   title="Haga clic para editar Redes Sociales"
                 >
-                  {config.socialHandle || (editableInline ? '[@Redes]' : '')}
+                  {config.socialHandle}
                 </span>
               </span>
             )}
