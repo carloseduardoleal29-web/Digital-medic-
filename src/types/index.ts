@@ -8,12 +8,14 @@ export interface DoctorConfig {
   collegeNumber: string;
   phone: string;
   email: string;
+  clinicAddress?: string;
+  address?: string;
   socialHandle?: string;
   socialHandle2?: string;
   institution?: string;
   institutionDetails: string;
   headerStyle: 'clasico' | 'moderno' | 'minimalista' | 'institucional';
-  headerLayout: 'logo-izq' | 'logo-der' | 'ambos-logos' | 'sin-logos';
+  headerLayout: 'logo-izq' | 'logo-der' | 'ambos-logos' | 'sin-logos' | 'solo-logo-izq' | 'solo-logo-der' | 'solo-texto';
   tonePapel: string;
   fuenteHeader: string;
   headerColor: string;
@@ -232,6 +234,23 @@ export interface MedicalRestCert {
   observations: string;
 }
 
+export interface LabOrder {
+  id: string;
+  patientName: string;
+  patientCI: string;
+  patientAge: string;
+  patientPhone: string;
+  patientEmail?: string;
+  patientAddress?: string;
+  date: string;
+  diagnosis: string;
+  clinicalSummary?: string;
+  selectedExams: string[];
+  customExams: string[];
+  patientInstructions?: string;
+  notes?: string;
+}
+
 export interface SavedPatientEntry {
   id: string;
   patientName: string;
@@ -243,7 +262,7 @@ export interface SavedPatientEntry {
   date: string;
   diagnosis: string;
   rp: string;
-  sourceModule: 'recipe' | 'historia' | 'informe' | 'indicaciones' | 'reposo';
+  sourceModule: 'recipe' | 'historia' | 'informe' | 'indicaciones' | 'reposo' | 'examenes';
 }
 
-export type ActiveModule = 'inicio' | 'recipe' | 'recipe-4en1' | 'recipe-master' | 'informe' | 'informes' | 'indicaciones' | 'reposo' | 'historia' | 'historias' | 'suscripcion' | 'diseno';
+export type ActiveModule = 'inicio' | 'recipe' | 'recipe-4en1' | 'recipe-master' | 'examenes' | 'informe' | 'informes' | 'indicaciones' | 'reposo' | 'historia' | 'historias' | 'suscripcion' | 'diseno';

@@ -38,7 +38,8 @@ import {
   CreditCard,
   Crown,
   Monitor,
-  Smartphone
+  Smartphone,
+  FlaskConical
 } from 'lucide-react';
 
 import { 
@@ -48,6 +49,7 @@ import {
   MedicalReport, 
   IndicationsSheet, 
   MedicalRestCert, 
+  LabOrder,
   ActiveModule 
 } from './types';
 
@@ -57,11 +59,11 @@ import { CintilloTopRibbon } from './components/CintilloTopRibbon';
 import MasterRecipeView from './components/MasterRecipeView';
 import { ProgressiveRecipeWizard } from './components/ProgressiveRecipeWizard';
 import { FourInOneRecipeView } from './components/FourInOneRecipeView';
-import { DrugBankFloatingBar } from './components/DrugBankFloatingBar';
 import { ReportsModule } from './components/ReportsModule';
 import ClinicalHistoryModule from './components/ClinicalHistoryModule';
 import { IndicationsModule } from './components/IndicationsModule';
 import { MedicalRestModule } from './components/MedicalRestModule';
+import { LabExamsModule } from './components/LabExamsModule';
 import { SignatureCanvasModal } from './components/SignatureCanvasModal';
 import { MasterPinModal } from './components/MasterPinModal';
 import { ShareWithDoctorModal } from './components/ShareWithDoctorModal';
@@ -80,6 +82,7 @@ import { CeLealStudioLogo } from './components/CeLealStudioLogo';
 import { PatientBankModal, SavedPatientEntry } from './components/PatientBankModal';
 import { SaveAndShareSuccessModal, SavedDocumentRecord } from './components/SaveAndShareSuccessModal';
 import { EmailShareModal } from './components/EmailShareModal';
+import { WhatsAppStickerModal } from './components/WhatsAppStickerModal';
 import { ChangePasswordModal } from './components/ChangePasswordModal';
 import { TrialExpiredModal } from './components/TrialExpiredModal';
 import { PendingPaymentNotice } from './components/PendingPaymentNotice';
@@ -98,7 +101,7 @@ import {
 } from './services/ecosystemSync';
 import { saveDirectToFirestore, subscribeToPaymentConfig, subscribeToUserEcosystem } from './services/firebaseClient';
 import { fetchPaymentConfig } from './services/paymentConfigService';
-import { exportElementAsPDF, sharePDFViaWebShare, generatePDFBlob, buildDocumentPdfFilename, showWhatsAppClipAlert, buildWhatsAppTreatmentMessage, extractDatosFromApp } from './utils/exportDocument';
+import { exportElementAsPDF, sharePDFViaWebShare, generatePDFBlob, buildDocumentPdfFilename, showWhatsAppClipAlert, buildWhatsAppTreatmentMessage, extractDatosFromApp, safeFormatSrcUrl } from './utils/exportDocument';
 import { compressDoctorConfigImages } from './utils/imageCompressor';
 
 /**
@@ -250,6 +253,8 @@ export default function App() {
 
   // 1.1 Patient Bank State for real-time synchronization
   const [patientBank, setPatientBank] = useState<SavedPatientEntry[]>(() => {
+    // Seguridad y Confidencialidad: Si no hay sesión médica activa iniciada, no pre-cargar datos
+    if (!getStoredDoctorSessionId()) return [];
     try {
       const saved = localStorage.getItem('digital_medic_patient_bank_v1');
       if (saved) return JSON.parse(saved);
@@ -527,6 +532,8 @@ export default function App() {
     loadedEcosystemUserRef.current = null;
     clearDoctorSessionId();
     setActiveDoctorSessionId(null);
+    setPatientBank([]);
+    setActiveModule('inicio');
     setIsAuthModalOpen(true);
     showToast('Sesión cerrada correctamente.');
   };
@@ -567,7 +574,9 @@ export default function App() {
   };
 
   // 2. Active View Module & Master Lock (PIN 2534)
-  const [activeModule, setActiveModule] = useState<ActiveModule>('recipe-master');
+  const [activeModule, setActiveModule] = useState<ActiveModule>(() => {
+    return getStoredDoctorSessionId() ? 'recipe-master' : 'inicio';
+  });
   const [designerPreviewDoc, setDesignerPreviewDoc] = useState<'recipe' | 'recipe-4en1' | 'indicaciones' | 'reposo' | 'informes'>('recipe');
   const [isDesignerUnlocked, setIsDesignerUnlocked] = useState<boolean>(() => {
     return sessionStorage.getItem('digital_medic_unlocked_2534') === 'true';
@@ -576,6 +585,7 @@ export default function App() {
   const [isVaultModalOpen, setIsVaultModalOpen] = useState<boolean>(false);
   const [isLeftDrawerOpen, setIsLeftDrawerOpen] = useState<boolean>(false);
   const [isPatientBankOpen, setIsPatientBankOpen] = useState<boolean>(false);
+  const [isWhatsAppStickerOpen, setIsWhatsAppStickerOpen] = useState<boolean>(false);
 
   // Responsive Layout Mode: Fluid Responsive Mobile & PC Layout
   const [isDesktopMode] = useState<boolean>(false);
@@ -646,6 +656,12 @@ export default function App() {
       clean.rp = '';
       clean.indicationsNotes = '';
     }
+
+    // La fecha del récipe en emisión siempre debe ser la del tiempo real del día
+    if (!clean.date || clean.date !== todayStr) {
+      clean.date = todayStr;
+    }
+
     return clean;
   };
 
@@ -653,25 +669,16 @@ export default function App() {
     return (list || []).map(sanitizeRecipeItem);
   };
 
-  // 3. Recipes State (Master & 4-in-1) - Clean Pristine Blank Template
+  // 3. Recipes State (Master & 4-in-1) - Clean Pristine Blank Template on Startup
+  const createBlankRecipes = (): RecipeItem[] => [
+    { id: 'rec-1', patientName: '', patientAge: '', patientCI: '', patientPhone: '', date: todayStr, diagnosis: '', rp: '', indicationsNotes: '' },
+    { id: 'rec-2', patientName: '', patientAge: '', patientCI: '', patientPhone: '', date: todayStr, diagnosis: '', rp: '', indicationsNotes: '' },
+    { id: 'rec-3', patientName: '', patientAge: '', patientCI: '', patientPhone: '', date: todayStr, diagnosis: '', rp: '', indicationsNotes: '' },
+    { id: 'rec-4', patientName: '', patientAge: '', patientCI: '', patientPhone: '', date: todayStr, diagnosis: '', rp: '', indicationsNotes: '' },
+  ];
+
   const [activeRecipeIndex, setActiveRecipeIndex] = useState(0);
-  const [recipes, setRecipes] = useState<RecipeItem[]>(() => {
-    try {
-      const saved = localStorage.getItem('digital_medic_recipes_v2');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return sanitizeRecipeList(parsed);
-        }
-      }
-    } catch (e) {}
-    return [
-      { id: 'rec-1', patientName: '', patientAge: '', patientCI: '', patientPhone: '', date: todayStr, diagnosis: '', rp: '', indicationsNotes: '' },
-      { id: 'rec-2', patientName: '', patientAge: '', patientCI: '', patientPhone: '', date: todayStr, diagnosis: '', rp: '', indicationsNotes: '' },
-      { id: 'rec-3', patientName: '', patientAge: '', patientCI: '', patientPhone: '', date: todayStr, diagnosis: '', rp: '', indicationsNotes: '' },
-      { id: 'rec-4', patientName: '', patientAge: '', patientCI: '', patientPhone: '', date: todayStr, diagnosis: '', rp: '', indicationsNotes: '' },
-    ];
-  });
+  const [recipes, setRecipes] = useState<RecipeItem[]>(createBlankRecipes);
 
   // 4. Clinical Records (Historias Clínicas) - Clean Blank
   const [records, setRecords] = useState<ClinicalRecord[]>(() => {
@@ -736,6 +743,12 @@ export default function App() {
         const parsed = JSON.parse(saved);
         if (parsed && typeof parsed === 'object') {
           if (!parsed.patientName?.includes('Juan Carlos')) {
+            if (!parsed.date || parsed.date !== todayStr) {
+              parsed.date = todayStr;
+            }
+            if (!parsed.restStartDate || parsed.restStartDate !== todayStr) {
+              parsed.restStartDate = todayStr;
+            }
             return parsed;
           }
         }
@@ -765,34 +778,23 @@ export default function App() {
     };
   });
 
-  // 6. Indications Sheet State - Clean Blank
-  const [indications, setIndications] = useState<IndicationsSheet>(() => {
-    try {
-      const saved = localStorage.getItem('digital_medic_indications_v2');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && typeof parsed === 'object') {
-          if (!parsed.patientName?.includes('Juan Carlos')) {
-            return parsed;
-          }
-        }
-      }
-    } catch (e) {}
-    return {
-      id: 'IND-01',
-      patientName: '',
-      patientCI: '',
-      patientPhone: '',
-      patientAge: '',
-      date: todayStr,
-      diagnosis: '',
-      generalInstructions: '',
-      medicationSchedule: '',
-      dietAndRest: '',
-      alarmSigns: '',
-      nextAppointment: '',
-    };
+  // 6. Indications Sheet State - Clean Blank on Startup
+  const createBlankIndications = (): IndicationsSheet => ({
+    id: 'IND-01',
+    patientName: '',
+    patientCI: '',
+    patientPhone: '',
+    patientAge: '',
+    date: todayStr,
+    diagnosis: '',
+    generalInstructions: '',
+    medicationSchedule: '',
+    dietAndRest: '',
+    alarmSigns: '',
+    nextAppointment: '',
   });
+
+  const [indications, setIndications] = useState<IndicationsSheet>(createBlankIndications);
 
   // 7. Medical Rest Certificate State - Clean Blank
   const [restCert, setRestCert] = useState<MedicalRestCert>(() => {
@@ -802,6 +804,12 @@ export default function App() {
         const parsed = JSON.parse(saved);
         if (parsed && typeof parsed === 'object') {
           if (!parsed.patientName?.includes('Juan Carlos')) {
+            if (!parsed.date || parsed.date !== todayStr) {
+              parsed.date = todayStr;
+            }
+            if (!parsed.startDate || parsed.startDate !== todayStr) {
+              parsed.startDate = todayStr;
+            }
             return parsed;
           }
         }
@@ -822,6 +830,37 @@ export default function App() {
       diagnosis: '',
       observations: '',
     };
+  });
+
+  // 8. Lab Order State (Exámenes y Laboratorios) - Clean Blank
+  const createBlankLabOrder = (): LabOrder => ({
+    id: 'ORD-LAB-01',
+    patientName: '',
+    patientCI: '',
+    patientAge: '',
+    patientPhone: '',
+    patientEmail: '',
+    patientAddress: '',
+    date: todayStr,
+    diagnosis: '',
+    clinicalSummary: '',
+    selectedExams: [],
+    customExams: [],
+    patientInstructions: '',
+    notes: '',
+  });
+
+  const [labOrder, setLabOrder] = useState<LabOrder>(() => {
+    try {
+      const saved = localStorage.getItem('digital_medic_lab_order_v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') {
+          return parsed;
+        }
+      }
+    } catch (e) {}
+    return createBlankLabOrder();
   });
 
   // Show toast notification helper
@@ -953,17 +992,6 @@ export default function App() {
           hasUserEditedStateRef.current = false;
           setColleagueProfiles(sanitized);
 
-          if (cloudEco.recipes && Array.isArray(cloudEco.recipes) && cloudEco.recipes.length > 0) {
-            const ecoRecipes = sanitizeRecipeList(cloudEco.recipes);
-            setRecipes((prevRecipes) => {
-              if (forceDownload) return ecoRecipes;
-              if (prevRecipes.some(r => r.patientName?.trim() || r.rp?.trim())) {
-                return prevRecipes;
-              }
-              return ecoRecipes;
-            });
-          }
-
           if (cloudEco.patientBank && Array.isArray(cloudEco.patientBank)) {
             const ecoBank = cloudEco.patientBank;
             setPatientBank((prevBank) => {
@@ -981,13 +1009,6 @@ export default function App() {
               } catch (_) {}
               return mergedBank;
             });
-          }
-
-          if (cloudEco.report) {
-            setCurrentReport(cloudEco.report);
-          }
-          if (cloudEco.indications) {
-            setIndications(cloudEco.indications);
           }
           if (cloudEco.rest) {
             setRestCert(cloudEco.rest);
@@ -1201,12 +1222,16 @@ export default function App() {
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', handleWindowFocus);
 
+    const handleOpenStickersEvent = () => setIsWhatsAppStickerOpen(true);
+    window.addEventListener('open-whatsapp-stickers', handleOpenStickersEvent);
+
     return () => {
       clearInterval(intervalId);
       if (unsubPayment) unsubPayment();
       if (unsubEcosystem) unsubEcosystem();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleWindowFocus);
+      window.removeEventListener('open-whatsapp-stickers', handleOpenStickersEvent);
     };
   }, [activeDoctorSessionId, config.email]);
 
@@ -1337,10 +1362,11 @@ export default function App() {
       localStorage.setItem('digital_medic_report_v2', JSON.stringify(currentReport));
       localStorage.setItem('digital_medic_indications_v2', JSON.stringify(indications));
       localStorage.setItem('digital_medic_rest_v2', JSON.stringify(restCert));
+      localStorage.setItem('digital_medic_lab_order_v1', JSON.stringify(labOrder));
     } catch (e) {
       console.warn('Error guardando documentos en LocalStorage:', e);
     }
-  }, [records, currentReport, indications, restCert]);
+  }, [records, currentReport, indications, restCert, labOrder]);
 
   // Immediate flush before tab/window closes so no data is ever lost
   useEffect(() => {
@@ -1355,6 +1381,7 @@ export default function App() {
         localStorage.setItem('digital_medic_report_v2', JSON.stringify(currentReport));
         localStorage.setItem('digital_medic_indications_v2', JSON.stringify(indications));
         localStorage.setItem('digital_medic_rest_v2', JSON.stringify(restCert));
+        localStorage.setItem('digital_medic_lab_order_v1', JSON.stringify(labOrder));
 
         let paymentConfig: any = null;
         try {
@@ -1375,6 +1402,7 @@ export default function App() {
           report: currentReport,
           indications,
           rest: restCert,
+          labOrder,
           records,
           paymentConfig,
         });
@@ -1388,7 +1416,7 @@ export default function App() {
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [config, colleagueProfiles, recipes, patientBank, records, currentReport, indications, restCert]);
+  }, [config, colleagueProfiles, recipes, patientBank, records, currentReport, indications, restCert, labOrder]);
 
   // Sync state to LocalStorage and Cloud Database
   const handleSaveAll = async () => {
@@ -1413,6 +1441,7 @@ export default function App() {
       localStorage.setItem('digital_medic_report_v2', JSON.stringify(currentReport));
       localStorage.setItem('digital_medic_indications_v2', JSON.stringify(indications));
       localStorage.setItem('digital_medic_rest_v2', JSON.stringify(restCert));
+      localStorage.setItem('digital_medic_lab_order_v1', JSON.stringify(labOrder));
       localStorage.setItem('digital_medic_patient_bank_v1', JSON.stringify(patientBank));
     } catch (_) {}
 
@@ -1791,6 +1820,20 @@ export default function App() {
         if (pDiag !== undefined) u.diagnosis = pDiag;
         return u;
       });
+
+      // 5. Sync lab order
+      setLabOrder((prev) => {
+        const u: any = { ...prev };
+        if (pName !== undefined) u.patientName = pName;
+        if (pCI !== undefined) u.patientCI = pCI;
+        if (pAge !== undefined) u.patientAge = pAge;
+        if (pPhone !== undefined) u.patientPhone = pPhone;
+        if (pEmail !== undefined) u.patientEmail = pEmail;
+        if (pAddress !== undefined) u.patientAddress = pAddress;
+        if (pDate !== undefined) u.date = pDate;
+        if (pDiag !== undefined) u.diagnosis = pDiag;
+        return u;
+      });
     }
   };
 
@@ -1913,7 +1956,7 @@ export default function App() {
     const pPhone = patient.patientPhone || '';
     const pDiagnosis = patient.diagnosis || '';
 
-    // 1. Update all recipes (4 en 1 and master)
+    // 1. Update all recipes (4 en 1 and master) con fecha de emisión de hoy
     setRecipes((prev) =>
       prev.map((r) => ({
         ...r,
@@ -1921,6 +1964,7 @@ export default function App() {
         patientCI: pCI || r.patientCI,
         patientAge: pAge || r.patientAge,
         patientPhone: pPhone || r.patientPhone,
+        date: todayStr,
         diagnosis: pDiagnosis || r.diagnosis,
         rp: patient.rp || r.rp,
       }))
@@ -1934,6 +1978,7 @@ export default function App() {
       patientAge: pAge || prev.patientAge,
       patientPhone: pPhone || prev.patientPhone,
       patientGender: patient.patientGender || prev.patientGender,
+      date: todayStr,
       diagnosticImpression: pDiagnosis || prev.diagnosticImpression,
     }));
 
@@ -1944,6 +1989,7 @@ export default function App() {
       patientCI: pCI || prev.patientCI,
       patientAge: pAge || prev.patientAge,
       patientPhone: pPhone || prev.patientPhone,
+      date: todayStr,
       diagnosis: pDiagnosis || prev.diagnosis,
     }));
 
@@ -1953,11 +1999,25 @@ export default function App() {
       patientName: pName || prev.patientName,
       patientCI: pCI || prev.patientCI,
       patientAge: pAge || prev.patientAge,
+      date: todayStr,
       patientPhone: pPhone || prev.patientPhone,
       diagnosis: pDiagnosis || prev.diagnosis,
     }));
 
-    // 5. Update or sync active clinical record
+    // 5. Update Lab Order
+    setLabOrder((prev) => ({
+      ...prev,
+      patientName: pName || prev.patientName,
+      patientCI: pCI || prev.patientCI,
+      patientAge: pAge || prev.patientAge,
+      patientPhone: pPhone || prev.patientPhone,
+      patientEmail: patient.patientEmail || prev.patientEmail,
+      patientAddress: patient.patientAddress || prev.patientAddress,
+      date: todayStr,
+      diagnosis: pDiagnosis || prev.diagnosis,
+    }));
+
+    // 6. Update or sync active clinical record
     if (activeRecord) {
       const cleanAge = pAge.replace(/[^0-9]/g, '');
       const updatedRecord: ClinicalRecord = {
@@ -2020,7 +2080,18 @@ export default function App() {
       patientPhone: '',
       diagnosis: '',
     }));
-    // 5. Reset activeRecord to the first blank session record
+    // 5. Reset labOrder
+    setLabOrder((prev) => ({
+      ...prev,
+      patientName: '',
+      patientCI: '',
+      patientAge: '',
+      patientPhone: '',
+      patientEmail: '',
+      patientAddress: '',
+      diagnosis: '',
+    }));
+    // 6. Reset activeRecord to the first blank session record
     if (records && records[0]) {
       setActiveRecord(records[0]);
     }
@@ -2327,6 +2398,28 @@ export default function App() {
         return updated;
       });
       showToast('✓ Hoja de indicaciones dejada en blanco.');
+    } else if (activeModule === 'examenes') {
+      setLabOrder((prev) => {
+        const updated: LabOrder = {
+          ...prev,
+          patientName: '',
+          patientCI: '',
+          patientPhone: '',
+          patientAge: '',
+          patientEmail: '',
+          patientAddress: '',
+          date: todayStr,
+          diagnosis: '',
+          clinicalSummary: '',
+          selectedExams: [],
+          customExams: [],
+          patientInstructions: '',
+          notes: '',
+        };
+        localStorage.setItem('digital_medic_lab_order_v1', JSON.stringify(updated));
+        return updated;
+      });
+      showToast('✓ Orden de exámenes dejada en blanco.');
     } else if (activeModule === 'historias') {
       const updatedRecord: ClinicalRecord = {
         ...activeRecord,
@@ -2516,6 +2609,7 @@ export default function App() {
       informes: `📋 ¡Nuevo Informe Médico iniciado! Redacte diagnóstico y evolución.`,
       reposo: `📝 ¡Nueva Constancia y Reposo Médico listo! Calcule días y fechas.`,
       indicaciones: `💊 ¡Nuevas Indicaciones de Tratamiento listas para el paciente!`,
+      examenes: `🔬 ¡Nueva Orden de Exámenes y Laboratorios lista! Indique los estudios.`,
       historia: `🏥 ¡Nueva Historia Clínica iniciada! Registre los antecedentes.`,
       historias: `🏥 ¡Nueva Historia Clínica iniciada! Registre los antecedentes.`,
       diseno: `🎨 Estudio de Diseño y Personalización de Formatos Médicos.`,
@@ -2582,7 +2676,6 @@ export default function App() {
     const activeRec = customRecord || savedDocumentRecord;
     let container: HTMLElement | null = null;
     
-    // Select the exact document container corresponding to the active module
     if (activeModule === 'indicaciones') {
       container = document.querySelector<HTMLElement>('#indications-print-container') ||
         document.querySelector<HTMLElement>('.indications-container');
@@ -2595,6 +2688,9 @@ export default function App() {
     } else if (activeModule === 'historias') {
       container = document.querySelector<HTMLElement>('#clinical-history-print-container') ||
         document.querySelector<HTMLElement>('.clinical-history-sheet, .clinical-history-container');
+    } else if (activeModule === 'examenes') {
+      container = document.querySelector<HTMLElement>('#lab-order-print-container') ||
+        document.querySelector<HTMLElement>('.report-sheet-container');
     } else if (activeModule === 'recipe-4en1') {
       container = document.querySelector<HTMLElement>('#recipe-4en1-print-sheet, .recipe-4en1-container') ||
         document.querySelector<HTMLElement>('#recipe-quarter-print-container, .recipe-single-card');
@@ -2613,7 +2709,10 @@ export default function App() {
 
       let pName = activeRec?.patientName;
       let docDate = activeRec?.date;
-      if (!pName) {
+      if (activeModule === 'examenes') {
+        pName = labOrder?.patientName || activeRec?.patientName;
+        docDate = labOrder?.date || activeRec?.date;
+      } else if (!pName) {
         if (activeModule === 'informes') {
           pName = currentReport?.patientName;
           docDate = currentReport?.date;
@@ -2637,25 +2736,87 @@ export default function App() {
       else if (activeModule === 'indicaciones') prefix = 'indicaciones';
       else if (activeModule === 'reposo') prefix = 'reposo';
       else if (activeModule === 'historias') prefix = 'historia';
+      else if (activeModule === 'examenes' || (activeRec?.documentType as string) === 'examenes') prefix = 'orden_examenes';
       else if (activeModule === 'recipe-4en1') prefix = 'récipe';
 
-      const fileName = buildDocumentPdfFilename(prefix, pName || 'Carlos leal', docDate || '14/10/26');
+      const fileName = buildDocumentPdfFilename(prefix, pName || 'Paciente', docDate || todayStr);
       const curRec = recipes[activeRecipeIndex] || recipes[0];
       const curRec2 = recipes[1];
+      const isExamenesMod = activeModule === 'examenes' || (activeRec?.documentType as string) === 'examenes';
+      const isReposoMod = activeModule === 'reposo' || (activeRec?.documentType as string) === 'reposo' || (activeRec?.documentType as string) === 'rest';
+      const isInformeMod = activeModule === 'informes' || (activeRec?.documentType as string) === 'informes' || (activeRec?.documentType as string) === 'report' || (activeRec?.documentType as string) === 'informe';
+      const isHistoriasMod = activeModule === 'historias' || (activeRec?.documentType as string) === 'historias' || (activeRec?.documentType as string) === 'historia';
+      const isPortraitDoc = isReposoMod || isInformeMod || isHistoriasMod;
+
+      let customRp = curRec?.rp || '';
+      let customIndicaciones = (indications?.generalInstructions || '').trim() ||
+        (indications?.medicationSchedule ? `${indications.medicationSchedule}${indications.dietAndRest ? `\n\n${indications.dietAndRest}` : ''}` : '') ||
+        (curRec?.indicationsNotes || '');
+      let customDocType: 'recipe' | 'examenes' | 'rest' | 'report' | 'history' = 'recipe';
+      let customDiag = curRec?.diagnosis || '';
+      let customPatientCI = curRec?.patientCI;
+      let customPatientAge = curRec?.patientAge;
+      let customPatientPhone = curRec?.patientPhone;
+      let customDocDate = docDate || todayStr;
+
+      if (isReposoMod) {
+        customDocType = 'rest';
+        customDiag = restCert?.diagnosis || 'Reposo médico';
+        customPatientCI = restCert?.patientCI;
+        customPatientAge = restCert?.patientAge;
+        customPatientPhone = restCert?.patientPhone;
+        customDocDate = restCert?.startDate || restCert?.date || docDate || todayStr;
+        customRp = `CONSTANCIA DE REPOSO MÉDICO\n\nPor medio de la presente se hace constar que el (la) paciente ${restCert?.patientName || pName || 'indicado'}, titular de la C.I. ${restCert?.patientCI || '—'}, amerita REPOSO MÉDICO por un período de ${restCert?.daysRest || 1} días continuos a partir del ${restCert?.startDate || restCert?.date || todayStr} hasta el ${restCert?.endDate || 'cumplimiento del período'}.\n\nDiagnóstico: ${restCert?.diagnosis || 'Reposo médico'}\n${restCert?.observations ? `Observaciones: ${restCert.observations}` : ''}`;
+        customIndicaciones = restCert?.observations || '';
+      } else if (isInformeMod) {
+        customDocType = 'report';
+        customDiag = currentReport?.diagnosticImpression || currentReport?.reasonForConsultation || 'Evaluación médica';
+        customPatientCI = currentReport?.patientCI;
+        customPatientAge = currentReport?.patientAge;
+        customPatientPhone = currentReport?.patientPhone;
+        customDocDate = currentReport?.date || docDate || todayStr;
+        customRp = `${currentReport?.title || 'INFORME MÉDICO'}\n\n1. RESUMEN CLÍNICO:\n${currentReport?.clinicalSummary || 'Sin resumen registrado'}\n\n2. PROCEDIMIENTOS / EXAMEN:\n${currentReport?.procedures || 'Sin hallazgos'}\n\n3. ESTUDIOS PARACLÍNICOS:\n${currentReport?.paraclinicalStudies || 'No requiere'}\n\n4. IMPRESIÓN DIAGNÓSTICA:\n${currentReport?.diagnosticImpression || 'Evaluación médica'}\n\n5. CONDUCTA Y RECOMENDACIONES:\n${currentReport?.recommendations || 'Cumplir indicaciones'}`;
+        customIndicaciones = currentReport?.recommendations || '';
+      } else if (isExamenesMod) {
+        customDocType = 'examenes';
+        customDiag = labOrder?.diagnosis;
+        customPatientCI = labOrder?.patientCI;
+        customPatientAge = labOrder?.patientAge;
+        customPatientPhone = labOrder?.patientPhone;
+        customDocDate = labOrder?.date || todayStr;
+        customRp = [...(labOrder?.selectedExams || []), ...(labOrder?.customExams || [])].map((e, idx) => `${idx + 1}. ${e}`).join('\n');
+        customIndicaciones = labOrder?.patientInstructions || '';
+      }
+
       const customDatos = extractDatosFromApp(
         config,
         curRec,
         indications,
         {
-          nombrePaciente: pName,
-          fecha: docDate,
-          textoRp: curRec?.rp || '',
-          textoIndicaciones: indications?.medicationSchedule
-            ? `${indications.medicationSchedule}${indications.dietAndRest ? `\n\n${indications.dietAndRest}` : ''}`
-            : (curRec?.indicationsNotes || ''),
+          nombrePaciente: pName || (isExamenesMod ? (labOrder?.patientName || 'Paciente') : isReposoMod ? (restCert?.patientName || 'Paciente') : isInformeMod ? (currentReport?.patientName || 'Paciente') : undefined),
+          fecha: customDocDate,
+          cedulaPaciente: customPatientCI,
+          edadPaciente: customPatientAge,
+          telefonoPaciente: customPatientPhone,
+          diagnostico: customDiag,
+          textoRp: customRp,
+          textoIndicaciones: customIndicaciones,
           textoRecipe2: curRec2?.rp || '',
+          documentType: customDocType,
+          diasReposo: isReposoMod ? (restCert?.daysRest || 1) : isInformeMod ? (currentReport?.daysRest || undefined) : undefined,
+          fechaInicioReposo: isReposoMod ? (restCert?.startDate || restCert?.date || todayStr) : isInformeMod ? (currentReport?.restStartDate || undefined) : undefined,
+          fechaFinReposo: isReposoMod ? (restCert?.endDate || '') : isInformeMod ? (currentReport?.restEndDate || '') : undefined,
+          observacionesReposo: isReposoMod ? (restCert?.observations || '') : undefined,
+          motivoConsulta: isInformeMod ? (currentReport?.reasonForConsultation || '') : undefined,
+          resumenClinico: isInformeMod ? (currentReport?.clinicalSummary || '') : undefined,
+          procedimientos: isInformeMod ? (currentReport?.procedures || '') : undefined,
+          estudiosParaclinicos: isInformeMod ? (currentReport?.paraclinicalStudies || '') : undefined,
+          impresionDiagnostica: isInformeMod ? (currentReport?.diagnosticImpression || '') : undefined,
+          recomendacionesReporte: isInformeMod ? (currentReport?.recommendations || '') : undefined,
+          reportTitle: isInformeMod ? (currentReport?.title || 'INFORME MÉDICO') : undefined,
         }
       );
+
       // Lógica de Clonación de Réplica Visual Exacta hacia #hidden-pdf-landscape-mold
       let hiddenMold = document.getElementById('hidden-pdf-landscape-mold') as HTMLElement | null;
       if (!hiddenMold) {
@@ -2665,24 +2826,28 @@ export default function App() {
         document.body.appendChild(hiddenMold);
       }
 
+      const moldW = isPortraitDoc ? 816 : 1056;
+      const moldH = isPortraitDoc ? 1056 : 816;
+      hiddenMold.setAttribute('data-doc-orientation', isPortraitDoc ? 'portrait' : 'landscape');
+
       hiddenMold.style.cssText = `
         position: fixed;
         left: 0px;
         top: 0px;
-        width: 1056px;
-        min-width: 1056px;
-        max-width: 1056px;
-        height: 816px;
-        min-height: 816px;
-        max-height: 816px;
+        width: ${moldW}px;
+        min-width: ${moldW}px;
+        max-width: ${moldW}px;
+        height: ${moldH}px;
+        min-height: ${moldH}px;
+        max-height: ${moldH}px;
         overflow: hidden;
         background-color: #ffffff;
         margin: 0;
         padding: 0;
         z-index: -9999;
         pointer-events: none;
-        display: flex;
-        flex-direction: row;
+        display: ${isPortraitDoc ? 'block' : 'flex'};
+        flex-direction: ${isPortraitDoc ? 'column' : 'row'};
         box-sizing: border-box;
         font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       `;
@@ -2690,7 +2855,20 @@ export default function App() {
 
       // Función para clonar la estructura DOM, clases CSS, estilos inline y aplicar explícitamente getComputedStyle
       const cloneWithExactComputedStyles = (sourceEl: HTMLElement): HTMLElement => {
+        const prevDisplay = sourceEl.style.display;
+        const wasHiddenClass = sourceEl.classList.contains('hidden');
+        if (wasHiddenClass) sourceEl.classList.remove('hidden');
+        if (prevDisplay === 'none') sourceEl.style.display = 'block';
+
         const clone = sourceEl.cloneNode(true) as HTMLElement;
+
+        if (wasHiddenClass) sourceEl.classList.add('hidden');
+        if (prevDisplay === 'none') sourceEl.style.display = 'none';
+
+        clone.classList.remove('hidden');
+        clone.style.display = 'block';
+        clone.style.opacity = '1';
+        clone.style.visibility = 'visible';
 
         // 1. Remover elementos interactivos y botones no imprimibles
         const noPrintEls = clone.querySelectorAll('.no-print, button, svg.lucide-camera, [title*="editar"], [title*="Haga clic"], [title*="Arrastre"], .no-pdf');
@@ -2796,9 +2974,13 @@ export default function App() {
 
             // Tratamiento explícito de logos e imágenes: dimensiones, URL y object-fit
             if (s instanceof HTMLImageElement && c instanceof HTMLImageElement) {
-              c.setAttribute('crossOrigin', 'anonymous');
-              c.crossOrigin = 'anonymous';
-              c.src = s.src;
+              c.src = safeFormatSrcUrl(s.src);
+              if (s.src.startsWith('http://') || s.src.startsWith('https://')) {
+                c.setAttribute('crossOrigin', 'anonymous');
+                c.crossOrigin = 'anonymous';
+              } else {
+                c.removeAttribute('crossorigin');
+              }
               c.style.width = comp.width;
               c.style.height = comp.height;
               c.style.maxWidth = comp.maxWidth;
@@ -2833,55 +3015,96 @@ export default function App() {
       };
 
       if (container && container !== document.body) {
-        // Documentos de página completa o 4-en-1
-        const isFullWidthDoc = activeModule === 'informes' || 
-          activeModule === 'reposo' || 
-          activeModule === 'historias' || 
-          activeModule === 'recipe-4en1' ||
-          container.id === 'report-print-container' ||
-          container.id === 'rest-print-container' ||
-          container.id === 'clinical-history-print-container' ||
-          container.id === 'recipe-4en1-print-sheet';
-
-        if (isFullWidthDoc) {
-          hiddenMold.style.display = 'block';
-          const clonedDoc = cloneWithExactComputedStyles(container);
-          clonedDoc.style.width = '100%';
-          clonedDoc.style.height = '100%';
-          clonedDoc.style.boxSizing = 'border-box';
-          hiddenMold.appendChild(clonedDoc);
-        } else {
-          // Récipe estándar: Formato Horizontal 2-en-1 (50% Récipe + 50% Indicaciones/Copia)
+        if (activeModule === 'examenes' || container.id === 'lab-order-print-container') {
+          // Formato Carta Horizontal 2-en-1 para Exámenes de Laboratorio:
+          // Dos órdenes completas en una sola hoja carta horizontal (Copia 1 a la izquierda, Copia 2 a la derecha)
           hiddenMold.style.display = 'flex';
           hiddenMold.style.flexDirection = 'row';
+          hiddenMold.style.width = '1056px';
+          hiddenMold.style.minWidth = '1056px';
+          hiddenMold.style.maxWidth = '1056px';
+          hiddenMold.style.height = '816px';
+          hiddenMold.style.minHeight = '816px';
+          hiddenMold.style.maxHeight = '816px';
+          hiddenMold.style.backgroundColor = '#ffffff';
 
           const leftHalf = document.createElement('div');
-          leftHalf.style.cssText = 'width: 50%; height: 100%; box-sizing: border-box; border-right: 1px dashed #cbd5e1; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; background-color: #ffffff;';
+          leftHalf.style.cssText = 'width: 50%; height: 100%; box-sizing: border-box; border-right: 1px dashed #cbd5e1; padding: 18px 22px; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; background-color: #ffffff;';
 
           const rightHalf = document.createElement('div');
-          rightHalf.style.cssText = 'width: 50%; height: 100%; box-sizing: border-box; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; background-color: #ffffff;';
+          rightHalf.style.cssText = 'width: 50%; height: 100%; box-sizing: border-box; padding: 18px 22px; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; background-color: #ffffff;';
 
           const leftClone = cloneWithExactComputedStyles(container);
           leftClone.style.width = '100%';
+          leftClone.style.maxWidth = '100%';
           leftClone.style.height = '100%';
+          leftClone.style.boxShadow = 'none';
+          leftClone.style.border = 'none';
+          leftClone.style.padding = '0';
           leftHalf.appendChild(leftClone);
 
-          // Buscar si existe contenedor de indicaciones activo en pantalla
-          const indicationsEl = document.querySelector<HTMLElement>('#indications-print-container, .indications-container');
-          if (indicationsEl && indicationsEl !== container) {
-            const rightClone = cloneWithExactComputedStyles(indicationsEl);
-            rightClone.style.width = '100%';
-            rightClone.style.height = '100%';
-            rightHalf.appendChild(rightClone);
-          } else {
-            const rightClone = cloneWithExactComputedStyles(container);
-            rightClone.style.width = '100%';
-            rightClone.style.height = '100%';
-            rightHalf.appendChild(rightClone);
-          }
+          const rightClone = cloneWithExactComputedStyles(container);
+          rightClone.style.width = '100%';
+          rightClone.style.maxWidth = '100%';
+          rightClone.style.height = '100%';
+          rightClone.style.boxShadow = 'none';
+          rightClone.style.border = 'none';
+          rightClone.style.padding = '0';
+          rightHalf.appendChild(rightClone);
 
           hiddenMold.appendChild(leftHalf);
           hiddenMold.appendChild(rightHalf);
+        } else {
+          // Documentos de página completa o Récipe estándar 2-en-1
+          const isFullWidthDoc = activeModule === 'informes' || 
+            activeModule === 'reposo' || 
+            activeModule === 'historias' || 
+            activeModule === 'recipe-4en1' ||
+            container.id === 'report-print-container' ||
+            container.id === 'rest-print-container' ||
+            container.id === 'clinical-history-print-container' ||
+            container.id === 'recipe-4en1-print-sheet';
+
+          if (isFullWidthDoc) {
+            hiddenMold.style.display = 'block';
+            const clonedDoc = cloneWithExactComputedStyles(container);
+            clonedDoc.style.width = '100%';
+            clonedDoc.style.height = '100%';
+            clonedDoc.style.boxSizing = 'border-box';
+            hiddenMold.appendChild(clonedDoc);
+          } else {
+            // Récipe estándar: Formato Horizontal 2-en-1 (50% Récipe + 50% Indicaciones/Copia)
+            hiddenMold.style.display = 'flex';
+            hiddenMold.style.flexDirection = 'row';
+
+            const leftHalf = document.createElement('div');
+            leftHalf.style.cssText = 'width: 50%; height: 100%; box-sizing: border-box; border-right: 1px dashed #cbd5e1; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; background-color: #ffffff;';
+
+            const rightHalf = document.createElement('div');
+            rightHalf.style.cssText = 'width: 50%; height: 100%; box-sizing: border-box; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; background-color: #ffffff;';
+
+            const leftClone = cloneWithExactComputedStyles(container);
+            leftClone.style.width = '100%';
+            leftClone.style.height = '100%';
+            leftHalf.appendChild(leftClone);
+
+            // Buscar si existe contenedor de indicaciones activo en pantalla
+            const indicationsEl = document.querySelector<HTMLElement>('#indications-print-container, .indications-container');
+            if (indicationsEl && indicationsEl !== container) {
+              const rightClone = cloneWithExactComputedStyles(indicationsEl);
+              rightClone.style.width = '100%';
+              rightClone.style.height = '100%';
+              rightHalf.appendChild(rightClone);
+            } else {
+              const rightClone = cloneWithExactComputedStyles(container);
+              rightClone.style.width = '100%';
+              rightClone.style.height = '100%';
+              rightHalf.appendChild(rightClone);
+            }
+
+            hiddenMold.appendChild(leftHalf);
+            hiddenMold.appendChild(rightHalf);
+          }
         }
       }
 
@@ -2981,6 +3204,19 @@ export default function App() {
           `EXAMEN FÍSICO: ${activeRecord?.physicalExam || 'Normal'}\n` +
           `DIAGNÓSTICO: ${activeRecord?.diagnoses || 'Evaluado'}\n` +
           `PLAN Y TRATAMIENTO: ${activeRecord?.treatmentPlan || 'Plan indicado'}`;
+      } else if (mod === 'examenes') {
+        patientName = labOrder?.patientName || 'Paciente';
+        patientCI = labOrder?.patientCI || '';
+        patientAge = labOrder?.patientAge || '';
+        patientPhone = labOrder?.patientPhone || '';
+        patientEmail = labOrder?.patientEmail || '';
+        diagnosis = labOrder?.diagnosis || 'Orden de Laboratorio';
+        docTitle = `Orden de Exámenes - ${patientName}`;
+        docType = 'examenes' as any;
+        const examsList = [...(labOrder?.selectedExams || []), ...(labOrder?.customExams || [])];
+        const examsText = examsList.map((e, idx) => `${idx + 1}. ${e}`).join('\n');
+        contentBody = `ESTUDIOS SOLICITADOS:\n${examsText || 'Exámenes paraclínicos'}` +
+          (labOrder?.patientInstructions ? `\n\n📌 INSTRUCCIONES / PREPARACIÓN:\n${labOrder.patientInstructions}` : '');
       } else if (mod === 'recipe-master') {
         const rec = recipes[activeRecipeIndex] || recipes[0] || {};
         patientName = rec.patientName || 'Paciente';
@@ -3223,6 +3459,19 @@ export default function App() {
         docTitle = `Historia Clínica - ${patientName}`;
         docType = 'historia';
         contentBody = `DIAGNÓSTICO: ${activeRecord?.diagnoses || 'Evaluado'}\nTRATAMIENTO: ${activeRecord?.treatmentPlan || 'Plan indicado'}`;
+      } else if (mod === 'examenes') {
+        patientName = labOrder?.patientName || 'Paciente';
+        patientCI = labOrder?.patientCI || '';
+        patientAge = labOrder?.patientAge || '';
+        patientPhone = labOrder?.patientPhone || '';
+        patientEmail = labOrder?.patientEmail || '';
+        diagnosis = labOrder?.diagnosis || 'Orden de Laboratorio';
+        docTitle = `Orden de Exámenes - ${patientName}`;
+        docType = 'examenes' as any;
+        const examsList = [...(labOrder?.selectedExams || []), ...(labOrder?.customExams || [])];
+        const examsText = examsList.map((e, idx) => `${idx + 1}. ${e}`).join('\n');
+        contentBody = `ESTUDIOS SOLICITADOS:\n${examsText || 'Exámenes paraclínicos'}` +
+          (labOrder?.patientInstructions ? `\n\n📌 PREPARACIÓN:\n${labOrder.patientInstructions}` : '');
       } else if (mod === 'recipe-master') {
         const rec = recipes[activeRecipeIndex] || recipes[0] || {};
         patientName = rec.patientName || 'Paciente';
@@ -3354,9 +3603,9 @@ export default function App() {
             nombrePaciente: patientName,
             fecha: todayStr,
             textoRp: curRec?.rp || '',
-            textoIndicaciones: indications?.medicationSchedule 
-              ? `${indications.medicationSchedule}${indications.dietAndRest ? `\n\n${indications.dietAndRest}` : ''}`
-              : (curRec?.indicationsNotes || ''),
+            textoIndicaciones: (indications?.generalInstructions || '').trim() ||
+              (indications?.medicationSchedule ? `${indications.medicationSchedule}${indications.dietAndRest ? `\n\n${indications.dietAndRest}` : ''}` : '') ||
+              (curRec?.indicationsNotes || ''),
             textoRecipe2: curRec2?.rp || '',
           }
         );
@@ -3404,6 +3653,7 @@ export default function App() {
       if (mod === 'informes') docTypeCategory = 'Informe';
       else if (mod === 'reposo') docTypeCategory = 'Constancia';
       else if (mod === 'indicaciones') docTypeCategory = 'Indicaciones';
+      else if (mod === 'examenes') docTypeCategory = 'Orden de Exámenes';
 
       const msg = buildWhatsAppTreatmentMessage({
         doctorName: config.doctorName || 'Dr. Carlos Leal',
@@ -3443,23 +3693,20 @@ export default function App() {
       // Flujo de salida: Descargar PDF + Alerta de clip + Abrir API de WhatsApp con texto
       showWhatsAppClipAlert('📎 Se ha descargado el archivo PDF oficial en su dispositivo. Por favor, pulse el clip en este chat y adjúntelo para su validez');
 
-      const waUrl = cleanPhone && cleanPhone.length >= 8
-        ? `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(msg)}`
-        : `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
-
       const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+      
+      const waUrl = cleanPhone && cleanPhone.length >= 8
+        ? (isMobile 
+            ? `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(msg)}`
+            : `https://web.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(msg)}`)
+        : (isMobile 
+            ? `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`
+            : `https://web.whatsapp.com/send?text=${encodeURIComponent(msg)}`);
+
       if (isMobile) {
         window.location.href = waUrl;
       } else {
-        const link = document.createElement('a');
-        link.href = waUrl;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        document.body.appendChild(link);
-        link.click();
-        setTimeout(() => {
-          if (document.body.contains(link)) document.body.removeChild(link);
-        }, 150);
+        window.open(waUrl, '_blank', 'noopener,noreferrer');
       }
     } catch (err) {
       console.error('[Instant WhatsApp Error]:', err);
@@ -3473,7 +3720,7 @@ export default function App() {
       const originalTitle = document.title;
       let patientName = '';
       let docType = 'récipe';
-      let docDate = todayStr || '14/10/26';
+      let docDate = todayStr;
 
       if (activeModule === 'informes') {
         patientName = currentReport.patientName || 'Carlos leal';
@@ -3491,6 +3738,10 @@ export default function App() {
         patientName = activeRecord?.patientName || 'Carlos leal';
         docDate = activeRecord?.date || todayStr;
         docType = 'historia';
+      } else if (activeModule === 'examenes') {
+        patientName = labOrder?.patientName || 'Carlos leal';
+        docDate = labOrder?.date || todayStr;
+        docType = 'orden_examenes';
       } else if (activeModule === 'recipe-4en1') {
         patientName = recipes[0]?.patientName || 'Carlos leal';
         docDate = recipes[0]?.date || todayStr;
@@ -3531,6 +3782,7 @@ export default function App() {
           onOpenAdminPanel={() => setIsSecretAdminPromptOpen(true)}
           isDesktopMode={isDesktopMode}
           onToggleDesktopMode={toggleDesktopMode}
+          initialViewMode="login"
         />
 
         {toastConfig && (
@@ -3627,20 +3879,7 @@ export default function App() {
       {/* 1. Animated Top Banner (User prototype feature) */}
       {!isPreviewMode && <CintilloTopRibbon />}
 
-      {/* Docked Left Edge Button to Toggle Doctor & Clinic Drawer ("Ala Izquierda") */}
-      {!isPreviewMode && (
-        <button
-          onClick={() => setIsLeftDrawerOpen(!isLeftDrawerOpen)}
-          className="fixed left-0 top-1/2 -translate-y-1/2 z-40 bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 hover:from-blue-700 hover:to-indigo-700 text-white py-3.5 px-2 rounded-r-2xl shadow-2xl flex flex-col items-center gap-1.5 border-r-2 border-t-2 border-b-2 border-blue-400/50 text-[10px] font-black transition-all group no-print cursor-pointer hover:pl-3"
-          title="Tocar para mostrar u ocultar panel con nombre del médico y datos de la clínica"
-          aria-label="Abrir panel del médico y clínica"
-        >
-          <UserCheck className="w-4 h-4 text-teal-300 group-hover:scale-110 transition-transform" />
-          <span className="[writing-mode:vertical-lr] tracking-widest uppercase font-black text-[9px] text-teal-200">
-            Médico & Clínica
-          </span>
-        </button>
-      )}
+
 
       {/* Floating Exit Preview Bar (when in preview mode) */}
       {isPreviewMode && (
@@ -3707,46 +3946,60 @@ export default function App() {
       {/* 2. Top Navigation Bar */}
       {!isPreviewMode && (
         <>
-          {/* Top Bar Navigation Header (Light, clean, 100% responsive) */}
-          <header className="bg-white border-b border-slate-200 text-slate-900 px-3 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between gap-2 shadow-xs shrink-0 no-print">
+          {/* Top Bar Navigation Header (Light, clean, 100% responsive: Stacks vertically or scales down cleanly on mobile) */}
+          <header className="bg-white border-b border-slate-200 text-slate-900 px-3 sm:px-6 py-2 sm:py-2.5 flex flex-col md:flex-row items-center justify-between gap-2.5 sm:gap-3 shadow-xs shrink-0 no-print">
             
-            {/* Left: Drawer Menu Button & App Brand Identity */}
-            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-              <button
-                onClick={() => setIsLeftDrawerOpen(true)}
-                className="p-2 bg-slate-100 hover:bg-blue-50 text-slate-800 hover:text-blue-700 rounded-xl transition-all cursor-pointer border border-slate-200"
-                title="Abrir menú lateral y datos del médico"
-                aria-label="Abrir menú lateral"
-              >
-                <Menu className="w-5 h-5" />
-              </button>
+            {/* Left / Top on mobile: Drawer Menu Button & App Brand Identity */}
+            <div className="flex items-center justify-between md:justify-start w-full md:w-auto gap-2 sm:gap-3 shrink-0">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <button
+                  onClick={() => setIsLeftDrawerOpen(prev => !prev)}
+                  className="p-1.5 sm:p-2 bg-slate-100 hover:bg-blue-50 text-slate-800 hover:text-blue-700 rounded-xl transition-all cursor-pointer border border-slate-200 shrink-0"
+                  title="Desplegar / Ocultar menú lateral"
+                  aria-label="Desplegar menú lateral"
+                >
+                  <Menu className="w-5 h-5" />
+                </button>
 
-              <div 
-                className="flex items-center gap-2 sm:gap-2.5 cursor-pointer select-none" 
-                onClick={() => handleNavigate('inicio')}
-                title="Digital Médic - Ir al Inicio"
-              >
-                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-white p-0.5 shadow-sm border border-blue-200 flex items-center justify-center shrink-0">
-                  <img 
-                    src={DIGITAL_MEDIC_OFFICIAL_LOGO_SVG} 
-                    alt="Digital Médic Logo" 
-                    className="w-full h-full object-contain"
-                  />
-                </div>
+                <div 
+                  className="flex items-center gap-2 sm:gap-2.5 cursor-pointer select-none" 
+                  onClick={() => handleNavigate('inicio')}
+                  title="Digital Médic - Ir al Inicio"
+                >
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-xl bg-white p-0.5 shadow-sm border border-blue-200 flex items-center justify-center shrink-0">
+                    <img 
+                      src={DIGITAL_MEDIC_OFFICIAL_LOGO_SVG} 
+                      alt="Digital Médic Logo" 
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
 
-                <div className="flex flex-col">
-                  <span className="font-black text-slate-900 text-base sm:text-lg leading-tight tracking-tight">
-                    Digital Médic
-                  </span>
-                  <span className="text-[10px] sm:text-[11px] text-blue-700 font-bold">
-                    Formatos Médicos Digitales
-                  </span>
+                  <div className="flex flex-col">
+                    <span className="font-black text-slate-900 text-sm sm:text-base md:text-lg leading-tight tracking-tight">
+                      Digital Médic
+                    </span>
+                    <span className="text-[9px] sm:text-[10px] md:text-[11px] text-blue-700 font-bold leading-tight">
+                      Formatos Médicos Digitales
+                    </span>
+                  </div>
                 </div>
               </div>
+
+              {/* Botón de Inicio rápido visible solo en móvil a la derecha del logo si no está en inicio */}
+              {activeModule !== 'inicio' && (
+                <button
+                  onClick={() => handleNavigate('inicio')}
+                  className="md:hidden px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1 shadow-2xs cursor-pointer shrink-0"
+                  title="Volver a la pantalla de Inicio"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5 text-white" />
+                  <span>Inicio</span>
+                </button>
+              )}
             </div>
 
-            {/* Right: Ir al Inicio + Instalar Aplicación + Cerrar Sesión */}
-            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {/* Right / Bottom on mobile: Botones de Acción (PWA + Inicio en PC + Cerrar Sesión) */}
+            <div className="flex items-center justify-center md:justify-end gap-1.5 sm:gap-2 w-full md:w-auto shrink-0 flex-wrap">
 
               {/* Botón de Instalación como App nativa PWA */}
               <PWAInstallButton variant="header" />
@@ -3754,11 +4007,11 @@ export default function App() {
               {activeModule !== 'inicio' && (
                 <button
                   onClick={() => handleNavigate('inicio')}
-                  className="px-2.5 py-1.5 sm:px-4 sm:py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer shrink-0"
+                  className="hidden md:flex px-2.5 py-1.5 sm:px-4 sm:py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all items-center gap-1.5 shadow-2xs cursor-pointer shrink-0"
                   title="Volver a la pantalla de Inicio"
                 >
                   <ArrowLeft className="w-3.5 h-3.5 text-white" />
-                  <span className="font-bold hidden xs:inline">Inicio</span>
+                  <span>Inicio</span>
                 </button>
               )}
 
@@ -3769,16 +4022,15 @@ export default function App() {
                 title="Cerrar Sesión"
               >
                 <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white shrink-0" />
-                <span className="font-black whitespace-nowrap hidden xs:inline">Cerrar Sesión</span>
-                <span className="font-black whitespace-nowrap xs:hidden">Salir</span>
+                <span className="font-black whitespace-nowrap">Cerrar Sesión</span>
               </button>
             </div>
 
           </header>
 
-          {/* Clean Subbar: Doctor & Clinic Summary + Vista de Escritorio / Móvil Toggle */}
-          <div className="bg-slate-900 text-white border-b border-slate-800 px-3 sm:px-6 py-1.5 flex items-center justify-between gap-2 text-xs no-print flex-wrap">
-            <div className="flex items-center gap-2 min-w-0">
+          {/* Clean Subbar: Doctor & Clinic Summary (Responsive: column on mobile, row on tablet/desktop) */}
+          <div className="bg-slate-900 text-white border-b border-slate-800 px-3 sm:px-6 py-1.5 flex flex-col sm:flex-row items-center justify-between gap-1 sm:gap-2 text-xs no-print text-center sm:text-left">
+            <div className="flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 min-w-0 max-w-full flex-wrap">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
               <span className="font-bold text-white text-xs truncate">
                 🩺 {config.doctorName || 'Dr(a). Médico'}
@@ -3787,13 +4039,13 @@ export default function App() {
                 · {config.specialty || 'Especialista'}
               </span>
               {config.paymentStatus === 'prueba' && (
-                <span className="ml-2 px-2.5 py-0.5 bg-amber-500 text-slate-950 font-black rounded-full text-[10px] uppercase animate-pulse shrink-0">
-                  ⏳ Prueba: {getDoctorTrialStatus(config).daysLeft} días restantes
+                <span className="ml-1 sm:ml-2 px-2 py-0.5 bg-amber-500 text-slate-950 font-black rounded-full text-[10px] uppercase animate-pulse shrink-0">
+                  ⏳ Prueba: {getDoctorTrialStatus(config).daysLeft}d
                 </span>
               )}
             </div>
 
-            <div className="flex items-center gap-3 text-[10px] sm:text-[11px] font-mono text-slate-300 shrink-0">
+            <div className="flex items-center justify-center gap-2 sm:gap-3 text-[10px] sm:text-[11px] font-mono text-slate-300 shrink-0">
               <span>MPPS: <strong className="text-teal-300">{config.mpps || '00.000'}</strong></span>
               <span>·</span>
               <span>CI: <strong className="text-teal-300">{config.ci || 'V-00.000.000'}</strong></span>
@@ -3803,49 +4055,65 @@ export default function App() {
       )}
 
       {/* Main Container Layout */}
-      <div className="flex-1 flex min-w-0 w-full overflow-x-auto">
+      <div className="flex-1 flex min-w-0 w-full overflow-x-hidden">
         
         {/* Main Content Area */}
-        <main className={`flex-1 overflow-y-auto w-full max-w-full px-2 sm:px-4 py-3 md:py-6 flex flex-col items-center ${
+        <main className={`flex-1 overflow-y-auto w-full max-w-full px-2 sm:px-4 py-3 md:py-6 flex flex-col items-center overflow-x-hidden ${
           isPreviewMode 
             ? 'p-0 md:p-2 bg-white' 
             : 'bg-slate-100'
         }`}>
 
-          {/* Submodule Return Bar / Breadcrumb & Module Navigation (Visible in all submodules) */}
+          {/* Submodule Return Bar / Breadcrumb & Compact Module Navigation Grid */}
           {activeModule !== 'inicio' && !isPreviewMode && (
-            <div className="w-full max-w-[880px] mb-3 bg-white border border-slate-200/90 rounded-2xl p-2.5 shadow-sm space-y-2 no-print animate-in fade-in slide-in-from-top-2 duration-150">
+            <div className="w-full max-w-[880px] mb-3 bg-white border border-slate-200/90 rounded-2xl p-2 sm:p-2.5 shadow-xs space-y-2 no-print animate-in fade-in slide-in-from-top-2 duration-150">
               
-              {/* Top Row: Navigation Breadcrumb & Clear Button */}
-              <div className="flex items-center justify-between gap-2 flex-wrap">
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handleNavigate('inicio')}
-                    className="px-3 py-1.5 bg-gradient-to-r from-blue-700 to-indigo-700 hover:from-blue-800 hover:to-indigo-800 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition-all transform hover:scale-[1.02] active:scale-95 cursor-pointer border border-blue-400/30 shrink-0"
-                    title="Regresar a la pantalla principal de módulos"
-                  >
-                    <ArrowLeft className="w-3.5 h-3.5 text-cyan-300" />
-                    <span>Volver al Inicio</span>
-                  </button>
+              {/* Top Row: Navigation Buttons (Flexible Row with Responsive Font & Spacing) */}
+              <div className="flex items-center justify-between gap-1.5 sm:gap-2 w-full">
+                <button
+                  type="button"
+                  onClick={() => handleNavigate('inicio')}
+                  className="px-2.5 py-1.5 sm:px-3.5 sm:py-1.5 bg-gradient-to-r from-blue-700 to-indigo-700 hover:from-blue-800 hover:to-indigo-800 text-white font-black text-[11px] sm:text-xs rounded-xl shadow-xs flex items-center justify-center gap-1 sm:gap-1.5 transition-all active:scale-95 cursor-pointer border border-blue-400/30 shrink-0 min-w-0"
+                  title="Regresar a la pantalla principal de módulos"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5 text-cyan-300 shrink-0" />
+                  <span className="whitespace-nowrap font-black">Volver al Inicio</span>
+                </button>
 
-                  <div className="hidden sm:flex items-center gap-1 text-slate-500 font-bold text-xs">
-                    <button 
-                      onClick={() => handleNavigate('inicio')}
-                      className="hover:text-blue-600 transition-colors flex items-center gap-1 text-slate-600 cursor-pointer"
-                    >
-                      <Home className="w-3.5 h-3.5 text-blue-500" />
-                      <span>Inicio</span>
-                    </button>
-                    <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-                    <span className="text-slate-900 font-extrabold flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-0.5 rounded-lg border border-blue-200/80">
-                      {activeModule === 'informes' && '📋 Informe Médico'}
-                      {activeModule === 'reposo' && '⏱️ Constancia / Reposo'}
-                      {activeModule === 'historias' && '📁 Historia Clínica'}
-                      {activeModule === 'indicaciones' && '🕐 Indicaciones'}
-                      {activeModule === 'diseno' && '🎨 Estudio de Diseño'}
-                      {activeModule === 'suscripcion' && '💳 Suscripción'}
-                    </span>
-                  </div>
+                {/* Active module badge for mobile */}
+                <div className="flex sm:hidden items-center text-slate-800 font-extrabold text-[11px] truncate max-w-[130px] bg-slate-100 px-2 py-1 rounded-lg border border-slate-200">
+                  <span className="truncate">
+                    {activeModule === 'recipe-master' && '💊 Récipes'}
+                    {activeModule === 'examenes' && '🔬 Exámenes'}
+                    {activeModule === 'indicaciones' && '🕐 Indicaciones'}
+                    {activeModule === 'informes' && '📋 Informes'}
+                    {activeModule === 'reposo' && '⏱️ Reposo'}
+                    {activeModule === 'historias' && '📁 Historias'}
+                    {activeModule === 'diseno' && '🎨 Diseño'}
+                    {activeModule === 'suscripcion' && '💳 Planes'}
+                  </span>
+                </div>
+
+                {/* Breadcrumb path for desktop */}
+                <div className="hidden sm:flex items-center gap-1 text-slate-500 font-bold text-xs truncate">
+                  <button 
+                    onClick={() => handleNavigate('inicio')}
+                    className="hover:text-blue-600 transition-colors flex items-center gap-1 text-slate-600 cursor-pointer"
+                  >
+                    <Home className="w-3.5 h-3.5 text-blue-500" />
+                    <span>Inicio</span>
+                  </button>
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="text-slate-900 font-extrabold flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-0.5 rounded-lg border border-blue-200/80 truncate">
+                    {activeModule === 'recipe-master' && '💊 Récipes Médicos'}
+                    {activeModule === 'examenes' && '🔬 Exámenes y Laboratorios'}
+                    {activeModule === 'indicaciones' && '🕐 Indicaciones'}
+                    {activeModule === 'informes' && '📋 Informe Médico'}
+                    {activeModule === 'reposo' && '⏱️ Constancia / Reposo'}
+                    {activeModule === 'historias' && '📁 Historia Clínica'}
+                    {activeModule === 'diseno' && '🎨 Estudio de Diseño'}
+                    {activeModule === 'suscripcion' && '💳 Suscripción'}
+                  </span>
                 </div>
 
                 {/* Right: Dejar en Blanco */}
@@ -3853,123 +4121,130 @@ export default function App() {
                   <button
                     type="button"
                     onClick={handleClearActiveModuleToBlank}
-                    className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-xs transition-all hover:scale-105 active:scale-95 cursor-pointer border border-rose-500 shrink-0"
+                    className="px-2.5 py-1.5 sm:px-3.5 sm:py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-black text-[11px] sm:text-xs rounded-xl flex items-center justify-center gap-1 sm:gap-1.5 shadow-xs transition-all active:scale-95 cursor-pointer border border-rose-500 shrink-0 min-w-0"
                     title="Dejar en blanco este formato para un nuevo paciente"
                   >
-                    <Trash2 className="w-3.5 h-3.5 text-white" />
-                    <span>Dejar en Blanco</span>
+                    <Trash2 className="w-3.5 h-3.5 text-white shrink-0" />
+                    <span className="whitespace-nowrap font-black">Dejar en Blanco</span>
                   </button>
                 )}
               </div>
 
-              {/* Bottom Row: Proportional, Legible & Touch-Friendly Direct Module Tabs */}
-              <div className="bg-slate-200/80 p-2.5 sm:p-3 rounded-3xl border border-slate-300/80 shadow-inner space-y-2">
-                <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
+              {/* Bottom: Menú de Módulos Móvil y Adaptable (Cintillo deslizable con dedos sin recorte de texto) */}
+              <div className="bg-slate-200/90 p-1 sm:p-2 rounded-xl sm:rounded-2xl border border-slate-300/80 shadow-inner">
+                <div className="flex md:grid md:grid-cols-7 gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar scroll-smooth touch-pan-x py-0.5 px-0.5">
+                  
+                  {/* 1. Récipes */}
                   <button
                     onClick={() => handleNavigate('recipe-master')}
-                    className="rounded-full px-3 py-2.5 sm:px-4 sm:py-3 font-black text-xs sm:text-sm transition-all cursor-pointer flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap shadow-sm hover:scale-[1.02] active:scale-95 bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 border border-blue-400/50"
+                    className={`rounded-xl sm:rounded-2xl py-1.5 px-3 sm:py-2 sm:px-1.5 font-black transition-all cursor-pointer flex flex-row md:flex-col items-center justify-center text-center shadow-xs active:scale-95 shrink-0 min-w-[84px] md:min-w-0 md:flex-1 min-h-[42px] sm:min-h-[54px] gap-1.5 md:gap-0.5 ${
+                      activeModule === 'recipe-master' || activeModule === 'recipe-4en1'
+                        ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-md shadow-blue-500/30 ring-2 ring-white font-extrabold scale-[1.02]'
+                        : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 border border-blue-400/50'
+                    }`}
                     title="Ir a Récipes Médicos"
                   >
-                    <span className="text-sm sm:text-base">💊</span>
-                    <span>Récipes</span>
+                    <span className="text-base sm:text-base leading-none">💊</span>
+                    <span className="text-[11px] sm:text-xs font-black tracking-tight leading-none whitespace-nowrap">Récipes</span>
                   </button>
 
+                  {/* 2. Exámenes */}
+                  <button
+                    onClick={() => handleNavigate('examenes')}
+                    className={`rounded-xl sm:rounded-2xl py-1.5 px-3 sm:py-2 sm:px-1.5 font-black transition-all cursor-pointer flex flex-row md:flex-col items-center justify-center text-center shadow-xs active:scale-95 shrink-0 min-w-[88px] md:min-w-0 md:flex-1 min-h-[42px] sm:min-h-[54px] gap-1.5 md:gap-0.5 ${
+                      activeModule === 'examenes'
+                        ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-md shadow-cyan-500/30 ring-2 ring-white font-extrabold scale-[1.02]'
+                        : 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white hover:from-cyan-600 hover:to-blue-600 border border-cyan-400/50'
+                    }`}
+                    title="Ir a Exámenes y Laboratorios"
+                  >
+                    <span className="text-base sm:text-base leading-none">🔬</span>
+                    <span className="text-[11px] sm:text-xs font-black tracking-tight leading-none whitespace-nowrap">Exámenes</span>
+                  </button>
+
+                  {/* 3. Indicaciones */}
                   <button
                     onClick={() => handleNavigate('indicaciones')}
-                    className={`rounded-full px-3 py-2.5 sm:px-4 sm:py-3 font-black text-xs sm:text-sm transition-all cursor-pointer flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap shadow-sm hover:scale-[1.02] active:scale-95 ${
+                    className={`rounded-xl sm:rounded-2xl py-1.5 px-3 sm:py-2 sm:px-1.5 font-black transition-all cursor-pointer flex flex-row md:flex-col items-center justify-center text-center shadow-xs active:scale-95 shrink-0 min-w-[96px] md:min-w-0 md:flex-1 min-h-[42px] sm:min-h-[54px] gap-1.5 md:gap-0.5 ${
                       activeModule === 'indicaciones'
-                        ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-500/30 ring-2 ring-indigo-300 font-extrabold'
+                        ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-500/30 ring-2 ring-white font-extrabold scale-[1.02]'
                         : 'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white hover:from-indigo-600 hover:to-indigo-700 border border-indigo-400/50'
                     }`}
                     title="Ir a Hoja de Indicaciones"
                   >
-                    <span className="text-sm sm:text-base">🕐</span>
-                    <span>Indicaciones</span>
+                    <span className="text-base sm:text-base leading-none">🕐</span>
+                    <span className="text-[11px] sm:text-xs font-black tracking-tight leading-none whitespace-nowrap">Indicaciones</span>
                   </button>
 
+                  {/* 4. Informes */}
                   <button
                     onClick={() => handleNavigate('informes')}
-                    className={`rounded-full px-3 py-2.5 sm:px-4 sm:py-3 font-black text-xs sm:text-sm transition-all cursor-pointer flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap shadow-sm hover:scale-[1.02] active:scale-95 ${
+                    className={`rounded-xl sm:rounded-2xl py-1.5 px-3 sm:py-2 sm:px-1.5 font-black transition-all cursor-pointer flex flex-row md:flex-col items-center justify-center text-center shadow-xs active:scale-95 shrink-0 min-w-[88px] md:min-w-0 md:flex-1 min-h-[42px] sm:min-h-[54px] gap-1.5 md:gap-0.5 ${
                       activeModule === 'informes'
-                        ? 'bg-gradient-to-r from-teal-600 to-emerald-600 text-white shadow-md shadow-teal-500/30 ring-2 ring-teal-300 font-extrabold'
+                        ? 'bg-gradient-to-r from-teal-600 to-emerald-600 text-white shadow-md shadow-teal-500/30 ring-2 ring-white font-extrabold scale-[1.02]'
                         : 'bg-gradient-to-r from-teal-500 to-emerald-500 text-white hover:from-teal-600 hover:to-emerald-600 border border-teal-400/50'
                     }`}
                     title="Ir a Informe Médico"
                   >
-                    <span className="text-sm sm:text-base">📋</span>
-                    <span>Informes</span>
+                    <span className="text-base sm:text-base leading-none">📋</span>
+                    <span className="text-[11px] sm:text-xs font-black tracking-tight leading-none whitespace-nowrap">Informes</span>
                   </button>
-                </div>
 
-                <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
+                  {/* 5. Reposo */}
                   <button
                     onClick={() => handleNavigate('reposo')}
-                    className={`rounded-full px-3 py-2.5 sm:px-4 sm:py-3 font-black text-xs sm:text-sm transition-all cursor-pointer flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap shadow-sm hover:scale-[1.02] active:scale-95 ${
+                    className={`rounded-xl sm:rounded-2xl py-1.5 px-3 sm:py-2 sm:px-1.5 font-black transition-all cursor-pointer flex flex-row md:flex-col items-center justify-center text-center shadow-xs active:scale-95 shrink-0 min-w-[82px] md:min-w-0 md:flex-1 min-h-[42px] sm:min-h-[54px] gap-1.5 md:gap-0.5 ${
                       activeModule === 'reposo'
-                        ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-md shadow-amber-500/30 ring-2 ring-amber-300 font-extrabold'
+                        ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-md shadow-amber-500/30 ring-2 ring-white font-extrabold scale-[1.02]'
                         : 'bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-600 hover:to-orange-600 border border-amber-400/50'
                     }`}
                     title="Ir a Constancia / Reposo Médico"
                   >
-                    <span className="text-sm sm:text-base">⏱️</span>
-                    <span>Reposo</span>
+                    <span className="text-base sm:text-base leading-none">⏱️</span>
+                    <span className="text-[11px] sm:text-xs font-black tracking-tight leading-none whitespace-nowrap">Reposo</span>
                   </button>
 
+                  {/* 6. Historias */}
                   <button
                     onClick={() => handleNavigate('historias')}
-                    className={`rounded-full px-3 py-2.5 sm:px-4 sm:py-3 font-black text-xs sm:text-sm transition-all cursor-pointer flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap shadow-sm hover:scale-[1.02] active:scale-95 ${
+                    className={`rounded-xl sm:rounded-2xl py-1.5 px-3 sm:py-2 sm:px-1.5 font-black transition-all cursor-pointer flex flex-row md:flex-col items-center justify-center text-center shadow-xs active:scale-95 shrink-0 min-w-[88px] md:min-w-0 md:flex-1 min-h-[42px] sm:min-h-[54px] gap-1.5 md:gap-0.5 ${
                       activeModule === 'historias'
-                        ? 'bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white shadow-md shadow-purple-500/30 ring-2 ring-purple-300 font-extrabold'
+                        ? 'bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white shadow-md shadow-purple-500/30 ring-2 ring-white font-extrabold scale-[1.02]'
                         : 'bg-gradient-to-r from-purple-500 to-fuchsia-500 text-white hover:from-purple-600 hover:to-fuchsia-600 border border-purple-400/50'
                     }`}
                     title="Ir a Historias Clínicas"
                   >
-                    <span className="text-sm sm:text-base">📁</span>
-                    <span>Historias</span>
+                    <span className="text-base sm:text-base leading-none">📁</span>
+                    <span className="text-[11px] sm:text-xs font-black tracking-tight leading-none whitespace-nowrap">Historias</span>
                   </button>
 
+                  {/* 7. Diseño o Suscripción */}
                   {isAuthorizedForDesigner ? (
                     <button
                       onClick={() => handleNavigate('diseno')}
-                      className={`rounded-full px-3 py-2.5 sm:px-4 sm:py-3 font-black text-xs sm:text-sm transition-all cursor-pointer flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap shadow-sm hover:scale-[1.02] active:scale-95 ${
+                      className={`rounded-xl sm:rounded-2xl py-1.5 px-3 sm:py-2 sm:px-1.5 font-black transition-all cursor-pointer flex flex-row md:flex-col items-center justify-center text-center shadow-xs active:scale-95 shrink-0 min-w-[84px] md:min-w-0 md:flex-1 min-h-[42px] sm:min-h-[54px] gap-1.5 md:gap-0.5 ${
                         activeModule === 'diseno'
-                          ? 'bg-gradient-to-r from-rose-500 via-purple-600 to-amber-500 text-white shadow-md ring-2 ring-amber-300 font-extrabold'
+                          ? 'bg-gradient-to-r from-rose-500 via-purple-600 to-amber-500 text-white shadow-md ring-2 ring-white font-extrabold scale-[1.02]'
                           : 'bg-gradient-to-r from-rose-500 to-pink-600 text-white hover:from-rose-600 hover:to-pink-700 border border-rose-400/50'
                       }`}
                       title="Estudio de Diseño PRO"
                     >
-                      <Palette className="w-4 h-4 text-amber-200" />
-                      <span>Diseño</span>
+                      <Palette className="w-4 h-4 text-amber-200 shrink-0" />
+                      <span className="text-[11px] sm:text-xs font-black tracking-tight leading-none whitespace-nowrap">Diseño</span>
                     </button>
                   ) : (
                     <button
                       onClick={() => handleNavigate('suscripcion')}
-                      className="rounded-full px-3 py-2.5 sm:px-4 sm:py-3 font-black text-xs sm:text-sm transition-all cursor-pointer flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap shadow-sm hover:scale-[1.02] active:scale-95 bg-gradient-to-r from-slate-700 to-slate-800 text-white hover:from-slate-800 hover:to-slate-900 border border-slate-600"
+                      className="rounded-xl sm:rounded-2xl py-1.5 px-3 sm:py-2 sm:px-1.5 font-black transition-all cursor-pointer flex flex-row md:flex-col items-center justify-center text-center shadow-xs active:scale-95 shrink-0 min-w-[84px] md:min-w-0 md:flex-1 min-h-[42px] sm:min-h-[54px] gap-1.5 md:gap-0.5 bg-gradient-to-r from-slate-700 to-slate-800 text-white hover:from-slate-800 hover:to-slate-900 border border-slate-600"
                       title="Suscripción / Plan de Membresía"
                     >
-                      <Crown className="w-4 h-4 text-amber-400" />
-                      <span>Suscripción</span>
+                      <Crown className="w-4 h-4 text-amber-400 shrink-0" />
+                      <span className="text-[11px] sm:text-xs font-black tracking-tight leading-none whitespace-nowrap">Planes</span>
                     </button>
                   )}
                 </div>
               </div>
 
-            </div>
-          )}
-          
-          {/* Banco de Fármacos y Medicamentos Oficial (para Récipes e Indicaciones) */}
-          {(activeModule === 'recipe-master' || activeModule === 'recipe' || activeModule === 'recipe-4en1' || activeModule === 'indicaciones') && !isPreviewMode && (
-            <div className={`w-full ${activeModule === 'indicaciones' ? 'max-w-[800px]' : 'max-w-[850px]'} mb-3 no-print`}>
-              <DrugBankFloatingBar
-                onAddDrugToRecipe={
-                  activeModule === 'indicaciones'
-                    ? (text) => handleAddDrugToIndications(text)
-                    : handleAddDrugToRecipe
-                }
-                recipesCount={1}
-                activeRecipeIndex={activeRecipeIndex}
-                isIndicationsMode={activeModule === 'indicaciones'}
-              />
             </div>
           )}
 
@@ -4042,16 +4317,16 @@ export default function App() {
               
               {/* Document Live Preview based on user selection in Studio */}
               <div className="flex-1 flex flex-col items-center justify-center w-full">
-                {/* Header Switcher Bar above preview */}
-                <div className="w-full max-w-[800px] mb-3 bg-white border border-slate-200 rounded-xl p-2.5 shadow-2xs flex flex-wrap items-center justify-between gap-2 text-xs no-print">
-                  <span className="font-bold text-slate-700 flex items-center gap-1.5">
+                {/* Header Switcher Bar above preview (Touch-scrollable flex-nowrap) */}
+                <div className="w-full max-w-[800px] mb-3 bg-white border border-slate-200 rounded-xl p-2 shadow-2xs flex items-center justify-between gap-2 text-xs no-print overflow-hidden">
+                  <span className="font-bold text-slate-700 flex items-center gap-1.5 shrink-0 text-[11px] sm:text-xs">
                     <Sparkles className="w-3.5 h-3.5 text-blue-600" />
                     <span>Diseñando en Vivo:</span>
                   </span>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 overflow-x-auto scrollbar-none touch-pan-x flex-nowrap min-w-0 py-0.5">
                     <button
                       onClick={() => setDesignerPreviewDoc('recipe')}
-                      className={`px-2.5 py-1 rounded-lg font-bold transition-colors ${
+                      className={`px-2.5 py-1 rounded-lg font-bold text-[11px] sm:text-xs transition-colors whitespace-nowrap shrink-0 ${
                         designerPreviewDoc === 'recipe'
                           ? 'bg-blue-600 text-white shadow-2xs'
                           : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
@@ -4061,7 +4336,7 @@ export default function App() {
                     </button>
                     <button
                       onClick={() => setDesignerPreviewDoc('indicaciones')}
-                      className={`px-2.5 py-1 rounded-lg font-bold transition-colors ${
+                      className={`px-2.5 py-1 rounded-lg font-bold text-[11px] sm:text-xs transition-colors whitespace-nowrap shrink-0 ${
                         designerPreviewDoc === 'indicaciones'
                           ? 'bg-blue-600 text-white shadow-2xs'
                           : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
@@ -4071,7 +4346,7 @@ export default function App() {
                     </button>
                     <button
                       onClick={() => setDesignerPreviewDoc('reposo')}
-                      className={`px-2.5 py-1 rounded-lg font-bold transition-colors ${
+                      className={`px-2.5 py-1 rounded-lg font-bold text-[11px] sm:text-xs transition-colors whitespace-nowrap shrink-0 ${
                         designerPreviewDoc === 'reposo'
                           ? 'bg-blue-600 text-white shadow-2xs'
                           : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
@@ -4081,7 +4356,7 @@ export default function App() {
                     </button>
                     <button
                       onClick={() => setDesignerPreviewDoc('informes')}
-                      className={`px-2.5 py-1 rounded-lg font-bold transition-colors ${
+                      className={`px-2.5 py-1 rounded-lg font-bold text-[11px] sm:text-xs transition-colors whitespace-nowrap shrink-0 ${
                         designerPreviewDoc === 'informes'
                           ? 'bg-blue-600 text-white shadow-2xs'
                           : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
@@ -4188,6 +4463,7 @@ export default function App() {
               onSavePatientOnly={() => handleSavePatientOnly('recipe-master')}
               onClearRecipeToBlank={() => handleClearRecipeToBlank(activeRecipeIndex)}
               onOpenPatientBank={() => setIsPatientBankOpen(true)}
+              onOpenWhatsAppStickers={() => setIsWhatsAppStickerOpen(true)}
               onBackToHome={() => handleNavigate('inicio')}
               existingPatients={availableSessionPatients as any}
               onSelectExistingPatient={(p) => handleLoadPatientToAllFormats(p as any)}
@@ -4249,6 +4525,31 @@ export default function App() {
             />
           )}
 
+          {/* Module: Exámenes y Laboratorios */}
+          {activeModule === 'examenes' && (
+            <LabExamsModule
+              config={config}
+              labOrder={labOrder}
+              onChangeLabOrder={(upd) => {
+                hasUserEditedStateRef.current = true;
+                setLabOrder((prev) => ({ ...prev, ...upd }));
+                handleSyncPatientFields(upd);
+              }}
+              onPrint={handleTriggerPrint}
+              onDownloadPdf={() => handleDownloadRealPdf(null)}
+              onInstantWhatsApp={() => handleInstantWhatsApp('examenes')}
+              onOpenEmailModal={() => handleOpenEmailDirectly('examenes')}
+              onSaveAndShare={() => handleSavePatientOnly('examenes')}
+              onOpenPreview={() => {
+                setPreviewInitialModule('examenes');
+                setIsUniversalPreviewOpen(true);
+              }}
+              onUpdateConfig={updateCurrentConfig}
+              onBackToHome={() => handleNavigate('inicio')}
+              onSwitchToRecipe={() => setActiveModule('recipe-master')}
+            />
+          )}
+
           {/* Module 6: Hoja de Indicaciones */}
           {activeModule === 'indicaciones' && (
             <IndicationsModule
@@ -4287,6 +4588,7 @@ export default function App() {
               }}
               onPrint={handleTriggerPrint}
               onDownloadPdf={() => handleDownloadRealPdf(null)}
+              onInstantWhatsApp={() => handleInstantWhatsApp('reposo')}
               onOpenEmailModal={() => handleOpenEmailDirectly('reposo')}
               onSaveAndShare={() => handleSavePatientOnly('reposo')}
               onOpenPreview={() => {
@@ -4392,6 +4694,7 @@ export default function App() {
         onOpenAdminPanel={() => setIsAdminPanelOpen(true)}
         onOpenEditPaymentConfig={() => setIsEditPaymentConfigModalOpen(true)}
         onOpenSyncDevices={() => setIsSyncDevicesOpen(true)}
+        onOpenWhatsAppStickers={() => setIsWhatsAppStickerOpen(true)}
         isDesktopMode={isDesktopMode}
         onToggleDesktopMode={toggleDesktopMode}
       />
@@ -4427,15 +4730,24 @@ export default function App() {
               patientCI: patient.patientCI,
               patientAge: patient.patientAge,
               patientPhone: patient.patientPhone,
-              date: patient.date,
+              date: todayStr,
               diagnosis: patient.diagnosis,
               rp: patient.rp,
               indicationsNotes: patient.indicationsNotes || next[activeRecipeIndex].indicationsNotes
             };
             return next;
           });
+          setIndications((prev) => ({
+            ...prev,
+            patientName: patient.patientName,
+            patientCI: patient.patientCI,
+            patientAge: patient.patientAge,
+            patientPhone: patient.patientPhone,
+            date: todayStr,
+            diagnosis: patient.diagnosis,
+          }));
           setActiveModule('recipe-4en1');
-          showToast(`✓ Datos de ${patient.patientName} cargados en el Récipe`);
+          showToast(`✓ Datos de ${patient.patientName} cargados en el Récipe con fecha de emisión de hoy (${todayStr})`);
         }}
         onLoadRecordToDoctor={(recordId: string) => {
           const found = records.find((r) => r.id === recordId);
@@ -4454,13 +4766,13 @@ export default function App() {
               patientCI: newP.patientCI,
               patientAge: newP.patientAge,
               patientPhone: newP.patientPhone,
-              date: newP.date,
+              date: todayStr,
               diagnosis: newP.diagnosis,
               rp: newP.rp
             };
             return next;
           });
-          showToast(`✓ Paciente ${newP.patientName} registrado en la sesión`);
+          showToast(`✓ Paciente ${newP.patientName} registrado con fecha de hoy (${todayStr})`);
         }}
         onDeletePatient={(deletedPatient: SavedPatientEntry) => {
           const cleanName = deletedPatient.patientName.toLowerCase().trim();
@@ -4633,6 +4945,7 @@ export default function App() {
         currentReport={currentReport}
         medicalRestCert={restCert}
         indicationsSheet={indications}
+        labOrder={labOrder}
         clinicalRecord={activeRecord || undefined}
         onConfirmPrint={handleTriggerPrint}
         onConfirmDownloadPdf={() => handleDownloadRealPdf()}
@@ -4763,6 +5076,7 @@ export default function App() {
         isOpen={isWelcomeBlankRecipeOpen}
         onClose={() => setIsWelcomeBlankRecipeOpen(false)}
         config={config}
+        recipe={recipes[activeRecipeIndex] || recipes[0]}
         onNavigateToRecipes={() => {
           setIsWelcomeBlankRecipeOpen(false);
           setActiveModule('recipe-4en1');
@@ -4826,8 +5140,14 @@ export default function App() {
         }}
       />
 
-      {/* Botón Flotante Permanente "Instalar Aplicación" (Escucha beforeinstallprompt) */}
-      <PWAInstallButton variant="floating" />
+      {/* Modal de Generación y Descarga de Stickers WhatsApp de Digital Médic (512x512) */}
+      <WhatsAppStickerModal
+        isOpen={isWhatsAppStickerOpen}
+        onClose={() => setIsWhatsAppStickerOpen(false)}
+        doctorName={config.doctorName}
+        specialty={config.specialty}
+      />
+
     </div>
   );
 }

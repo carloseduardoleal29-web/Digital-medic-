@@ -26,7 +26,9 @@ import {
   Activity,
   HeartPulse,
   Stethoscope,
-  Share2
+  Share2,
+  ZoomIn,
+  ZoomOut
 } from 'lucide-react';
 import { exportElementAsPDF, buildDocumentPdfFilename } from '../utils/exportDocument';
 
@@ -100,6 +102,16 @@ export const ReportsModule: React.FC<ReportsModuleProps> = ({
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
 
+  // Zoom state with mobile auto-fit
+  const [zoom, setZoom] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const w = window.innerWidth;
+      if (w < 480) return Math.max(38, Math.min(50, Math.floor(((w - 24) / 816) * 100)));
+      if (w < 860) return Math.max(50, Math.min(85, Math.floor(((w - 32) / 816) * 100)));
+    }
+    return 100;
+  });
+
   const applyTemplate = (key: string) => {
     const tmpl = TEMPLATES[key];
     if (tmpl) {
@@ -150,6 +162,22 @@ export const ReportsModule: React.FC<ReportsModuleProps> = ({
     `5. CONDUCTA Y RECOMENDACIONES:\n${safeReport.recommendations || ''}` +
     (safeReport.daysRest ? `\n\n6. REPOSO MÉDICO: ${safeReport.daysRest} continuos` + (safeReport.restStartDate ? ` (Desde: ${safeReport.restStartDate} Hasta: ${safeReport.restEndDate || '—'})` : '') : '');
 
+  const todayFormatted = new Intl.DateTimeFormat('es-ES', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(new Date());
+
+  // Automatic date adjustment on mount to today's date
+  useEffect(() => {
+    if (!currentReport.date || currentReport.date !== todayFormatted) {
+      onChangeReport({
+        date: todayFormatted,
+        restStartDate: currentReport.restStartDate || todayFormatted,
+      });
+    }
+  }, []);
+
   const borderStyle = getDocumentBorderStyle(safeConfig.borderStyle, safeConfig.primaryDocColor);
   const textureClass = getPaperTextureClass(safeConfig.paperTexture);
 
@@ -157,7 +185,22 @@ export const ReportsModule: React.FC<ReportsModuleProps> = ({
   const pdfFilename = buildDocumentPdfFilename('Informe_Medico', safeReport.patientName, todayDateStr);
 
   const handleDownloadReportPdf = async () => {
-    await exportElementAsPDF(printableReportRef.current, pdfFilename);
+    if (onDownloadPdf) {
+      onDownloadPdf();
+      return;
+    }
+    const reportText = `${safeReport.title || 'INFORME MÉDICO'}\n\n1. RESUMEN CLÍNICO:\n${safeReport.clinicalSummary || 'Sin resumen registrado'}\n\n2. PROCEDIMIENTOS / EXAMEN:\n${safeReport.procedures || 'Sin hallazgos'}\n\n3. ESTUDIOS PARACLÍNICOS:\n${safeReport.paraclinicalStudies || 'No requiere'}\n\n4. IMPRESIÓN DIAGNÓSTICA:\n${safeReport.diagnosticImpression || 'Evaluación médica'}\n\n5. CONDUCTA Y RECOMENDACIONES:\n${safeReport.recommendations || 'Cumplir indicaciones'}`;
+    await exportElementAsPDF(printableReportRef.current, pdfFilename, {
+      documentType: 'report',
+      nombrePaciente: safeReport.patientName,
+      cedulaPaciente: safeReport.patientCI,
+      edadPaciente: safeReport.patientAge,
+      telefonoPaciente: safeReport.patientPhone,
+      diagnostico: safeReport.diagnosticImpression || safeReport.reasonForConsultation,
+      textoRp: reportText,
+      textoIndicaciones: safeReport.recommendations || '',
+      fecha: safeReport.date || todayFormatted,
+    });
   };
 
   const handlePrintSpecificReport = () => {
@@ -250,14 +293,14 @@ export const ReportsModule: React.FC<ReportsModuleProps> = ({
           </div>
         </div>
 
-        {/* Step Visual Progress Bar */}
-        <div className="grid grid-cols-4 gap-1.5 sm:gap-3 pt-3">
+        {/* Step Visual Progress Bar (Touch-Scrollable Cintillo for Mobile) */}
+        <div className="flex sm:grid sm:grid-cols-4 overflow-x-auto no-scrollbar scroll-smooth touch-pan-x gap-1.5 sm:gap-3 pt-3 py-0.5 px-0.5" style={{ WebkitOverflowScrolling: 'touch' }}>
           
           {/* Paso 1: Paciente */}
           <button
             type="button"
             onClick={() => setCurrentStep(1)}
-            className={`flex items-center gap-1.5 sm:gap-2 p-2 sm:p-2.5 rounded-2xl transition-all text-left cursor-pointer ${
+            className={`min-w-[105px] sm:min-w-0 flex-shrink-0 sm:flex-shrink flex items-center gap-1.5 sm:gap-2 p-2 sm:p-2.5 rounded-2xl transition-all text-left cursor-pointer ${
               currentStep === 1
                 ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-300'
                 : currentStep > 1
@@ -288,7 +331,7 @@ export const ReportsModule: React.FC<ReportsModuleProps> = ({
           <button
             type="button"
             onClick={() => setCurrentStep(2)}
-            className={`flex items-center gap-1.5 sm:gap-2 p-2 sm:p-2.5 rounded-2xl transition-all text-left cursor-pointer ${
+            className={`min-w-[115px] sm:min-w-0 flex-shrink-0 sm:flex-shrink flex items-center gap-1.5 sm:gap-2 p-2 sm:p-2.5 rounded-2xl transition-all text-left cursor-pointer ${
               currentStep === 2
                 ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-300'
                 : currentStep > 2
@@ -319,7 +362,7 @@ export const ReportsModule: React.FC<ReportsModuleProps> = ({
           <button
             type="button"
             onClick={() => setCurrentStep(3)}
-            className={`flex items-center gap-1.5 sm:gap-2 p-2 sm:p-2.5 rounded-2xl transition-all text-left cursor-pointer ${
+            className={`min-w-[115px] sm:min-w-0 flex-shrink-0 sm:flex-shrink flex items-center gap-1.5 sm:gap-2 p-2 sm:p-2.5 rounded-2xl transition-all text-left cursor-pointer ${
               currentStep === 3
                 ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-300'
                 : currentStep > 3
@@ -350,7 +393,7 @@ export const ReportsModule: React.FC<ReportsModuleProps> = ({
           <button
             type="button"
             onClick={() => setCurrentStep(4)}
-            className={`flex items-center gap-1.5 sm:gap-2 p-2 sm:p-2.5 rounded-2xl transition-all text-left cursor-pointer ${
+            className={`min-w-[105px] sm:min-w-0 flex-shrink-0 sm:flex-shrink flex items-center gap-1.5 sm:gap-2 p-2 sm:p-2.5 rounded-2xl transition-all text-left cursor-pointer ${
               currentStep === 4
                 ? 'bg-emerald-600 text-white shadow-md ring-2 ring-emerald-300'
                 : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
@@ -798,7 +841,7 @@ export const ReportsModule: React.FC<ReportsModuleProps> = ({
                     element: printableReportRef.current,
                     patientName: safeReport.patientName || 'Carlos leal',
                     documentTitle: 'Informe Médico',
-                    dateStr: safeReport.date || '14/10/26',
+                    dateStr: safeReport.date || new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date()),
                     patientPhone: safeReport.patientPhone,
                     doctorName: config.doctorName || 'Dr. Carlos Leal',
                     treatmentDetails: reportDetails,
@@ -850,6 +893,55 @@ export const ReportsModule: React.FC<ReportsModuleProps> = ({
               </div>
             </div>
 
+            {/* Mobile Zoom Toolbar */}
+            <div className="w-full flex items-center justify-between bg-slate-950/80 text-white px-3 py-2 rounded-xl text-xs border border-slate-800 shadow-md">
+              <span className="font-bold text-slate-300 flex items-center gap-1.5 text-[11px] sm:text-xs">
+                <span>📐</span>
+                <span className="hidden sm:inline">Escala del Informe:</span>
+                <span className="font-mono text-cyan-400 font-bold">{zoom}%</span>
+              </span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setZoom((z) => Math.max(30, z - 5))}
+                  className="p-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg transition-colors border border-slate-700 cursor-pointer"
+                  title="Alejar"
+                >
+                  <ZoomOut className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setZoom(100)}
+                  className="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-[10px] font-bold text-slate-300 rounded-lg transition-colors border border-slate-700 cursor-pointer"
+                  title="Tamaño Real 100%"
+                >
+                  100%
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setZoom((z) => Math.min(130, z + 5))}
+                  className="p-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg transition-colors border border-slate-700 cursor-pointer"
+                  title="Acercar"
+                >
+                  <ZoomIn className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (typeof window !== 'undefined') {
+                      const w = window.innerWidth;
+                      const fit = Math.floor(((w - 24) / 816) * 100);
+                      setZoom(Math.min(100, Math.max(35, fit)));
+                    }
+                  }}
+                  className="px-2 py-0.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-[10px] font-black transition-colors shadow-xs ml-1 cursor-pointer"
+                  title="Ajustar a pantalla del teléfono"
+                >
+                  📱 Fit Móvil
+                </button>
+              </div>
+            </div>
+
           </div>
 
         </div>
@@ -858,21 +950,49 @@ export const ReportsModule: React.FC<ReportsModuleProps> = ({
       {/* ========================================================= */}
       {/* VISTA PREVIA REAL DEL INFORME MÉDICO EN FORMATO CARTA     */}
       {/* ========================================================= */}
-      <div className={currentStep === 4 ? "w-full flex justify-center py-2" : "hidden"}>
+      {(() => {
+        const docW = 816;
+        const docH = 1056;
+        const scale = zoom / 100;
+        const scaledW = Math.round(docW * scale);
+        const scaledH = Math.round(docH * scale);
+
+        return (
+          <div 
+            className={currentStep === 4 ? "w-full overflow-x-auto touch-pan-x pb-6 flex justify-center py-2" : "w-full flex justify-center py-2 fixed -left-[9999px] -top-[9999px] pointer-events-none opacity-0"}
+            style={{ WebkitOverflowScrolling: 'touch' }}
+          >
             <div
-              ref={printableReportRef}
-              id="report-print-container"
-              className={`relative w-full max-w-[816px] bg-white shadow-2xl p-6 sm:p-8 rounded-2xl transition-all report-sheet-container print-container border border-slate-200/90 ${textureClass} ${
-                safeConfig.enforcePureBlackText ? 'enforce-pure-black' : ''
-              }`}
               style={{
-                backgroundColor: safeConfig.tonePapel || '#ffffff',
-                border: borderStyle,
-                borderRadius: safeConfig.docCornerRadius || '16px',
-                minHeight: '1056px',
-                boxSizing: 'border-box',
+                width: currentStep === 4 ? `${scaledW}px` : `${docW}px`,
+                height: currentStep === 4 ? `${scaledH}px` : 'auto',
+                position: 'relative',
+                margin: '0 auto',
+                flexShrink: 0,
               }}
             >
+              <div
+                ref={printableReportRef}
+                id="report-print-container"
+                data-doc-orientation="portrait"
+                className={`report-sheet-container print-container border border-slate-200/90 shadow-2xl p-6 sm:p-8 rounded-2xl ${textureClass} ${
+                  safeConfig.enforcePureBlackText ? 'enforce-pure-black' : ''
+                } preview-mode`}
+                style={{
+                  backgroundColor: safeConfig.tonePapel || '#ffffff',
+                  border: borderStyle,
+                  borderRadius: safeConfig.docCornerRadius || '16px',
+                  width: `${docW}px`,
+                  minHeight: `${docH}px`,
+                  boxSizing: 'border-box',
+                  transformOrigin: 'top left',
+                  transform: currentStep === 4 ? `scale(${scale})` : 'none',
+                  WebkitTransform: currentStep === 4 ? `scale(${scale})` : 'none',
+                  position: currentStep === 4 ? 'absolute' : 'relative',
+                  left: 0,
+                  top: 0,
+                }}
+              >
               {/* Watermark */}
               {safeConfig.marcaAgua && !safeConfig.marcaAgua.includes('DIGITAL') && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
@@ -1039,6 +1159,9 @@ export const ReportsModule: React.FC<ReportsModuleProps> = ({
               </div>
             </div>
           </div>
+        </div>
+      );
+    })()}
 
       {/* Email Share Modal */}
       <EmailShareModal

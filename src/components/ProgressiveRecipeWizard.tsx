@@ -32,7 +32,8 @@ import {
   Check,
   X,
   Scissors,
-  Mail
+  Mail,
+  Camera
 } from 'lucide-react';
 import { 
   DoctorConfig, 
@@ -50,12 +51,20 @@ import {
 import { DocumentHeader } from './DocumentHeader';
 import { DocumentFooter } from './DocumentFooter';
 import { getDocumentBorderStyle, getPaperTextureClass } from '../utils/documentStyles';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 import { 
+  generarPDFDefinitivo,
   exportElementAsPDF, 
   exportMultipleElementsAsPDF, 
   buildDocumentPdfFilename,
   exportAndSendWhatsAppBusiness,
-  validateDoctorFormatForExport
+  validateDoctorFormatForExport,
+  generatePDFBlob,
+  extractDatosFromApp,
+  exportElementAsImage,
+  exportDualSheetAsImage,
+  dataUrlToBlob
 } from '../utils/exportDocument';
 import { EmailShareModal } from './EmailShareModal';
 
@@ -75,6 +84,7 @@ interface ProgressiveRecipeWizardProps {
   onSwitchTo4In1?: () => void;
   onClearRecipeToBlank?: () => void;
   onBackToHome?: () => void;
+  onOpenWhatsAppStickers?: () => void;
   existingPatients?: SavedPatientEntry[];
   onSelectExistingPatient?: (patient: SavedPatientEntry) => void;
 }
@@ -95,6 +105,7 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
   onSwitchTo4In1,
   onClearRecipeToBlank,
   onBackToHome,
+  onOpenWhatsAppStickers,
   existingPatients = [],
   onSelectExistingPatient,
 }) => {
@@ -107,6 +118,20 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
   
   // Vista activa en el Paso 4: 'recipe' | 'indications'
   const [finalPreviewTab, setFinalPreviewTab] = useState<'recipe' | 'indications'>('recipe');
+
+  // Fecha del día en formato español (DD/MM/AAAA)
+  const todayFormatted = new Intl.DateTimeFormat('es-ES', { 
+    day: '2-digit', 
+    month: '2-digit', 
+    year: 'numeric' 
+  }).format(new Date());
+
+  // Sincronización estricta con la fecha real del día actual
+  useEffect(() => {
+    if (!recipe.date || recipe.date !== todayFormatted) {
+      onChangeRecipe({ date: todayFormatted });
+    }
+  }, [todayFormatted]);
 
   // Tamaño del récipe en formato solo récipe:
   // 'quarter': 1/4 Hoja Carta (Pequeño, 4 caben en una hoja carta) -> Activo por defecto como pidió el usuario
@@ -125,6 +150,23 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
   const [isExporting, setIsExporting] = useState(false);
   const [activePrintMode, setActivePrintMode] = useState<'recipe' | 'fourInSheet' | 'indications' | 'dual'>('recipe');
   const [step4QuickDrugText, setStep4QuickDrugText] = useState('');
+  const [step4Zoom, setStep4Zoom] = useState<number>(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 640) {
+      const calc = Math.round(((window.innerWidth - 24) / 660) * 100);
+      return Math.max(35, Math.min(100, calc));
+    }
+    return 100;
+  });
+
+  // Dynamic Auto-fit for mobile screens on step 4 or tab switch
+  useEffect(() => {
+    if (currentStep === 4 && typeof window !== 'undefined' && window.innerWidth < 640) {
+      const targetW = finalPreviewTab === 'indications' ? 816 : 660;
+      const availableW = window.innerWidth - 24;
+      const calc = Math.round((availableW / targetW) * 100);
+      setStep4Zoom(Math.max(35, Math.min(100, calc)));
+    }
+  }, [currentStep, finalPreviewTab]);
 
   // Custom drugs persistentes en localStorage (mismo banco que el sistema general)
   const [customDrugs, setCustomDrugs] = useState<DrugItem[]>(() => {
@@ -188,7 +230,7 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
       patientCI: recipe.patientCI || '',
       patientPhone: recipe.patientPhone || '',
       patientAge: recipe.patientAge || '',
-      date: recipe.date || new Intl.DateTimeFormat('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date()),
+      date: (recipe.date && recipe.date !== '14/10/26') ? recipe.date : todayFormatted,
       diagnosis: recipe.diagnosis || '',
       generalInstructions: '',
       medicationSchedule: '',
@@ -198,10 +240,9 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
     };
   });
 
-  // Sincronizar localIndications cuando cambian los datos del paciente y asegurar fecha válida
+  // Sincronizar localIndications cuando cambian los datos del paciente y asegurar fecha válida de hoy
   useEffect(() => {
-    if (!recipe.date) {
-      const todayFormatted = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    if (!recipe.date || recipe.date === '14/10/26' || recipe.date.includes('14/10/')) {
       onChangeRecipe({ date: todayFormatted });
     }
     setLocalIndications((prev) => ({
@@ -210,7 +251,7 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
       patientCI: recipe.patientCI || prev.patientCI,
       patientPhone: recipe.patientPhone || prev.patientPhone,
       patientAge: recipe.patientAge || prev.patientAge,
-      date: recipe.date || prev.date,
+      date: (!recipe.date || recipe.date === '14/10/26') ? todayFormatted : recipe.date,
       diagnosis: recipe.diagnosis || prev.diagnosis,
     }));
   }, [recipe.patientName, recipe.patientCI, recipe.patientPhone, recipe.patientAge, recipe.date, recipe.diagnosis]);
@@ -470,28 +511,64 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
   // EXPORTACIONES Y DESCARGAS
   // =========================================================
 
-  // 1. Descarga en 1 Sola Hoja (Landscape Letter 2 en 1: Caso A o Caso B)
+  // 1. Descarga e Impresión Unificada en 1 Sola Hoja Carta Horizontal (2 en 1: Récipe e Indicaciones idénticos al formato)
   const handleDownloadDualPdfDirect = async () => {
+    // Sincronizar fecha al tiempo real del día
+    onChangeRecipe({ date: todayFormatted });
+    setLocalIndications((prev) => ({ ...prev, date: todayFormatted }));
+
+    setIsExporting(true);
+
+    let nombrePaciente = recipe.patientName || 'Paciente';
+    let nombreLimpio = nombrePaciente.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9 ]/g, '').trim();
+    if (!nombreLimpio) nombreLimpio = 'Paciente';
+
+    let fechaHoy = new Date();
+    let dia = String(fechaHoy.getDate()).padStart(2, '0');
+    let mes = String(fechaHoy.getMonth() + 1).padStart(2, '0');
+    let anio = String(fechaHoy.getFullYear()).slice(-2);
+    let nombreArchivo = `${nombreLimpio} ${dia} ${mes} ${anio}.pdf`;
+
     try {
-      const errorMsg = await validateDoctorProfileAsync();
-      if (errorMsg) {
-        setValidationErrorModal(errorMsg);
-        return;
-      }
-      setIsExporting(true);
-      setActivePrintMode('dual');
-      const filename = buildDocumentPdfFilename(
-        'récipe e indicaciones',
-        recipe.patientName || 'Paciente',
-        recipe.date || new Date().toLocaleDateString('es-ES')
-      );
-      const success = await exportElementAsPDF(printableDualRef.current, filename);
-      if (!success) {
-        window.print();
-      }
+      const fullIndicationsText = [
+        localIndications.generalInstructions?.trim(),
+        localIndications.medicationSchedule?.trim(),
+        localIndications.dietAndRest ? `RECOMENDACIONES / DIETA Y REPOSO:\n${localIndications.dietAndRest.trim()}` : '',
+        localIndications.alarmSigns ? `SIGNOS DE ALARMA:\n${localIndications.alarmSigns.trim()}` : '',
+        localIndications.nextAppointment ? `PRÓXIMA CITA: ${localIndications.nextAppointment.trim()}` : '',
+      ].filter(Boolean).join('\n\n');
+
+      const datos = extractDatosFromApp(config, recipe, localIndications, {
+        nombrePaciente: recipe.patientName,
+        cedulaPaciente: recipe.patientCI,
+        edadPaciente: recipe.patientAge,
+        fecha: todayFormatted,
+        telefonoPaciente: recipe.patientPhone,
+        diagnostico: recipe.diagnosis,
+        textoRp: recipe.rp,
+        textoIndicaciones: fullIndicationsText || 'Cumplir las indicaciones según posología médica.',
+        nombreMedico: config.doctorName,
+        especialidad: config.specialty,
+        mpps: config.mpps,
+        cm: config.ci || config.collegeNumber,
+        primaryColor: config.primaryDocColor,
+        fuenteNombre: config.fuenteNombre,
+        nombreColor: config.nombreColor,
+        logoIzq: config.logoIzq,
+        logoDer: config.logoDer,
+        marcaAgua: config.marcaAgua,
+        selloBase64: config.selloImg,
+        firmaBase64: config.firmaImg,
+        dietAndRest: localIndications.dietAndRest,
+        alarmSigns: localIndications.alarmSigns,
+        nextAppointment: localIndications.nextAppointment,
+        generalInstructions: localIndications.generalInstructions,
+        medicationSchedule: localIndications.medicationSchedule,
+      });
+
+      await generarPDFDefinitivo(datos, nombreArchivo, printableDualRef.current);
     } catch (err) {
-      console.error(err);
-      window.print();
+      console.error('Error generando PDF horizontal:', err);
     } finally {
       setIsExporting(false);
     }
@@ -572,7 +649,7 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
     }
 
     const pName = recipe.patientName || 'Carlos leal';
-    const pDate = recipe.date || '14/10/26';
+    const pDate = recipe.date || todayFormatted;
     const docName = tab === 'recipe' ? (printFourCopies ? 'récipe 4 en 1' : 'récipe') : 'indicaciones';
     const cleanTitle = buildDocumentPdfFilename(docName, pName, pDate).replace(/\.pdf$/i, '');
     const oldTitle = document.title;
@@ -590,74 +667,140 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
     }, 180);
   };
 
+  // 5. Descarga directa en Foto / Imagen de alta resolución tal cual está en pantalla
+  const handleDownloadRecipeImage = async (format: 'png' | 'jpeg' = 'png') => {
+    // Sincronizar fecha al tiempo real del día
+    onChangeRecipe({ date: todayFormatted });
+    setLocalIndications((prev) => ({ ...prev, date: todayFormatted }));
+
+    setIsExporting(true);
+
+    let nombrePaciente = recipe.patientName || 'Paciente';
+    let nombreLimpio = nombrePaciente.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9 ]/g, '').replace(/\s+/g, ' ').trim();
+    if (!nombreLimpio) nombreLimpio = 'Paciente';
+
+    let fechaHoy = new Date();
+    let dia = String(fechaHoy.getDate()).padStart(2, '0');
+    let mes = String(fechaHoy.getMonth() + 1).padStart(2, '0');
+    let anio = String(fechaHoy.getFullYear()).slice(-2);
+    const ext = format === 'jpeg' ? 'jpg' : 'png';
+    const filename = `${nombreLimpio} ${dia} ${mes} ${anio}.${ext}`;
+
+    setCopyFeedback('📸 Generando Foto de la receta...');
+
+    try {
+      let success = false;
+
+      // 1. Intentar capturar primero la hoja visible activa en pantalla
+      const isRecipeTab = finalPreviewTab === 'recipe';
+      let targetElement = isRecipeTab ? printableRecipeRef.current : printableIndicationsRef.current;
+      if (!targetElement) {
+        targetElement = isRecipeTab
+          ? (document.getElementById('recipe-medico') as HTMLDivElement)
+          : (document.getElementById('indications-print-container') as HTMLDivElement);
+      }
+
+      if (targetElement) {
+        success = await exportElementAsImage(targetElement, format, filename);
+      }
+
+      // 2. Si falló la vista activa, intentar con la hoja 2 en 1 dual horizontal
+      if (!success) {
+        const dualElement = printableDualRef.current || document.getElementById('recipe-indications-dual-sheet');
+        if (dualElement) {
+          success = await exportDualSheetAsImage(dualElement, format, filename, config.tonePapel || '#ffffff');
+        }
+      }
+
+      if (success) {
+        setCopyFeedback('✓ Foto descargada con éxito');
+      } else {
+        setCopyFeedback('⚠️ Error al generar la foto');
+      }
+      setTimeout(() => setCopyFeedback(null), 3500);
+    } catch (err) {
+      console.error('Error al descargar foto del récipe:', err);
+      // Fallback final: intentar captura de cualquier elemento visible
+      try {
+        const fallbackTarget = printableRecipeRef.current || document.getElementById('recipe-medico') || document.body;
+        if (fallbackTarget) {
+          const ok = await exportElementAsImage(fallbackTarget as HTMLElement, format, filename);
+          if (ok) {
+            setCopyFeedback('✓ Foto descargada con éxito');
+            setTimeout(() => setCopyFeedback(null), 3500);
+            return;
+          }
+        }
+      } catch (_) {}
+
+      setCopyFeedback('⚠️ Error al procesar la foto');
+      setTimeout(() => setCopyFeedback(null), 3500);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div className="w-full max-w-5xl mx-auto flex flex-col items-center pb-12 animate-in fade-in duration-200">
       
       {/* ========================================================= */}
       {/* TOP BANNER & PROGRESS NAVIGATION */}
       {/* ========================================================= */}
-      <div className="w-full bg-white rounded-3xl border border-slate-200 shadow-sm p-3 sm:p-4 mb-4 no-print">
-        
-        {/* Header Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-100">
-          <div className="flex items-center gap-2">
+      {/* Sticky Top Bar: Navegación y Pasos rápidos */}
+      <div className="w-full bg-white rounded-2xl border border-slate-200/90 p-2.5 sm:p-3 shadow-md space-y-2 no-print mb-4">
+        {/* Header Controls Bar */}
+        <div className="flex items-center justify-between gap-1.5 w-full">
+          <div className="flex items-center gap-1.5 min-w-0">
             {onBackToHome && (
               <button
                 type="button"
                 onClick={onBackToHome}
-                className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl flex items-center gap-1.5 text-xs transition-colors cursor-pointer"
+                className="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl flex items-center gap-1 text-xs transition-colors cursor-pointer shrink-0"
+                title="Volver al inicio"
               >
-                <ArrowLeft className="w-3.5 h-3.5 text-blue-600" />
+                <ArrowLeft className="w-3.5 h-3.5 text-blue-600 shrink-0" />
                 <span className="hidden sm:inline">Inicio</span>
               </button>
             )}
-            <div className="flex items-center gap-1.5">
-              <span className="px-2.5 py-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-xs font-black shadow-xs flex items-center gap-1">
-                <Sparkles className="w-3.5 h-3.5 text-cyan-200" />
-                <span>Asistente Guiado Progresivo</span>
-              </span>
-              <span className="text-xs text-slate-500 font-bold hidden md:inline">
-                {config.doctorName || 'Dr. Carlos Leal'}
-              </span>
-            </div>
+            <span className="px-2 py-1 bg-blue-50 border border-blue-200/80 text-blue-700 rounded-xl text-[11px] sm:text-xs font-black shadow-2xs flex items-center gap-1 truncate">
+              <Sparkles className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+              <span className="truncate">Asistente Progresivo</span>
+            </span>
           </div>
 
-          <div className="flex items-center gap-1.5 flex-wrap">
+          <div className="flex items-center gap-1.5 shrink-0">
             {onOpenPreviewModal && (
               <button
                 type="button"
                 onClick={onOpenPreviewModal}
-                className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-cyan-300 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-xs cursor-pointer border border-slate-700"
+                className="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-cyan-300 font-extrabold rounded-xl text-[11px] sm:text-xs flex items-center gap-1.5 transition-all shadow-xs cursor-pointer border border-slate-700 shrink-0"
                 title="Ver plantilla y formato con membrete, firma y sellos"
               >
-                <Eye className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Ver Formato Base</span>
+                <Eye className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                <span className="whitespace-nowrap">Ver Formato Base</span>
               </button>
             )}
-
-
-
             {onClearRecipeToBlank && (
               <button
                 type="button"
                 onClick={onClearRecipeToBlank}
-                className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl transition-colors cursor-pointer border border-rose-200"
+                className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl transition-colors cursor-pointer border border-rose-200 shrink-0"
                 title="Limpiar datos y empezar de nuevo"
               >
-                <Trash2 className="w-4 h-4" />
+                <Trash2 className="w-4 h-4 shrink-0" />
               </button>
             )}
           </div>
         </div>
 
-        {/* 4-Step Visual Progress Bar */}
-        <div className="grid grid-cols-4 gap-1.5 sm:gap-3 pt-3">
+        {/* 4-Step Visual Progress Bar (Touch-Scrollable Cintillo for Mobile) */}
+        <div className="flex sm:grid sm:grid-cols-4 gap-1.5 sm:gap-2.5 pt-2.5 overflow-x-auto no-scrollbar scroll-smooth touch-pan-x py-0.5 px-0.5">
           
           {/* Paso 1: Paciente */}
           <button
             type="button"
             onClick={() => setCurrentStep(1)}
-            className={`flex items-center gap-1.5 sm:gap-2 p-2 sm:p-2.5 rounded-2xl transition-all text-left cursor-pointer ${
+            className={`shrink-0 min-w-[102px] sm:min-w-0 flex-1 flex items-center gap-1.5 sm:gap-2 p-1.5 sm:p-2.5 rounded-xl sm:rounded-2xl transition-all text-left cursor-pointer ${
               currentStep === 1
                 ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-300'
                 : currentStep > 1
@@ -665,20 +808,20 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
                 : 'bg-slate-50 text-slate-400'
             }`}
           >
-            <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-xl flex items-center justify-center font-black text-xs shrink-0 ${
+            <div className={`w-5 h-5 sm:w-7 sm:h-7 rounded-lg sm:rounded-xl flex items-center justify-center font-black text-[10px] sm:text-xs shrink-0 ${
               currentStep === 1
                 ? 'bg-white text-blue-600 shadow-xs'
                 : currentStep > 1
                 ? 'bg-emerald-600 text-white'
                 : 'bg-slate-200 text-slate-600'
             }`}>
-              {currentStep > 1 ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : '1'}
+              {currentStep > 1 ? <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5 stroke-[3]" /> : '1'}
             </div>
             <div className="min-w-0">
               <span className="text-[10px] sm:text-xs font-black block leading-tight truncate">
                 1. Paciente
               </span>
-              <span className={`text-[9px] sm:text-[10px] block truncate ${currentStep === 1 ? 'text-blue-100' : 'text-slate-500'}`}>
+              <span className={`text-[8.5px] sm:text-[10px] block truncate ${currentStep === 1 ? 'text-blue-100' : 'text-slate-500'}`}>
                 {recipe.patientName ? recipe.patientName.split(' ')[0] : 'Datos'}
               </span>
             </div>
@@ -688,7 +831,7 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
           <button
             type="button"
             onClick={() => setCurrentStep(2)}
-            className={`flex items-center gap-1.5 sm:gap-2 p-2 sm:p-2.5 rounded-2xl transition-all text-left cursor-pointer ${
+            className={`shrink-0 min-w-[102px] sm:min-w-0 flex-1 flex items-center gap-1.5 sm:gap-2 p-1.5 sm:p-2.5 rounded-xl sm:rounded-2xl transition-all text-left cursor-pointer ${
               currentStep === 2
                 ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-300'
                 : currentStep > 2
@@ -696,21 +839,21 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
                 : 'bg-slate-50 text-slate-400'
             }`}
           >
-            <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-xl flex items-center justify-center font-black text-xs shrink-0 ${
+            <div className={`w-5 h-5 sm:w-7 sm:h-7 rounded-lg sm:rounded-xl flex items-center justify-center font-black text-[10px] sm:text-xs shrink-0 ${
               currentStep === 2
                 ? 'bg-white text-blue-600 shadow-xs'
                 : currentStep > 2
                 ? 'bg-emerald-600 text-white'
                 : 'bg-slate-200 text-slate-600'
             }`}>
-              {currentStep > 2 ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : '2'}
+              {currentStep > 2 ? <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5 stroke-[3]" /> : '2'}
             </div>
             <div className="min-w-0">
               <span className="text-[10px] sm:text-xs font-black block leading-tight truncate">
-                2. Récipe (Rp.)
+                2. Récipe
               </span>
-              <span className={`text-[9px] sm:text-[10px] block truncate ${currentStep === 2 ? 'text-blue-100' : 'text-slate-500'}`}>
-                Fármacos
+              <span className={`text-[8.5px] sm:text-[10px] block truncate ${currentStep === 2 ? 'text-blue-100' : 'text-slate-500'}`}>
+                Rp. Fármacos
               </span>
             </div>
           </button>
@@ -719,7 +862,7 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
           <button
             type="button"
             onClick={() => setCurrentStep(3)}
-            className={`flex items-center gap-1.5 sm:gap-2 p-2 sm:p-2.5 rounded-2xl transition-all text-left cursor-pointer ${
+            className={`shrink-0 min-w-[102px] sm:min-w-0 flex-1 flex items-center gap-1.5 sm:gap-2 p-1.5 sm:p-2.5 rounded-xl sm:rounded-2xl transition-all text-left cursor-pointer ${
               currentStep === 3
                 ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-300'
                 : currentStep > 3
@@ -727,20 +870,20 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
                 : 'bg-slate-50 text-slate-400'
             }`}
           >
-            <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-xl flex items-center justify-center font-black text-xs shrink-0 ${
+            <div className={`w-5 h-5 sm:w-7 sm:h-7 rounded-lg sm:rounded-xl flex items-center justify-center font-black text-[10px] sm:text-xs shrink-0 ${
               currentStep === 3
                 ? 'bg-white text-blue-600 shadow-xs'
                 : currentStep > 3
                 ? 'bg-emerald-600 text-white'
                 : 'bg-slate-200 text-slate-600'
             }`}>
-              {currentStep > 3 ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : '3'}
+              {currentStep > 3 ? <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5 stroke-[3]" /> : '3'}
             </div>
             <div className="min-w-0">
               <span className="text-[10px] sm:text-xs font-black block leading-tight truncate">
-                3. Indicaciones
+                3. Pautas
               </span>
-              <span className={`text-[9px] sm:text-[10px] block truncate ${currentStep === 3 ? 'text-blue-100' : 'text-slate-500'}`}>
+              <span className={`text-[8.5px] sm:text-[10px] block truncate ${currentStep === 3 ? 'text-blue-100' : 'text-slate-500'}`}>
                 Posología
               </span>
             </div>
@@ -750,13 +893,13 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
           <button
             type="button"
             onClick={() => setCurrentStep(4)}
-            className={`flex items-center gap-1.5 sm:gap-2 p-2 sm:p-2.5 rounded-2xl transition-all text-left cursor-pointer ${
+            className={`shrink-0 min-w-[102px] sm:min-w-0 flex-1 flex items-center gap-1.5 sm:gap-2 p-1.5 sm:p-2.5 rounded-xl sm:rounded-2xl transition-all text-left cursor-pointer ${
               currentStep === 4
                 ? 'bg-emerald-600 text-white shadow-md ring-2 ring-emerald-300'
                 : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
             }`}
           >
-            <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-xl flex items-center justify-center font-black text-xs shrink-0 ${
+            <div className={`w-5 h-5 sm:w-7 sm:h-7 rounded-lg sm:rounded-xl flex items-center justify-center font-black text-[10px] sm:text-xs shrink-0 ${
               currentStep === 4
                 ? 'bg-white text-emerald-600 shadow-xs'
                 : 'bg-slate-200 text-slate-600'
@@ -767,7 +910,7 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
               <span className="text-[10px] sm:text-xs font-black block leading-tight truncate">
                 4. Final
               </span>
-              <span className={`text-[9px] sm:text-[10px] block truncate ${currentStep === 4 ? 'text-emerald-100' : 'text-slate-500'}`}>
+              <span className={`text-[8.5px] sm:text-[10px] block truncate ${currentStep === 4 ? 'text-emerald-100' : 'text-slate-500'}`}>
                 PDF / Imprimir
               </span>
             </div>
@@ -856,11 +999,14 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
                             patientCI: p.patientCI,
                             patientAge: p.patientAge,
                             patientPhone: p.patientPhone,
+                            date: todayFormatted,
                             diagnosis: p.diagnosis || recipe.diagnosis,
                           });
                         }
+                        onChangeRecipe({ date: todayFormatted });
+                        setLocalIndications((prev) => ({ ...prev, date: todayFormatted }));
                         setPatientSearchQuery('');
-                        setCopyFeedback(`✓ Paciente "${p.patientName}" cargado`);
+                        setCopyFeedback(`✓ Paciente "${p.patientName}" cargado con fecha de hoy`);
                         setTimeout(() => setCopyFeedback(null), 2000);
                       }}
                       className="p-2.5 bg-white hover:bg-blue-50 border border-slate-200 hover:border-blue-300 rounded-xl text-left transition-all flex items-center justify-between cursor-pointer group"
@@ -945,13 +1091,26 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
 
             {/* 5. Fecha de Consulta */}
             <div>
-              <label className="block text-xs sm:text-sm font-black text-slate-800 mb-1 flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5 text-blue-600" />
-                <span>Fecha del Récipe:</span>
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs sm:text-sm font-black text-slate-800 flex items-center gap-1">
+                  <Calendar className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Fecha de Emisión:</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onChangeRecipe({ date: todayFormatted });
+                    setLocalIndications((prev) => ({ ...prev, date: todayFormatted }));
+                  }}
+                  className="text-[11px] font-bold text-blue-600 hover:text-blue-800 underline cursor-pointer"
+                  title="Fijar fecha de hoy"
+                >
+                  Fijar fecha de hoy ({todayFormatted})
+                </button>
+              </div>
               <input
                 type="text"
-                value={recipe.date}
+                value={recipe.date || todayFormatted}
                 onChange={(e) => onChangeRecipe({ date: e.target.value })}
                 placeholder="DD/MM/AAAA"
                 className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-2xl text-sm sm:text-base font-bold text-slate-900 focus:bg-white focus:border-blue-600 outline-none transition-all shadow-inner placeholder:text-slate-400"
@@ -1816,14 +1975,14 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
       {currentStep === 4 && (
         <div className="w-full space-y-4 animate-in fade-in">
           
-          {/* Main Action Control Center Bar: SOLO los 3 íconos y la pestaña a indicaciones */}
-          <div className="w-full bg-slate-900 text-white rounded-2xl border border-slate-800 p-2.5 sm:p-3 shadow-xl no-print flex flex-wrap items-center justify-between gap-2.5 text-xs">
+          {/* Main Action Control Center Bar: SOLO los 3 íconos y la pestaña a indicaciones (Responsive Mobile & Desktop) */}
+          <div className="w-full bg-slate-900 text-white rounded-2xl border border-slate-800 p-2.5 sm:p-3 shadow-xl no-print flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 text-xs">
             {/* Pestaña de Seguir a Indicaciones / Volver al Récipe */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
               <button
                 type="button"
                 onClick={() => setFinalPreviewTab(finalPreviewTab === 'recipe' ? 'indications' : 'recipe')}
-                className={`px-4 py-2 rounded-xl font-black text-xs transition-all cursor-pointer flex items-center gap-2 shadow-sm ${
+                className={`w-full sm:w-auto px-4 py-2.5 sm:py-2 rounded-xl font-black text-xs transition-all cursor-pointer flex items-center justify-center gap-2 shadow-sm ${
                   finalPreviewTab === 'recipe'
                     ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white'
                     : 'bg-gradient-to-r from-indigo-600 to-teal-600 hover:from-indigo-500 hover:to-teal-500 text-white'
@@ -1844,52 +2003,43 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
               </button>
             </div>
 
-            {/* Los 3 Íconos Esenciales: [📥 PDF] [💬 WhatsApp] [✉️ Correo] */}
-            <div className="flex items-center gap-2">
-              {/* [📥 PDF] */}
+            {/* BOTONES DE ACCIÓN: [📥 Descargar PDF] + [📱 WhatsApp] + [✉️ Correo] */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full sm:w-auto">
               <button
                 type="button"
-                onClick={async () => {
-                  try {
-                    if (onDownloadPdf) {
-                      await onDownloadPdf();
-                    } else if (finalPreviewTab === 'recipe') {
-                      await handleDownloadRecipePdfDirect();
-                    } else {
-                      await handleDownloadIndicationsPdfDirect();
-                    }
-                  } catch (err) {
-                    console.error('Error al descargar PDF:', err);
-                    window.print();
-                  }
-                }}
-                className="px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-blue-400/30"
-                title="Descargar PDF oficial"
+                onClick={handleDownloadDualPdfDirect}
+                className="px-4 py-2.5 sm:py-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-500 hover:to-indigo-500 text-white font-black rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-blue-400/40"
+                title="Descargar PDF e Imprimir en Hoja Carta Horizontal (2 en 1: Récipe e Indicaciones tal cual en pantalla)"
               >
                 <Download className="w-4 h-4 text-white" />
-                <span>PDF</span>
+                <Printer className="w-4 h-4 text-cyan-200" />
+                <span>Descargar PDF</span>
               </button>
 
               {/* [💬 WhatsApp] */}
               <button
                 type="button"
                 onClick={() => {
+                  // Asegurar que al emitir por WhatsApp la fecha del récipe esté al día
+                  onChangeRecipe({ date: todayFormatted });
+                  setLocalIndications((prev) => ({ ...prev, date: todayFormatted }));
+
                   exportAndSendWhatsAppBusiness({
                     element: finalPreviewTab === 'recipe' ? printableRecipeRef.current : printableIndicationsRef.current,
                     patientName: recipe.patientName || 'Paciente',
                     documentTitle: finalPreviewTab === 'recipe' ? 'Récipe Médico' : 'Indicaciones Médicas',
-                    dateStr: recipe.date || new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+                    dateStr: todayFormatted,
                     patientPhone: recipe.patientPhone,
                     doctorName: config.doctorName || 'Dr. Carlos Leal',
                     treatmentDetails: finalPreviewTab === 'recipe' ? (recipe.rp?.trim() || '') : (localIndications.generalInstructions?.trim() || ''),
                     documentType: finalPreviewTab === 'recipe' ? 'recipe' : 'indications',
-                    recipe,
-                    indications: localIndications,
+                    recipe: { ...recipe, date: todayFormatted },
+                    indications: { ...localIndications, date: todayFormatted },
                     config
                   });
                 }}
-                className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-emerald-400/40"
-                title="Enviar por WhatsApp"
+                className="px-3.5 py-2.5 sm:py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-emerald-400/40"
+                title="Emitir y enviar por WhatsApp con fecha de hoy"
               >
                 <span className="text-sm">📱</span>
                 <span>WhatsApp</span>
@@ -1899,7 +2049,7 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
               <button
                 type="button"
                 onClick={() => setIsEmailModalOpen(true)}
-                className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-indigo-400/30"
+                className="px-3.5 py-2.5 sm:py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all hover:scale-[1.02] active:scale-95 cursor-pointer border border-indigo-400/30"
                 title="Enviar por Correo Electrónico"
               >
                 <Mail className="w-4 h-4 text-white" />
@@ -1907,22 +2057,101 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
               </button>
             </div>
           </div>
+          {/* Zoom and Fit Mobile Controls Bar for Step 4 Preview */}
+          <div className="w-full max-w-[660px] mx-auto bg-slate-900 border border-slate-800 rounded-xl p-2 shadow-md no-print flex items-center justify-between gap-2 text-xs text-white">
+            <div className="flex items-center gap-1.5">
+              <span className="text-cyan-300 font-bold text-[11px] flex items-center gap-1">
+                <Eye className="w-3.5 h-3.5 text-cyan-400" />
+                <span className="hidden min-[380px]:inline">Escala:</span>
+              </span>
+              <span className="font-mono font-black text-slate-950 bg-cyan-400 px-2 py-0.5 rounded-md text-[10px]">
+                {step4Zoom}%
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setStep4Zoom((prev) => Math.max(40, prev - 10))}
+                className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-lg border border-slate-700 text-[11px] cursor-pointer shadow-2xs"
+                title="Alejar vista previa"
+              >
+                -
+              </button>
+              <button
+                type="button"
+                onClick={() => setStep4Zoom(100)}
+                className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-lg border border-slate-700 text-[10px] cursor-pointer shadow-2xs"
+                title="Restablecer al 100%"
+              >
+                100%
+              </button>
+              <button
+                type="button"
+                onClick={() => setStep4Zoom((prev) => Math.min(150, prev + 10))}
+                className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-lg border border-slate-700 text-[11px] cursor-pointer shadow-2xs"
+                title="Acercar vista previa"
+              >
+                +
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const screenW = window.innerWidth;
+                  if (screenW < 640) {
+                    const targetW = finalPreviewTab === 'indications' ? 816 : 660;
+                    const calc = Math.round(((screenW - 24) / targetW) * 100);
+                    setStep4Zoom(Math.max(35, Math.min(100, calc)));
+                  } else {
+                    setStep4Zoom(100);
+                  }
+                }}
+                className="px-2.5 py-1 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-black rounded-lg text-[10px] cursor-pointer shadow-2xs flex items-center gap-1 border border-cyan-400/40"
+                title="Cuadrar exactamente al tamaño de la pantalla del móvil"
+              >
+                📱 Fit Móvil
+              </button>
+            </div>
+          </div>
 
           {/* ========================================================= */}
           {/* VISTA 2: DOCUMENTO DE RÉCIPE INDIVIDUAL                   */}
           {/* ========================================================= */}
-          <div className={`w-full flex flex-col items-center py-2 ${finalPreviewTab === 'recipe' ? 'block' : 'hidden'}`}>
-            
+          <div className={`w-full overflow-x-auto overflow-y-visible touch-pan-x touch-pan-y py-2 flex flex-col items-center ${finalPreviewTab === 'recipe' ? 'block' : 'hidden'}`}>
+            {(() => {
+              const scale = step4Zoom / 100;
+              const docW = 660;
+              const docH = 720;
+              const scaledW = Math.round(docW * scale);
+              const scaledH = Math.round(docH * scale);
 
-
-            {/* Tarjeta del Récipe */}
-            <div
-              ref={printableRecipeRef}
-              id="recipe-medico"
-              data-testid="recibo-medico"
-              className={`relative w-full max-w-[660px] min-h-[680px] p-5 sm:p-7 bg-white shadow-2xl rounded-2xl transition-all recipe-single-card recipe-single-container print-container border border-slate-200/90 ${textureClass} ${
-                config.enforcePureBlackText ? 'enforce-pure-black' : ''
-              } ${activePrintMode === 'recipe' && !printFourInSheet ? 'print:block' : 'print:hidden'}`}
+              return (
+                <div 
+                  className="relative mx-auto shrink-0 select-none transition-all duration-150"
+                  style={{
+                    width: `${scaledW}px`,
+                    height: `${scaledH}px`,
+                  }}
+                >
+                  <div 
+                    style={{
+                      position: 'absolute',
+                      left: 0,
+                      top: 0,
+                      width: `${docW}px`,
+                      transform: `scale(${scale})`,
+                      WebkitTransform: `scale(${scale})`,
+                      transformOrigin: 'top left',
+                    }}
+                  >
+                    {/* Tarjeta del Récipe */}
+                    <div
+                      ref={printableRecipeRef}
+                      id="recipe-medico"
+                      data-testid="recibo-medico"
+                      className={`relative w-[660px] max-w-[660px] min-h-[680px] p-5 sm:p-7 bg-white shadow-2xl rounded-2xl transition-all recipe-single-card recipe-single-container print-container border border-slate-200/90 ${textureClass} ${
+                        config.enforcePureBlackText ? 'enforce-pure-black' : ''
+                      } ${activePrintMode === 'recipe' && !printFourInSheet ? 'print:block' : 'print:hidden'} preview-mode`}
               style={{
                 backgroundColor: config.tonePapel || '#ffffff',
                 border: borderStyle,
@@ -1950,17 +2179,17 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
                 <div>
                   <DocumentHeader
                     config={config}
-                    compact={false}
+                    compact={true}
                     hideHeader={false}
                     editableInline={true}
                     onUpdateField={(field, val) => onUpdateConfig?.({ [field]: val })}
                   />
 
-                  {/* Barra Oficial de Paciente y Fecha */}
-                  <div className="my-2.5 p-2.5 bg-slate-50/90 rounded-xl border border-slate-200/90 text-xs">
-                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
-                      <div className="sm:col-span-5 flex items-center gap-1.5">
-                        <span className="font-bold text-slate-700 uppercase text-[10px] shrink-0">Paciente:</span>
+                  {/* Barra Oficial de Paciente y Fecha Unificada */}
+                  <div className="border border-slate-200 bg-slate-50/80 rounded-xl p-2.5 my-2 text-xs space-y-1.5 text-slate-700">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 flex-1 min-w-[170px]">
+                        <span className="font-bold text-slate-900 shrink-0">Paciente:</span>
                         <input
                           type="text"
                           value={recipe.patientName || ''}
@@ -1969,48 +2198,59 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
                           className="w-full bg-transparent font-black text-slate-900 border-b border-dashed border-slate-300 focus:border-blue-600 outline-none text-xs sm:text-sm"
                         />
                       </div>
-                      <div className="sm:col-span-3 flex items-center gap-1.5">
-                        <span className="font-bold text-slate-700 uppercase text-[10px] shrink-0">C.I.:</span>
-                        <input
-                          type="text"
-                          value={recipe.patientCI || ''}
-                          onChange={(e) => onChangeRecipe({ patientCI: e.target.value })}
-                          placeholder="Cédula"
-                          className="w-full bg-transparent font-bold text-slate-900 border-b border-dashed border-slate-300 focus:border-blue-600 outline-none text-xs"
-                        />
-                      </div>
-                      <div className="sm:col-span-2 flex items-center gap-1.5">
-                        <span className="font-bold text-slate-700 uppercase text-[10px] shrink-0">Edad:</span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="font-bold text-slate-900 shrink-0">Edad:</span>
                         <input
                           type="text"
                           value={recipe.patientAge || ''}
                           onChange={(e) => onChangeRecipe({ patientAge: e.target.value })}
                           placeholder="Edad"
-                          className="w-full bg-transparent font-bold text-slate-900 border-b border-dashed border-slate-300 focus:border-blue-600 outline-none text-xs"
+                          className="w-14 bg-transparent font-bold text-slate-900 border-b border-dashed border-slate-300 focus:border-blue-600 outline-none text-xs"
                         />
                       </div>
-                      <div className="sm:col-span-2 flex items-center gap-1.5">
-                        <span className="font-bold text-slate-700 uppercase text-[10px] shrink-0">Fecha:</span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="font-bold text-slate-900 shrink-0">C.I.:</span>
                         <input
                           type="text"
-                          value={recipe.date || ''}
-                          onChange={(e) => onChangeRecipe({ date: e.target.value })}
-                          placeholder="DD/MM/AAAA"
-                          className="w-full bg-transparent font-black text-slate-900 border-b border-dashed border-slate-300 focus:border-blue-600 outline-none text-xs text-right"
+                          value={recipe.patientCI || ''}
+                          onChange={(e) => onChangeRecipe({ patientCI: e.target.value })}
+                          placeholder="Cédula"
+                          className="w-24 bg-transparent font-bold text-slate-900 border-b border-dashed border-slate-300 focus:border-blue-600 outline-none text-xs"
                         />
                       </div>
-                      {recipe.diagnosis && (
-                        <div className="sm:col-span-12 pt-1.5 mt-1 border-t border-slate-200/60 flex items-center gap-1.5">
-                          <span className="text-slate-500 font-bold text-[10px] uppercase shrink-0">Diagnóstico:</span>
-                          <input
-                            type="text"
-                            value={recipe.diagnosis || ''}
-                            onChange={(e) => onChangeRecipe({ diagnosis: e.target.value })}
-                            placeholder="Diagnóstico clínico (opcional)"
-                            className="w-full bg-transparent font-semibold text-slate-800 border-b border-dashed border-slate-300 focus:border-blue-600 outline-none text-xs truncate"
-                          />
-                        </div>
-                      )}
+                    </div>
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-200/70 text-xs">
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="font-bold text-slate-900 shrink-0">Fecha:</span>
+                        <input
+                          type="text"
+                          value={recipe.date || todayFormatted}
+                          onChange={(e) => onChangeRecipe({ date: e.target.value })}
+                          placeholder="DD/MM/AAAA"
+                          className="w-28 bg-transparent font-black text-slate-900 border-b border-dashed border-slate-300 focus:border-blue-600 outline-none text-xs"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onChangeRecipe({ date: todayFormatted });
+                            setLocalIndications((prev) => ({ ...prev, date: todayFormatted }));
+                          }}
+                          className="px-2 py-0.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-md text-[10px] font-bold border border-blue-200 cursor-pointer transition-colors"
+                          title={`Fijar a la fecha de hoy (${todayFormatted})`}
+                        >
+                          Hoy
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-1 min-w-[150px]">
+                        <span className="font-bold text-slate-900 shrink-0">Diagnóstico:</span>
+                        <input
+                          type="text"
+                          value={recipe.diagnosis || ''}
+                          onChange={(e) => onChangeRecipe({ diagnosis: e.target.value })}
+                          placeholder="Diagnóstico clínico (opcional)"
+                          className="w-full bg-transparent font-semibold text-slate-800 border-b border-dashed border-slate-300 focus:border-blue-600 outline-none text-xs truncate"
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -2103,10 +2343,10 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
             <div
               ref={printableFourInSheetRef}
               id="recipe-4copies-print-sheet"
-              className={`w-full flex justify-center print-container ${printFourInSheet ? 'block' : 'hidden'} ${activePrintMode === 'fourInSheet' || printFourInSheet ? 'print:block' : 'print:hidden'} mt-4`}
+              className={`w-full flex justify-center print-container ${printFourInSheet ? 'block' : 'hidden'} ${activePrintMode === 'fourInSheet' || printFourInSheet ? 'print:block' : 'print:hidden'} mt-4 preview-mode`}
             >
                <div
-                className={`relative w-full max-w-[816px] h-[1056px] min-h-[1056px] max-h-[1056px] bg-white transition-all recipe-4en1-container shadow-2xl rounded-2xl border border-slate-200 ${textureClass}`}
+                className={`relative w-full max-w-[816px] h-[1056px] min-h-[1056px] max-h-[1056px] bg-white transition-all recipe-4en1-container shadow-2xl rounded-2xl border border-slate-200 ${textureClass} preview-mode`}
                 style={{
                   backgroundColor: config.tonePapel || '#ffffff',
                   border: borderStyle,
@@ -2168,7 +2408,7 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
                           </div>
                           <div className="text-right">
                             <span className="font-bold text-slate-700">Fecha: </span>
-                            <span className="text-slate-800">{recipe.date || '14/10/26'}</span>
+                            <span className="text-slate-800">{recipe.date || todayFormatted}</span>
                           </div>
                         </div>
                       </div>
@@ -2202,19 +2442,48 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
                 </div>
               </div>
             </div>
-
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
           {/* ========================================================= */}
           {/* VISTA 3: DOCUMENTO DE HOJA DE INDICACIONES INDIVIDUAL     */}
           {/* ========================================================= */}
-          <div className={`w-full flex justify-center py-2 ${finalPreviewTab === 'indications' ? 'block' : 'hidden'}`}>
-            <div
-              ref={printableIndicationsRef}
+          <div className={`w-full overflow-x-auto overflow-y-visible touch-pan-x touch-pan-y py-2 flex flex-col items-center ${finalPreviewTab === 'indications' ? 'block' : 'hidden'}`}>
+            {(() => {
+              const scale = step4Zoom / 100;
+              const docW = 816;
+              const docH = 960;
+              const scaledW = Math.round(docW * scale);
+              const scaledH = Math.round(docH * scale);
+
+              return (
+                <div 
+                  className="relative mx-auto shrink-0 select-none transition-all duration-150"
+                  style={{
+                    width: `${scaledW}px`,
+                    height: `${scaledH}px`,
+                  }}
+                >
+                  <div 
+                    style={{
+                      position: 'absolute',
+                      left: 0,
+                      top: 0,
+                      width: `${docW}px`,
+                      transform: `scale(${scale})`,
+                      WebkitTransform: `scale(${scale})`,
+                      transformOrigin: 'top left',
+                    }}
+                  >
+                    <div
+                      ref={printableIndicationsRef}
               id="indications-print-container"
               className={`relative w-full max-w-[816px] bg-white shadow-2xl p-4 sm:p-7 md:p-8 rounded-2xl transition-all indications-container print-container border border-slate-200/90 ${textureClass} ${
                 config.enforcePureBlackText ? 'enforce-pure-black' : ''
-              } ${activePrintMode === 'indications' && finalPreviewTab === 'indications' ? 'print:block' : 'print:hidden'}`}
+              } ${activePrintMode === 'indications' && finalPreviewTab === 'indications' ? 'print:block' : 'print:hidden'} preview-mode`}
               style={{
                 backgroundColor: config.tonePapel || '#ffffff',
                 border: borderStyle,
@@ -2243,7 +2512,7 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
                 <div>
                   <DocumentHeader
                     config={config}
-                    compact={false}
+                    compact={true}
                     editableInline={false}
                   />
 
@@ -2255,7 +2524,7 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
                       INDICACIONES MÉDICAS Y TRATAMIENTO
                     </span>
                     <span className="text-xs font-mono font-bold text-slate-500">
-                      Fecha: {localIndications.date || recipe.date || new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                      Fecha: {localIndications.date || recipe.date || todayFormatted}
                     </span>
                   </div>
 
@@ -2353,6 +2622,10 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
                 </div>
               </div>
             </div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
           {/* ========================================================= */}
@@ -2361,16 +2634,16 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
           <div
             ref={printableDualRef}
             id="recipe-indications-dual-sheet"
-            className="print-container"
+            className="recipe-horizontal-2en1 print:!flex print:!flex-row print:!w-full print:!h-full print:!opacity-100 print:!pointer-events-auto print:!z-[999999] print:!bg-white print:!left-0 print:!top-0"
             style={{
               position: 'fixed',
-              left: '0px',
+              left: '-9999px',
               top: '0px',
               width: '1056px',
               height: '816px',
-              opacity: isExporting ? 0.01 : 0,
+              opacity: 1,
               pointerEvents: 'none',
-              zIndex: isExporting ? 99999 : -9999,
+              zIndex: -9999,
               backgroundColor: config.tonePapel || '#ffffff',
               display: 'flex',
               flexDirection: 'row',
@@ -2394,142 +2667,229 @@ export const ProgressiveRecipeWizard: React.FC<ProgressiveRecipeWizardProps> = (
               </div>
             )}
 
-            {/* COLUMNA IZQUIERDA: RÉCIPE MÉDICO OFICIAL (528px x 816px, padding 40px) */}
-            <div style={{ width: '528px', height: '816px', padding: '40px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', borderRight: '2px dashed #94a3b8', boxSizing: 'border-box', position: 'relative', zIndex: 10 }}>
+            {/* COLUMNA IZQUIERDA: RÉCIPE MÉDICO OFICIAL (528px x 816px, padding 34px 36px) */}
+            <div style={{ width: '528px', height: '816px', padding: '32px 36px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', borderRight: '2px dashed #94a3b8', boxSizing: 'border-box', position: 'relative', zIndex: 10 }}>
               <div>
-                {/* Membrete del Médico con anchos fijos en px */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', borderBottom: '2px solid ' + (config.primaryDocColor || '#1e3a8a'), paddingBottom: '12px' }}>
-                  {config.logoIzq ? (
-                    <img src={config.logoIzq} alt="Logo Izq" style={{ width: '70px', height: '70px', objectFit: 'contain' }} />
-                  ) : <div style={{ width: '70px' }} />}
+                {/* Membrete del Médico 100% IDÉNTICO a la vista previa del médico */}
+                <div style={{ marginBottom: '8px' }}>
+                  <DocumentHeader
+                    config={config}
+                    compact={false}
+                    editableInline={false}
+                  />
+                </div>
 
-                  <div style={{ textAlign: 'center', flex: 1, padding: '0 10px' }}>
-                    <h1 style={{ fontSize: '18px', fontWeight: 900, color: config.primaryDocColor || '#1e3a8a', margin: 0, lineHeight: 1.2 }}>
-                      {config.doctorName || 'Dr. Carlos Leal'}
-                    </h1>
-                    <p style={{ fontSize: '12px', fontWeight: 700, color: '#475569', margin: '3px 0' }}>
-                      {config.specialty || 'Médico Cirujano'} · MPPS: {config.mpps || '---'}
-                    </p>
-                    {config.collegeNumber && (
-                      <p style={{ fontSize: '10px', fontWeight: 600, color: '#64748b', margin: 0 }}>
-                        C.M.C.: {config.collegeNumber} {config.ci ? `| C.I.: ${config.ci}` : ''}
-                      </p>
-                    )}
+                {/* Patient Bar */}
+                <div style={{ backgroundColor: '#f8fafc', padding: '8px 12px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '11px', marginBottom: '10px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', gap: '8px' }}>
+                    <div style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <strong style={{ color: '#1e293b' }}>Paciente:</strong> <span style={{ fontWeight: 800, color: '#0f172a' }}>{recipe.patientName || 'Paciente'}</span>
+                    </div>
+                    <div>
+                      <strong style={{ color: '#1e293b' }}>Edad:</strong> <span style={{ fontWeight: 700, color: '#0f172a' }}>{recipe.patientAge ? `${recipe.patientAge} años` : '—'}</span>
+                    </div>
+                    <div>
+                      <strong style={{ color: '#1e293b' }}>C.I.:</strong> <span style={{ fontWeight: 700, color: '#0f172a' }}>{recipe.patientCI || 'S/C'}</span>
+                    </div>
                   </div>
-
-                  {config.logoDer ? (
-                    <img src={config.logoDer} alt="Logo Der" style={{ width: '70px', height: '70px', objectFit: 'contain' }} />
-                  ) : <div style={{ width: '70px' }} />}
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid #e2e8f0', paddingBottom: '6px' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 900, textTransform: 'uppercase', color: config.primaryDocColor || '#1e3a8a', letterSpacing: '0.5px' }}>
-                    RÉCIPE MÉDICO OFICIAL
-                  </span>
-                  <span style={{ fontSize: '11px', fontWeight: 700, color: '#334155' }}>
-                    Fecha: {recipe.date || new Date().toLocaleDateString('es-ES')}
-                  </span>
-                </div>
-
-                <div style={{ backgroundColor: '#f8fafc', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '11px', marginBottom: '16px' }}>
-                  <div style={{ marginBottom: '4px' }}><strong>Paciente:</strong> {recipe.patientName || 'Paciente'}</div>
-                  <div style={{ display: 'flex', gap: '16px' }}>
-                    <div><strong>C.I.:</strong> {recipe.patientCI || 'V-00.000.000'}</div>
-                    <div><strong>Edad:</strong> {recipe.patientAge || '—'}</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', paddingTop: '4px', borderTop: '1px solid #e2e8f0' }}>
+                    <div>
+                      <strong style={{ color: '#1e293b' }}>Fecha:</strong> <span style={{ fontWeight: 800, color: '#0f172a' }}>{todayFormatted}</span>
+                    </div>
+                    {(recipe.diagnosis || localIndications.diagnosis) && (
+                      <div style={{ flex: 1, textAlign: 'right', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <strong style={{ color: '#1e293b' }}>Diagnóstico:</strong> <span style={{ fontWeight: 700, color: '#0f172a' }}>{recipe.diagnosis || localIndications.diagnosis}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 <div>
-                  <span style={{ fontSize: '20px', fontWeight: 900, fontFamily: 'serif', color: config.rxTitleColor || config.primaryDocColor || '#1e3a8a', display: 'block', marginBottom: '6px' }}>
-                    {config.rxTitle || 'Rp.'}
-                  </span>
-                  <div style={{ padding: '12px', backgroundColor: '#ffffff', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '13px', fontWeight: 600, color: '#0f172a', whiteSpace: 'pre-wrap', lineHeight: 1.6, minHeight: '180px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                    <span style={{ fontSize: '20px', fontWeight: 900, fontStyle: 'italic', fontFamily: "'Playfair Display', serif", color: config.rxTitleColor || config.primaryDocColor || '#1e3a8a' }}>
+                      {config.rxTitle || 'Rp.'}
+                    </span>
+                    <span style={{ fontSize: '10px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Prescripción Facultativa
+                    </span>
+                  </div>
+                  <div style={{ padding: '10px 12px', backgroundColor: '#ffffff', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '12.5px', fontWeight: 600, color: '#0f172a', whiteSpace: 'pre-wrap', lineHeight: 1.55, minHeight: '185px' }}>
                     {recipe.rp || 'Prescripción médica.'}
                   </div>
                 </div>
               </div>
 
-              <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '12px', textAlign: 'center' }}>
-                {config.selloImg ? (
-                  <img src={config.selloImg} alt="Sello y Firma" style={{ maxHeight: '60px', margin: '0 auto 4px auto', display: 'block' }} />
-                ) : null}
-                <div style={{ borderTop: '1px solid #475569', width: '180px', margin: '8px auto 4px auto' }}></div>
-                <p style={{ fontSize: '10px', fontWeight: 700, color: '#475569', margin: 0 }}>Firma y Sello del Médico</p>
-                <p style={{ fontSize: '9px', color: '#94a3b8', margin: '2px 0 0 0' }}>{config.phone ? `Tel: ${config.phone}` : ''} {config.email ? `| ${config.email}` : ''}</p>
+              {/* PIE DE PÁGINA: LÍNEA DE CONTACTO/REDES/CORREO A LA IZQUIERDA + FIRMA Y SELLO A LA DERECHA */}
+              <div style={{ borderTop: '1px dashed #cbd5e1', paddingTop: '8px', marginTop: 'auto', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '10px', width: '100%', boxSizing: 'border-box' }}>
+                <div style={{ flex: 1, maxWidth: '58%', fontSize: '9.5px', color: '#334155', lineHeight: 1.35, fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+                  <div style={{ fontWeight: 600, color: '#1e293b' }}>
+                    {[
+                      config.phone ? `📞 ${config.phone}` : '',
+                      config.email ? `✉️ ${config.email}` : '',
+                      config.socialHandle ? `📱 ${config.socialHandle}` : '',
+                      config.socialHandle2 ? `🌐 ${config.socialHandle2}` : '',
+                      (config.clinicAddress || config.address) ? `📍 ${config.clinicAddress || config.address}` : '',
+                      (config.footerNotesText && !config.footerNotesText.includes('undefined') && config.footerNotesText !== `${config.phone} · ${config.email}`) ? config.footerNotesText : ''
+                    ].filter(Boolean).join(' · ') || `${config.phone ? `Tel: ${config.phone}` : ''} ${config.email ? `| ${config.email}` : ''}`.trim() || 'Digital Médic - Documento Médico Oficial'}
+                  </div>
+                  {config.footerDisclaimer && (
+                    <div style={{ fontSize: '8.5px', color: '#64748b', fontStyle: 'italic', marginTop: '2px' }}>
+                      {config.footerDisclaimer}
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'center', flexShrink: 0, minWidth: '170px', maxWidth: '230px' }}>
+                  <div style={{ width: '100%', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: '8px', minHeight: '52px', marginBottom: '3px' }}>
+                    {config.firmaImg ? (
+                      <img
+                        src={config.firmaImg}
+                        alt="Firma Digital"
+                        style={{ maxHeight: '55px', maxWidth: '115px', objectFit: 'contain', display: 'block', mixBlendMode: 'multiply' }}
+                      />
+                    ) : null}
+                    {(config.selloImg || (!config.firmaImg && config.selloFirma)) ? (
+                      <img
+                        src={config.selloImg || config.selloFirma}
+                        alt="Sello Digital"
+                        style={{ maxHeight: '55px', maxWidth: '115px', objectFit: 'contain', display: 'block', mixBlendMode: 'multiply' }}
+                      />
+                    ) : null}
+                  </div>
+                  <div style={{ width: '100%', borderTop: `1px solid ${config.primaryDocColor || '#1e3a8a'}`, paddingTop: '3px', fontSize: '9.5px', fontWeight: 800, color: '#1e293b', letterSpacing: '0.3px', textAlign: 'center' }}>
+                    {(!config.signatureTitle || config.signatureTitle.includes('Administrador')) ? 'Firma del médico (a)' : config.signatureTitle}
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* COLUMNA DERECHA: INDICACIONES MÉDICAS Y POSOLOGÍA (528px x 816px, padding 40px) */}
-            <div style={{ width: '528px', height: '816px', padding: '40px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxSizing: 'border-box', position: 'relative', zIndex: 10 }}>
+            {/* COLUMNA DERECHA: INDICACIONES MÉDICAS Y POSOLOGÍA (528px x 816px, padding 34px 36px) */}
+            <div style={{ width: '528px', height: '816px', padding: '32px 36px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxSizing: 'border-box', position: 'relative', zIndex: 10 }}>
               <div>
-                {/* Membrete del Médico (Columna Derecha) */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', borderBottom: '2px solid ' + (config.primaryDocColor || '#1e3a8a'), paddingBottom: '12px' }}>
-                  {config.logoIzq ? (
-                    <img src={config.logoIzq} alt="Logo Izq" style={{ width: '70px', height: '70px', objectFit: 'contain' }} />
-                  ) : <div style={{ width: '70px' }} />}
-
-                  <div style={{ textAlign: 'center', flex: 1, padding: '0 10px' }}>
-                    <h1 style={{ fontSize: '18px', fontWeight: 900, color: config.primaryDocColor || '#1e3a8a', margin: 0, lineHeight: 1.2 }}>
-                      {config.doctorName || 'Dr. Carlos Leal'}
-                    </h1>
-                    <p style={{ fontSize: '12px', fontWeight: 700, color: '#475569', margin: '3px 0' }}>
-                      {config.specialty || 'Médico Cirujano'} · MPPS: {config.mpps || '---'}
-                    </p>
-                    {config.collegeNumber && (
-                      <p style={{ fontSize: '10px', fontWeight: 600, color: '#64748b', margin: 0 }}>
-                        C.M.C.: {config.collegeNumber} {config.ci ? `| C.I.: ${config.ci}` : ''}
-                      </p>
-                    )}
-                  </div>
-
-                  {config.logoDer ? (
-                    <img src={config.logoDer} alt="Logo Der" style={{ width: '70px', height: '70px', objectFit: 'contain' }} />
-                  ) : <div style={{ width: '70px' }} />}
+                {/* Membrete del Médico 100% IDÉNTICO a la vista previa del médico */}
+                <div style={{ marginBottom: '8px' }}>
+                  <DocumentHeader
+                    config={config}
+                    compact={false}
+                    editableInline={false}
+                  />
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid #e2e8f0', paddingBottom: '6px' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 900, textTransform: 'uppercase', color: '#312e81', letterSpacing: '0.5px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', borderBottom: '1px solid #e2e8f0', paddingBottom: '3px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 900, textTransform: 'uppercase', color: config.primaryDocColor || '#1e3a8a', letterSpacing: '0.4px' }}>
                     INDICACIONES Y POSOLOGÍA MÉDICA
                   </span>
-                  <span style={{ fontSize: '11px', fontWeight: 700, color: '#334155' }}>
-                    Fecha: {localIndications.date || recipe.date || new Date().toLocaleDateString('es-ES')}
+                  <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#475569' }}>
+                    Fecha: {todayFormatted}
                   </span>
                 </div>
 
-                <div style={{ backgroundColor: '#eef2ff', padding: '10px 14px', borderRadius: '10px', border: '1px solid #c7d2fe', fontSize: '11px', marginBottom: '16px' }}>
-                  <strong>Indicaciones para el paciente:</strong> {localIndications.patientName || recipe.patientName || 'Paciente'}
+                {/* Patient Bar */}
+                <div style={{ backgroundColor: '#eef2ff', padding: '8px 12px', borderRadius: '10px', border: '1px solid #c7d2fe', fontSize: '11px', marginBottom: '10px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', gap: '8px' }}>
+                    <div style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <strong style={{ color: '#1e293b' }}>Paciente:</strong> <span style={{ fontWeight: 800, color: '#0f172a' }}>{localIndications.patientName || recipe.patientName || 'Paciente'}</span>
+                    </div>
+                    <div>
+                      <strong style={{ color: '#1e293b' }}>Edad:</strong> <span style={{ fontWeight: 700, color: '#0f172a' }}>{localIndications.patientAge || recipe.patientAge ? `${localIndications.patientAge || recipe.patientAge} años` : '—'}</span>
+                    </div>
+                    <div>
+                      <strong style={{ color: '#1e293b' }}>C.I.:</strong> <span style={{ fontWeight: 700, color: '#0f172a' }}>{localIndications.patientCI || recipe.patientCI || 'S/C'}</span>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', paddingTop: '4px', borderTop: '1px solid #c7d2fe' }}>
+                    <div>
+                      <strong style={{ color: '#1e293b' }}>Fecha:</strong> <span style={{ fontWeight: 800, color: '#0f172a' }}>{todayFormatted}</span>
+                    </div>
+                    {(localIndications.diagnosis || recipe.diagnosis) && (
+                      <div style={{ flex: 1, textAlign: 'right', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <strong style={{ color: '#1e293b' }}>Dx:</strong> <span style={{ fontWeight: 700, color: '#0f172a' }}>{localIndications.diagnosis || recipe.diagnosis}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div>
-                  <div style={{ padding: '12px', backgroundColor: '#ffffff', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '13px', fontWeight: 600, color: '#0f172a', whiteSpace: 'pre-wrap', lineHeight: 1.6, minHeight: '180px' }}>
-                    {localIndications.generalInstructions || 'Tomar medicamentos indicados en el récipe según horarios.'}
+                  <div style={{ padding: '10px 12px', backgroundColor: '#ffffff', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '12px', fontWeight: 600, color: '#0f172a', boxSizing: 'border-box', minHeight: '140px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '5px', fontSize: '11px', fontWeight: 800, color: config.primaryDocColor || '#1e3a8a', textTransform: 'uppercase' }}>
+                      <span style={{ fontSize: '12px' }}>💊</span>
+                      <span>Posología e Instrucciones de Medicación:</span>
+                    </div>
+                    <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.5, color: '#1e293b' }}>
+                      {[
+                        localIndications.generalInstructions?.trim(),
+                        localIndications.medicationSchedule?.trim()
+                      ].filter(Boolean).join('\n\n') || 'Tomar medicamentos indicados en el récipe según posología médica.'}
+                    </div>
                   </div>
 
                   {localIndications.dietAndRest && (
-                    <div style={{ marginTop: '12px', fontSize: '11px', color: '#334155', backgroundColor: '#f8fafc', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                      <strong>Dieta y Reposo:</strong> {localIndications.dietAndRest}
+                    <div style={{ marginTop: '8px', fontSize: '11px', color: '#1e293b', backgroundColor: '#f8fafc', padding: '7px 10px', borderRadius: '8px', border: '1px solid #e2e8f0', boxSizing: 'border-box' }}>
+                      <strong style={{ display: 'block', marginBottom: '2px', color: '#0f172a' }}>🥗 Recomendaciones de Dieta y Reposo:</strong>
+                      <span style={{ fontWeight: 600, color: '#334155', lineHeight: 1.35 }}>{localIndications.dietAndRest}</span>
                     </div>
                   )}
 
                   {localIndications.alarmSigns && (
-                    <div style={{ marginTop: '8px', fontSize: '11px', color: '#991b1b', backgroundColor: '#fef2f2', padding: '10px', borderRadius: '8px', border: '1px solid #fecaca' }}>
-                      <strong>Signos de Alarma:</strong> {localIndications.alarmSigns}
+                    <div style={{ marginTop: '6px', fontSize: '11px', color: '#991b1b', backgroundColor: '#fef2f2', padding: '7px 10px', borderRadius: '8px', border: '1px solid #fecaca', boxSizing: 'border-box' }}>
+                      <strong style={{ display: 'block', marginBottom: '2px', color: '#991b1b' }}>⚠️ Signos de Alarma:</strong>
+                      <span style={{ fontWeight: 600, color: '#7f1d1d', lineHeight: 1.35 }}>{localIndications.alarmSigns}</span>
+                    </div>
+                  )}
+
+                  {localIndications.nextAppointment && (
+                    <div style={{ marginTop: '6px', fontSize: '11px', color: '#0369a1', backgroundColor: '#f0f9ff', padding: '6px 10px', borderRadius: '8px', border: '1px solid #bae6fd', boxSizing: 'border-box', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <strong style={{ color: '#0369a1' }}>📅 Próximo Control:</strong>
+                      <span style={{ fontWeight: 700, color: '#075985' }}>{localIndications.nextAppointment}</span>
                     </div>
                   )}
                 </div>
               </div>
 
-              <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '12px', textAlign: 'center' }}>
-                {config.selloImg ? (
-                  <img src={config.selloImg} alt="Sello y Firma" style={{ maxHeight: '60px', margin: '0 auto 4px auto', display: 'block' }} />
-                ) : null}
-                <div style={{ borderTop: '1px solid #475569', width: '180px', margin: '8px auto 4px auto' }}></div>
-                <p style={{ fontSize: '10px', fontWeight: 700, color: '#475569', margin: 0 }}>Firma y Sello del Médico</p>
-                <p style={{ fontSize: '9px', color: '#94a3b8', margin: '2px 0 0 0' }}>{config.phone ? `Tel: ${config.phone}` : ''} {config.email ? `| ${config.email}` : ''}</p>
+              {/* PIE DE PÁGINA: LÍNEA DE CONTACTO/REDES/CORREO A LA IZQUIERDA + FIRMA Y SELLO A LA DERECHA */}
+              <div style={{ borderTop: '1px dashed #cbd5e1', paddingTop: '8px', marginTop: 'auto', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '10px', width: '100%', boxSizing: 'border-box' }}>
+                <div style={{ flex: 1, maxWidth: '58%', fontSize: '9.5px', color: '#334155', lineHeight: 1.35, fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+                  <div style={{ fontWeight: 600, color: '#1e293b' }}>
+                    {[
+                      config.phone ? `📞 ${config.phone}` : '',
+                      config.email ? `✉️ ${config.email}` : '',
+                      config.socialHandle ? `📱 ${config.socialHandle}` : '',
+                      config.socialHandle2 ? `🌐 ${config.socialHandle2}` : '',
+                      (config.clinicAddress || config.address) ? `📍 ${config.clinicAddress || config.address}` : '',
+                      (config.footerNotesText && !config.footerNotesText.includes('undefined') && config.footerNotesText !== `${config.phone} · ${config.email}`) ? config.footerNotesText : ''
+                    ].filter(Boolean).join(' · ') || `${config.phone ? `Tel: ${config.phone}` : ''} ${config.email ? `| ${config.email}` : ''}`.trim() || 'Digital Médic - Documento Médico Oficial'}
+                  </div>
+                  {config.footerDisclaimer && (
+                    <div style={{ fontSize: '8.5px', color: '#64748b', fontStyle: 'italic', marginTop: '2px' }}>
+                      {config.footerDisclaimer}
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'center', flexShrink: 0, minWidth: '170px', maxWidth: '230px' }}>
+                  <div style={{ width: '100%', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: '8px', minHeight: '52px', marginBottom: '3px' }}>
+                    {config.firmaImg ? (
+                      <img
+                        src={config.firmaImg}
+                        alt="Firma Digital"
+                        style={{ maxHeight: '55px', maxWidth: '115px', objectFit: 'contain', display: 'block', mixBlendMode: 'multiply' }}
+                      />
+                    ) : null}
+                    {(config.selloImg || (!config.firmaImg && config.selloFirma)) ? (
+                      <img
+                        src={config.selloImg || config.selloFirma}
+                        alt="Sello Digital"
+                        style={{ maxHeight: '55px', maxWidth: '115px', objectFit: 'contain', display: 'block', mixBlendMode: 'multiply' }}
+                      />
+                    ) : null}
+                  </div>
+                  <div style={{ width: '100%', borderTop: `1px solid ${config.primaryDocColor || '#1e3a8a'}`, paddingTop: '3px', fontSize: '9.5px', fontWeight: 800, color: '#1e293b', letterSpacing: '0.3px', textAlign: 'center' }}>
+                    {(!config.signatureTitle || config.signatureTitle.includes('Administrador')) ? 'Firma del médico (a)' : config.signatureTitle}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-
         </div>
       )}
 

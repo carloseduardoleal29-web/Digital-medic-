@@ -65,24 +65,26 @@ export async function saveEcosystemToCloud(ecosystem: Partial<UserEcosystem>): P
 // Cache en memoria a corto plazo para evitar sobrecargar conexiones y llamadas concurrentes
 const ecosystemCache = new Map<string, { data: UserEcosystem; timestamp: number }>();
 const inFlightFetches = new Map<string, Promise<UserEcosystem | null>>();
-const CACHE_TTL_MS = 15000; // 15 segundos
+const CACHE_TTL_MS = 5000; // 5 segundos para mantener sincronización rápida PC <-> Teléfono
 
 /**
  * Obtiene el ecosistema completo del usuario desde el servidor en la nube o directo desde Firestore.
  * Incluye protección estricta contra cuelgues (timeout de 3.5s) y reutilización de promesas en vuelo.
  */
-export async function fetchEcosystemFromCloud(identifier: string): Promise<UserEcosystem | null> {
+export async function fetchEcosystemFromCloud(identifier: string, bypassCache: boolean = false): Promise<UserEcosystem | null> {
   if (!identifier) return null;
   const key = identifier.toLowerCase().trim();
 
   // 1. Comprobar si hay un resultado reciente en caché
-  const cached = ecosystemCache.get(key);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-    return cached.data;
+  if (!bypassCache) {
+    const cached = ecosystemCache.get(key);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+      return cached.data;
+    }
   }
 
   // 2. Comprobar si ya hay una petición en curso para este usuario
-  if (inFlightFetches.has(key)) {
+  if (!bypassCache && inFlightFetches.has(key)) {
     return inFlightFetches.get(key)!;
   }
 
@@ -117,8 +119,7 @@ export async function fetchEcosystemFromCloud(identifier: string): Promise<UserE
       clearTimeout(timeoutTimer);
     }
 
-    // 2. Solo consultar Firestore si el servidor no respondió o si se necesita verificar
-    // Con timeout de 3.5s mediante Promise.race para evitar que el socket de Firebase cuelgue la app
+    // 2. Consultar Firestore directo
     try {
       const firestorePromise = fetchDirectFromFirestore(key);
       const timeoutFallback = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3500));
@@ -138,7 +139,7 @@ export async function fetchEcosystemFromCloud(identifier: string): Promise<UserE
       // Merge patient banks non-destructively
       const mergedBank = [...(primary.patientBank || [])];
       for (const p of (secondary.patientBank || [])) {
-        if (!mergedBank.some(m => m.id === p.id || (m.patientName && p.patientName && m.patientName.toLowerCase().trim() === p.patientName.toLowerCase().trim()))) {
+        if (!mergedBank.some(m => m.id === p.id || (m.patientCI && p.patientCI && m.patientCI === p.patientCI) || (m.patientName && p.patientName && m.patientName.toLowerCase().trim() === p.patientName.toLowerCase().trim()))) {
           mergedBank.push(p);
         }
       }
@@ -310,7 +311,6 @@ export function applyEcosystemToLocalStorage(ecosystem: UserEcosystem): void {
       localStorage.setItem('digital_medic_custom_drugs_v2', JSON.stringify(ecosystem.customDrugs));
     }
 
-    // Persistir y propagar datos de cobro a este dispositivo
     if (ecosystem.paymentConfig && typeof ecosystem.paymentConfig === 'object') {
       const pm = ecosystem.paymentConfig.pagoMovil;
       const bin = ecosystem.paymentConfig.binance;

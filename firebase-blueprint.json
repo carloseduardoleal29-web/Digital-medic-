@@ -1,95 +1,85 @@
 {
   "entities": {
-    "Doctor": {
-      "title": "Doctor",
-      "description": "Doctor profile, visual header configuration, credentials, and digital seal/signature",
+    "Ecosystem": {
+      "title": "User Ecosystem",
+      "description": "Complete medical ecosystem containing doctor configuration, patients bank, recipes, indications, and reports for a given user.",
       "type": "object",
       "properties": {
-        "id": { "type": "string", "maxLength": 128 },
-        "doctorName": { "type": "string", "maxLength": 256 },
-        "specialty": { "type": "string", "maxLength": 256 },
-        "email": { "type": "string", "maxLength": 256 },
-        "ci": { "type": "string", "maxLength": 64 },
-        "mpps": { "type": "string", "maxLength": 64 },
-        "collegeNumber": { "type": "string", "maxLength": 64 },
-        "phone": { "type": "string", "maxLength": 64 },
-        "isAdmin": { "type": "boolean" },
-        "isPaidClient": { "type": "boolean" },
-        "paymentStatus": { "type": "string", "maxLength": 32 },
-        "updatedAt": { "type": "number" }
-      },
-      "required": ["id", "doctorName"]
-    },
-    "DoctorEcosystem": {
-      "title": "DoctorEcosystem",
-      "description": "Complete user workspace containing doctor config, colleague profiles, patient bank, recipes and reports",
-      "type": "object",
-      "properties": {
-        "identifier": { "type": "string", "maxLength": 128 },
-        "email": { "type": "string", "maxLength": 256 },
-        "ci": { "type": "string", "maxLength": 64 },
-        "doctorConfig": { "type": "object" },
-        "colleagueProfiles": { "type": "array" },
-        "patientBank": { "type": "array" },
-        "recipes": { "type": "array" },
-        "report": { "type": "object" },
-        "indications": { "type": "object" },
-        "rest": { "type": "object" },
-        "records": { "type": "array" },
-        "updatedAt": { "type": "number" }
+        "identifier": { "type": "string", "description": "Normalized identifier or email" },
+        "email": { "type": "string", "description": "Doctor's account email" },
+        "ci": { "type": "string", "description": "Doctor's identity number" },
+        "doctorConfig": { "type": "object", "description": "Active doctor configuration and design assets" },
+        "colleagueProfiles": { "type": "array", "description": "List of associated colleague doctor profiles" },
+        "patientBank": { "type": "array", "description": "Bank of saved patients for fast auto-fill" },
+        "recipes": { "type": "array", "description": "Active and saved prescription recipes" },
+        "report": { "type": "object", "description": "Medical report data" },
+        "indications": { "type": "object", "description": "Indications sheet data" },
+        "rest": { "type": "object", "description": "Medical rest certificate data" },
+        "records": { "type": "array", "description": "Clinical histories" },
+        "customDrugs": { "type": "array", "description": "Custom user drugs" },
+        "paymentConfig": { "type": "object", "description": "Payment methods configuration" },
+        "updatedAt": { "type": "number", "description": "Last updated timestamp in milliseconds" }
       },
       "required": ["identifier", "updatedAt"]
     },
-    "Document": {
-      "title": "Document",
-      "description": "Saved medical prescription or report document",
+    "DoctorConfig": {
+      "title": "Doctor Profile",
+      "description": "Individual doctor configuration and credentials",
       "type": "object",
       "properties": {
-        "id": { "type": "string", "maxLength": 128 },
-        "documentType": { "type": "string", "maxLength": 64 },
-        "documentTitle": { "type": "string", "maxLength": 256 },
-        "patientName": { "type": "string", "maxLength": 256 },
-        "patientCI": { "type": "string", "maxLength": 64 },
-        "date": { "type": "string", "maxLength": 32 },
-        "contentBody": { "type": "string", "maxLength": 100000 },
-        "doctorName": { "type": "string", "maxLength": 256 },
-        "timestamp": { "type": "number" },
-        "updatedAt": { "type": "number" }
+        "id": { "type": "string", "description": "Unique doctor ID" },
+        "doctorName": { "type": "string", "description": "Doctor full name" },
+        "email": { "type": "string", "description": "Doctor email address" },
+        "ci": { "type": "string", "description": "Identity card number" },
+        "specialty": { "type": "string", "description": "Medical specialty" },
+        "phone": { "type": "string", "description": "Contact phone number" },
+        "updatedAt": { "type": "number", "description": "Timestamp of last edit" }
       },
-      "required": ["id", "documentType", "patientName"]
+      "required": ["id"]
     },
-    "PaymentSettings": {
-      "title": "PaymentSettings",
-      "description": "Payment methods and Binance P2P rate configuration for doctor billing and subscriptions",
+    "PaymentConfig": {
+      "title": "Payment Configuration",
+      "description": "Central payment details for system subscriptions and billing",
       "type": "object",
       "properties": {
-        "pagoMovil": { "type": "object" },
-        "binance": { "type": "object" },
-        "zinli": { "type": "object" },
-        "adminWhatsapp": { "type": "string", "maxLength": 64 },
-        "tasaBinanceUsd": { "type": "number" },
-        "tasaFuente": { "type": "string", "maxLength": 128 },
-        "tasaUltimaActualizacion": { "type": "string", "maxLength": 64 },
-        "updatedAt": { "type": "number" }
+        "pagoMovil": { "type": "object", "description": "Pago movil details" },
+        "binance": { "type": "object", "description": "Binance Pay details" },
+        "zinli": { "type": "object", "description": "Zinli email" },
+        "tasaBinanceUsd": { "type": "number", "description": "Exchange rate" },
+        "updatedAt": { "type": "number", "description": "Timestamp of last change" }
       }
+    },
+    "DocumentRecord": {
+      "title": "Saved Document Record",
+      "description": "Shared document record for cross-device retrieval",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Document ID" },
+        "patientName": { "type": "string", "description": "Patient name" },
+        "patientCI": { "type": "string", "description": "Patient ID number" },
+        "date": { "type": "string", "description": "Issuance date string" },
+        "type": { "type": "string", "description": "Document type" },
+        "updatedAt": { "type": "number", "description": "Timestamp" }
+      },
+      "required": ["id", "patientName"]
     }
   },
   "firestore": {
+    "/ecosystems/{docKey}": {
+      "schema": "Ecosystem",
+      "description": "User ecosystem store indexed by normalized key"
+    },
     "/doctors/{doctorId}": {
-      "schema": "Doctor",
-      "description": "Collection of registered doctors and colleague configurations"
+      "schema": "DoctorConfig",
+      "description": "Individual doctor profiles"
     },
-    "/ecosystems/{ecosystemId}": {
-      "schema": "DoctorEcosystem",
-      "description": "Doctor workspace ecosystem sync data"
+    "/settings/payment_config": {
+      "schema": "PaymentConfig",
+      "description": "System payment settings"
     },
-    "/documents/{documentId}": {
-      "schema": "Document",
-      "description": "Saved medical prescriptions, reports, and records"
-    },
-    "/settings/{settingId}": {
-      "schema": "PaymentSettings",
-      "description": "App settings including official billing configuration and Binance rates"
+    "/documents/{docId}": {
+      "schema": "DocumentRecord",
+      "description": "Exported medical documents"
     }
   }
 }

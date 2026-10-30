@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   X, 
   Printer, 
@@ -22,6 +22,7 @@ import {
   MedicalRestCert, 
   IndicationsSheet, 
   ClinicalRecord,
+  LabOrder,
   ActiveModule 
 } from '../types';
 import { DocumentHeader } from './DocumentHeader';
@@ -40,6 +41,7 @@ interface UniversalPreviewModalProps {
   currentReport: MedicalReport;
   medicalRestCert: MedicalRestCert;
   indicationsSheet: IndicationsSheet;
+  labOrder?: LabOrder;
   clinicalRecord?: ClinicalRecord;
   onConfirmPrint: () => void;
   onConfirmDownloadPdf?: () => void;
@@ -56,6 +58,7 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
   currentReport,
   medicalRestCert,
   indicationsSheet,
+  labOrder,
   clinicalRecord,
   onConfirmPrint,
   onConfirmDownloadPdf,
@@ -63,19 +66,59 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
   const previewSheetRef = useRef<HTMLDivElement>(null);
   const [selectedPreviewModule, setSelectedPreviewModule] = useState<ActiveModule>(activeModule);
   const [recipePreviewSize, setRecipePreviewSize] = useState<'quarter' | 'half' | 'letter'>('quarter');
-  const [zoom, setZoom] = useState<number>(100);
   const [isSharing, setIsSharing] = useState<boolean>(false);
   const [shareSuccessNotice, setShareSuccessNotice] = useState<string>('');
+
+  const getBaseDocDimensions = () => {
+    switch (selectedPreviewModule) {
+      case 'recipe-master':
+        return {
+          baseW: recipePreviewSize === 'quarter' ? 420 : 780,
+          baseH: recipePreviewSize === 'quarter' ? 540 : 880
+        };
+      case 'recipe-4en1':
+      case 'diseno':
+        return { baseW: 816, baseH: 1056 };
+      case 'informes':
+        return { baseW: 780, baseH: 1050 };
+      case 'reposo':
+        return { baseW: 680, baseH: 880 };
+      case 'indicaciones':
+        return { baseW: 680, baseH: 900 };
+      case 'examenes':
+        return { baseW: 780, baseH: 1050 };
+      case 'historias':
+      default:
+        return { baseW: 780, baseH: 1000 };
+    }
+  };
 
   const calculateMobileFitZoom = () => {
     if (typeof window === 'undefined') return 100;
     const w = window.innerWidth;
-    if (w < 860) {
-      const fit = Math.floor(((w - 24) / 816) * 100);
-      return Math.min(100, Math.max(32, fit));
+    const { baseW } = getBaseDocDimensions();
+    if (w < baseW + 30) {
+      const fit = Math.floor(((w - 20) / baseW) * 100);
+      return Math.min(100, Math.max(30, fit));
     }
     return 100;
   };
+
+  const [zoom, setZoom] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const w = window.innerWidth;
+      if (w < 860) {
+        return Math.floor(((w - 20) / 780) * 100);
+      }
+    }
+    return 100;
+  });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 860) {
+      setZoom(calculateMobileFitZoom());
+    }
+  }, [selectedPreviewModule, recipePreviewSize, isOpen]);
 
   const getDocumentPatientAndDate = () => {
     let patientName = '';
@@ -101,6 +144,12 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
         docDate = indicationsSheet?.date || '';
         patientPhone = indicationsSheet?.patientPhone || '';
         prefix = 'Indicaciones';
+        break;
+      case 'examenes':
+        patientName = labOrder?.patientName || '';
+        docDate = labOrder?.date || '';
+        patientPhone = labOrder?.patientPhone || '';
+        prefix = 'Orden_Examenes';
         break;
       case 'historias':
         patientName = clinicalRecord?.patientName || '';
@@ -130,6 +179,9 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
         break;
       case 'indicaciones':
         docName = 'hoja de indicaciones';
+        break;
+      case 'examenes':
+        docName = 'orden de exámenes médicos';
         break;
       case 'historias':
         docName = 'historia clínica';
@@ -270,6 +322,13 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
           widthClass: 'w-[680px] min-h-[900px]',
           sheetBadge: 'Indicaciones Médicas Claras',
         };
+      case 'examenes':
+        return {
+          name: 'Orden de Exámenes y Laboratorios',
+          sizeName: 'Hoja Carta Completa (Orden Médica Oficial)',
+          widthClass: 'w-full max-w-[780px] min-h-[1050px]',
+          sheetBadge: 'Orden de Exámenes Oficial',
+        };
       case 'historias':
       default:
         return {
@@ -287,33 +346,63 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
     <div className="fixed inset-0 z-50 flex flex-col bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-150">
       
       {/* Top Header & Document Switcher */}
-      <div className="px-5 py-3.5 bg-slate-900 border-b border-slate-800 flex items-center justify-between text-white shrink-0 shadow-xl">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md">
-            <Eye className="w-5 h-5" />
+      <div className="px-3 sm:px-5 py-2.5 sm:py-3.5 bg-slate-900 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2 text-white shrink-0 shadow-xl">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md shrink-0">
+            <Eye className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h2 className="font-bold text-sm sm:text-base text-white">Vista Previa del Formato Oficial</h2>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <h2 className="font-bold text-xs sm:text-base text-white">Vista Previa Oficial</h2>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30 flex items-center gap-1">
                 <CheckCircle2 className="w-3 h-3" /> {specs.sheetBadge.replace('4 en 1', 'Récipes')}
               </span>
             </div>
-            <p className="text-xs text-slate-400">
-              Formato exacto: <span className="text-slate-200 font-semibold">{specs.sizeName}</span> · Vista previa fiel de cómo queda
+            <p className="text-[11px] sm:text-xs text-slate-400 hidden sm:block">
+              Formato exacto: <span className="text-slate-200 font-semibold">{specs.sizeName}</span>
             </p>
           </div>
         </div>
 
-        {/* UN SOLO BOTÓN PARA SALIR DE ALLÍ */}
-        <button
-          onClick={onClose}
-          className="px-5 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl font-black text-xs flex items-center gap-2 shadow-lg shadow-red-600/30 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer"
-          title="Salir de la Vista Previa"
-        >
-          <X className="w-4 h-4" />
-          <span>Salir de la Vista Previa</span>
-        </button>
+        {/* Zoom Controls & Exit Button */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center bg-slate-800 rounded-xl p-1 border border-slate-700 text-xs">
+            <button
+              type="button"
+              onClick={() => setZoom((z) => Math.max(30, z - 10))}
+              className="p-1 hover:bg-slate-700 rounded-lg text-slate-300 transition-colors"
+              title="Alejar"
+            >
+              <ZoomOut className="w-3.5 h-3.5" />
+            </button>
+            <span className="px-1.5 font-mono font-black text-[11px] text-slate-200">{zoom}%</span>
+            <button
+              type="button"
+              onClick={() => setZoom((z) => Math.min(130, z + 10))}
+              className="p-1 hover:bg-slate-700 rounded-lg text-slate-300 transition-colors"
+              title="Acercar"
+            >
+              <ZoomIn className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setZoom(calculateMobileFitZoom())}
+              className="px-1.5 py-0.5 hover:bg-slate-700 rounded-lg text-[10px] font-bold text-cyan-400 ml-0.5"
+              title="Ajustar a Pantalla"
+            >
+              Fit
+            </button>
+          </div>
+
+          <button
+            onClick={onClose}
+            className="px-3.5 py-1.5 sm:px-5 sm:py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl font-black text-xs flex items-center gap-1.5 shadow-lg shadow-red-600/30 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer shrink-0"
+            title="Salir de la Vista Previa"
+          >
+            <X className="w-4 h-4" />
+            <span>Salir</span>
+          </button>
+        </div>
       </div>
 
       {/* Floating Notice Banner when PDF is downloaded or shared */}
@@ -324,16 +413,38 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
         </div>
       )}
 
-      {/* Main Canvas with the exact sheet rendered */}
-      <div className="flex-1 overflow-auto p-2 sm:p-4 md:p-6 flex justify-center items-start bg-slate-950/70">
-        <div 
-          ref={previewSheetRef}
-          className="my-3 transition-all"
-          style={{ 
-            zoom: zoom / 100,
-            transformOrigin: 'top center'
-          }}
-        >
+      {/* Main Canvas with the exact sheet rendered (Zero-Coordinate Scaling Container) */}
+      {(() => {
+        const { baseW, baseH } = getBaseDocDimensions();
+        const scale = zoom / 100;
+        const scaledW = Math.round(baseW * scale);
+        const scaledH = Math.round(baseH * scale);
+
+        return (
+          <div className="flex-1 overflow-x-auto overflow-y-auto touch-pan-x p-2 sm:p-4 flex justify-center items-start bg-slate-950/70 min-h-[350px]" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <div
+              style={{
+                width: `${scaledW}px`,
+                height: `${scaledH}px`,
+                position: 'relative',
+                margin: '0 auto',
+                flexShrink: 0,
+              }}
+            >
+              <div 
+                ref={previewSheetRef}
+                className="transition-transform duration-200"
+                style={{ 
+                  width: `${baseW}px`,
+                  minHeight: `${baseH}px`,
+                  transform: `scale(${scale})`,
+                  WebkitTransform: `scale(${scale})`,
+                  transformOrigin: 'top left',
+                  position: 'absolute',
+                  left: 0,
+                  top: 0,
+                }}
+              >
 
           {/* ========================================================= */}
           {/* CASE 1: RÉCIPE MÉDICO NORMAL (1 SOLO RÉCIPE EN HOJA COMPLETA) */}
@@ -495,7 +606,7 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
             <div
               className={`relative w-full max-w-[816px] h-[1056px] min-h-[1056px] max-h-[1056px] bg-white shadow-2xl transition-all print-container recipe-4en1-container ${textureClass} ${
                 config.enforcePureBlackText ? 'enforce-pure-black' : ''
-              }`}
+              } preview-mode`}
               style={{
                 backgroundColor: config.tonePapel || '#ffffff',
                 border: borderStyle,
@@ -545,7 +656,7 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
                         patientName: 'Carlos leal',
                         patientAge: '35 años',
                         patientCI: 'V-18.456.789',
-                        date: '14/10/26',
+                        date: new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date()),
                         diagnosis: 'Consulta médica general',
                         rp: '',
                         indicationsNotes: '',
@@ -601,7 +712,7 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
                           </div>
                           <div className="text-right">
                             <span className="font-bold text-slate-700">Fecha: </span>
-                            <span className="text-slate-800">{targetRec?.date || '14/10/26'}</span>
+                            <span className="text-slate-800">{targetRec?.date || new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date())}</span>
                           </div>
                         </div>
                       </div>
@@ -647,7 +758,7 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
             <div
               className={`relative ${specs.widthClass} bg-white shadow-2xl p-6 sm:p-7 transition-all flex flex-col justify-between print-container report-sheet-container ${textureClass} ${
                 config.enforcePureBlackText ? 'enforce-pure-black' : ''
-              }`}
+              } preview-mode`}
               style={{
                 backgroundColor: config.tonePapel || '#ffffff',
                 border: borderStyle,
@@ -801,7 +912,7 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
             <div
               className={`relative ${specs.widthClass} bg-white shadow-2xl p-8 transition-all flex flex-col justify-between print-container rest-container ${textureClass} ${
                 config.enforcePureBlackText ? 'enforce-pure-black' : ''
-              }`}
+              } preview-mode`}
               style={{
                 backgroundColor: config.tonePapel || '#ffffff',
                 border: borderStyle,
@@ -899,7 +1010,7 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
             <div
               className={`relative ${specs.widthClass} bg-white shadow-2xl p-8 transition-all flex flex-col justify-between print-container indications-container ${textureClass} ${
                 config.enforcePureBlackText ? 'enforce-pure-black' : ''
-              }`}
+              } preview-mode`}
               style={{
                 backgroundColor: config.tonePapel || '#ffffff',
                 border: borderStyle,
@@ -1026,8 +1137,150 @@ export const UniversalPreviewModal: React.FC<UniversalPreviewModalProps> = ({
             </div>
           )}
 
-        </div>
-      </div>
+          {/* ========================================================= */}
+          {/* CASE 6: ORDEN DE EXÁMENES Y ESTUDIOS PARACLÍNICOS        */}
+          {/* ========================================================= */}
+          {selectedPreviewModule === 'examenes' && (() => {
+            const safeExamsOrder = labOrder || {
+              id: 'ORD-LAB-01',
+              patientName: '',
+              patientCI: '',
+              patientAge: '',
+              patientPhone: '',
+              date: '',
+              diagnosis: '',
+              selectedExams: [],
+              customExams: [],
+              patientInstructions: '',
+            };
+            const allStudies = [...(safeExamsOrder.selectedExams || []), ...(safeExamsOrder.customExams || [])];
+
+            return (
+              <div
+                className={`relative ${specs.widthClass} bg-white shadow-2xl p-8 transition-all flex flex-col justify-between print-container ${textureClass} ${
+                  config.enforcePureBlackText ? 'enforce-pure-black' : ''
+                } preview-mode`}
+                style={{
+                  backgroundColor: config.tonePapel || '#ffffff',
+                  border: borderStyle,
+                  borderRadius: config.docCornerRadius || '16px',
+                }}
+              >
+                {config.marcaAgua && !config.marcaAgua.includes('DIGITAL') && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
+                    <img
+                      src={config.marcaAgua}
+                      alt="Marca de agua"
+                      className="marca-agua-img"
+                      style={{
+                        opacity: config.watermarkOpacity ?? 0.12,
+                        width: `${config.watermarkScale || 55}%`,
+                        transform: `rotate(${config.watermarkRotation || 0}deg)`,
+                      }}
+                    />
+                  </div>
+                )}
+
+                <div className="relative z-10 flex flex-col h-full flex-1 justify-between min-h-[900px]">
+                  <div>
+                    <DocumentHeader config={config} compact={false} editableInline={false} />
+
+                    <div className="text-center my-3 pb-2 border-b border-slate-200">
+                      <h1
+                        className="text-base font-black tracking-wide uppercase"
+                        style={{ color: config.primaryDocColor }}
+                      >
+                        ORDEN DE EXÁMENES Y ESTUDIOS PARACLÍNICOS
+                      </h1>
+                    </div>
+
+                    {/* Patient Bar */}
+                    <div
+                      className="py-2.5 px-4 bg-slate-50/90 border border-slate-200/90 rounded-xl mb-4 space-y-2 text-xs"
+                      style={{ fontSize: config.patientBarSize || '12px' }}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div>
+                          <span className="text-slate-500 font-bold block uppercase text-[10px]">Paciente:</span>
+                          <strong className="text-slate-900 text-sm">{safeExamsOrder.patientName || '___________________________'}</strong>
+                        </div>
+                        <div>
+                          <span className="text-slate-500 font-bold block uppercase text-[10px] text-right">Cédula / Documento:</span>
+                          <span className="font-bold text-slate-900 text-right block">{safeExamsOrder.patientCI || '____________'}</span>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2 pt-1 border-t border-slate-100">
+                        <div>
+                          <span className="text-slate-500 font-bold block uppercase text-[10px]">Edad:</span>
+                          <span className="font-bold text-slate-800">{safeExamsOrder.patientAge || '____ años'}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500 font-bold block uppercase text-[10px]">Teléfono:</span>
+                          <span className="font-bold text-slate-800">{safeExamsOrder.patientPhone || '____________'}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500 font-bold block uppercase text-[10px] text-right">Fecha:</span>
+                          <span className="font-bold text-slate-800 text-right block">{safeExamsOrder.date || '—'}</span>
+                        </div>
+                      </div>
+
+                      {safeExamsOrder.diagnosis && (
+                        <div className="pt-1 border-t border-slate-100">
+                          <span className="text-slate-500 font-bold block uppercase text-[10px]">Motivo / Diagnóstico:</span>
+                          <span className="font-bold text-slate-900">{safeExamsOrder.diagnosis}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Studies list */}
+                    <div className="space-y-4 my-4">
+                      <div className="bg-slate-50/70 p-3.5 rounded-xl border border-slate-200">
+                        <span className="block text-xs font-black uppercase text-slate-700 tracking-wider mb-2">
+                          ESTUDIOS SOLICITADOS:
+                        </span>
+
+                        {allStudies.length > 0 ? (
+                          <ol className="space-y-2 text-xs sm:text-sm font-semibold text-slate-900 list-decimal list-inside pl-1">
+                            {allStudies.map((study, idx) => (
+                              <li key={idx} className="leading-relaxed py-0.5 border-b border-slate-100 last:border-0">
+                                <strong className="font-black text-slate-950">{study}</strong>
+                              </li>
+                            ))}
+                          </ol>
+                        ) : (
+                          <div className="py-6 text-center text-slate-400 italic text-sm">
+                            (No se han seleccionado estudios en la orden)
+                          </div>
+                        )}
+                      </div>
+
+                      {safeExamsOrder.patientInstructions && (
+                        <div className="p-3.5 bg-blue-50/40 rounded-xl border border-blue-100 text-xs sm:text-sm">
+                          <span className="block text-xs font-black uppercase text-blue-900 tracking-wider mb-1">
+                            ⚠️ INSTRUCCIONES Y PREPARACIÓN PREVIA:
+                          </span>
+                          <p className="text-slate-800 font-medium whitespace-pre-line leading-relaxed">
+                            {safeExamsOrder.patientInstructions}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mt-4 pt-2">
+                    <DocumentFooter config={config} compact={false} editableInline={false} />
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
     </div>
   );

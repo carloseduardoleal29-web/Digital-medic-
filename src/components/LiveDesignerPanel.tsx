@@ -27,6 +27,7 @@ import {
 import { DoctorConfig } from '../types';
 import { compressImageBase64, compressDoctorConfigImages } from '../utils/imageCompressor';
 import { 
+  DIGITAL_MEDIC_OFFICIAL_LOGO_SVG,
   CADUCEUS_SVG, 
   MEDICAL_SHIELD_SVG, 
   HOSPITAL_EMBLEM_SVG, 
@@ -97,6 +98,14 @@ export const LiveDesignerPanel: React.FC<LiveDesignerPanelProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [logoModalSide, setLogoModalSide] = useState<'logoIzq' | 'logoDer' | null>(null);
 
+  const selectLogoAndEnsureVisible = (side: 'logoIzq' | 'logoDer', val: string) => {
+    const updates: Partial<DoctorConfig> = { [side]: val };
+    if (config.headerLayout === 'solo-texto' || config.headerLayout === 'sin-logos') {
+      updates.headerLayout = 'ambos-logos';
+    }
+    onUpdateConfig(updates);
+  };
+
   const handleFileUpload = (
     e: React.ChangeEvent<HTMLInputElement>,
     field: 'logoIzq' | 'logoDer' | 'marcaAgua' | 'selloFirma' | 'selloImg' | 'firmaImg'
@@ -115,8 +124,11 @@ export const LiveDesignerPanel: React.FC<LiveDesignerPanelProps> = ({
         // Auto-compress image using canvas to max 300x300 to ensure payload < 50KB for Firestore
         finalData = await compressImageBase64(finalData, 300, 0.8);
         
-        const keyToUpdate = field === 'logoIzq' ? 'logoImg' : field;
-        onUpdateConfig({ [keyToUpdate]: finalData });
+        const updates: Partial<DoctorConfig> = { [field]: finalData };
+        if ((field === 'logoIzq' || field === 'logoDer') && (config.headerLayout === 'solo-texto' || config.headerLayout === 'sin-logos')) {
+          updates.headerLayout = 'ambos-logos';
+        }
+        onUpdateConfig(updates);
       }
     };
     reader.readAsDataURL(file);
@@ -282,13 +294,13 @@ export const LiveDesignerPanel: React.FC<LiveDesignerPanelProps> = ({
 
       {/* Document View Switcher (Récipe, Indicaciones, Reposo, Informes) */}
       {onSelectPreviewDoc && (
-        <div className="p-2.5 bg-slate-900 text-white border-b border-slate-800 flex items-center justify-between gap-2 text-xs">
-          <span className="text-[11px] font-black text-white shrink-0">Ver en Pantalla:</span>
-          <div className="flex items-center gap-1 overflow-x-auto">
+        <div className="p-2 bg-slate-900 text-white border-b border-slate-800 flex items-center justify-between gap-1.5 text-xs overflow-hidden">
+          <span className="text-[10.5px] font-black text-white shrink-0">Ver en Pantalla:</span>
+          <div className="flex items-center gap-1 overflow-x-auto scrollbar-none touch-pan-x flex-nowrap min-w-0 py-0.5">
             <button
               type="button"
               onClick={() => onSelectPreviewDoc('recipe')}
-              className={`px-2 py-1 rounded-md text-[11px] font-black transition-colors whitespace-nowrap ${
+              className={`px-2 py-1 rounded-md text-[10.5px] font-black transition-colors whitespace-nowrap shrink-0 ${
                 activePreviewDoc === 'recipe'
                   ? 'bg-blue-600 text-white shadow-xs'
                   : 'bg-slate-800 text-white hover:bg-slate-700'
@@ -299,7 +311,7 @@ export const LiveDesignerPanel: React.FC<LiveDesignerPanelProps> = ({
             <button
               type="button"
               onClick={() => onSelectPreviewDoc('recipe-4en1')}
-              className={`px-2 py-1 rounded-md text-[11px] font-black transition-colors whitespace-nowrap ${
+              className={`px-2 py-1 rounded-md text-[10.5px] font-black transition-colors whitespace-nowrap shrink-0 ${
                 activePreviewDoc === 'recipe-4en1'
                   ? 'bg-blue-600 text-white shadow-xs'
                   : 'bg-slate-800 text-white hover:bg-slate-700'
@@ -310,7 +322,7 @@ export const LiveDesignerPanel: React.FC<LiveDesignerPanelProps> = ({
             <button
               type="button"
               onClick={() => onSelectPreviewDoc('indicaciones')}
-              className={`px-2 py-1 rounded-md text-[11px] font-black transition-colors whitespace-nowrap ${
+              className={`px-2 py-1 rounded-md text-[10.5px] font-black transition-colors whitespace-nowrap shrink-0 ${
                 activePreviewDoc === 'indicaciones'
                   ? 'bg-blue-600 text-white shadow-xs'
                   : 'bg-slate-800 text-white hover:bg-slate-700'
@@ -321,7 +333,7 @@ export const LiveDesignerPanel: React.FC<LiveDesignerPanelProps> = ({
             <button
               type="button"
               onClick={() => onSelectPreviewDoc('reposo')}
-              className={`px-2 py-1 rounded-md text-[11px] font-black transition-colors whitespace-nowrap ${
+              className={`px-2 py-1 rounded-md text-[10.5px] font-black transition-colors whitespace-nowrap shrink-0 ${
                 activePreviewDoc === 'reposo'
                   ? 'bg-blue-600 text-white shadow-xs'
                   : 'bg-slate-800 text-white hover:bg-slate-700'
@@ -332,7 +344,7 @@ export const LiveDesignerPanel: React.FC<LiveDesignerPanelProps> = ({
             <button
               type="button"
               onClick={() => onSelectPreviewDoc('informes')}
-              className={`px-2 py-1 rounded-md text-[11px] font-black transition-colors whitespace-nowrap ${
+              className={`px-2 py-1 rounded-md text-[10.5px] font-black transition-colors whitespace-nowrap shrink-0 ${
                 activePreviewDoc === 'informes'
                   ? 'bg-blue-600 text-white shadow-xs'
                   : 'bg-slate-800 text-white hover:bg-slate-700'
@@ -366,20 +378,20 @@ export const LiveDesignerPanel: React.FC<LiveDesignerPanelProps> = ({
       )}
 
       {/* Studio Navigation Tabs */}
-      <div className="flex border-b border-slate-200 overflow-x-auto text-xs font-bold px-2 pt-2 bg-slate-50 gap-1">
+      <div className="flex border-b border-slate-200 overflow-x-auto text-[11px] sm:text-xs font-bold px-1.5 pt-1.5 bg-slate-50 gap-1 scrollbar-none touch-pan-x min-w-0">
         <button
           onClick={() => setActiveSection('colores')}
-          className={`px-3 py-2 border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+          className={`px-2.5 py-1.5 border-b-2 transition-colors whitespace-nowrap flex items-center gap-1 cursor-pointer shrink-0 ${
             activeSection === 'colores' ? 'border-indigo-600 text-black font-black bg-white rounded-t-lg shadow-2xs' : 'border-transparent text-slate-800 hover:text-black font-bold'
           }`}
         >
           <Palette className="w-3.5 h-3.5 text-indigo-600" />
-          <span>1. Colores & Paletas PRO</span>
+          <span>1. Colores & Paletas</span>
         </button>
 
         <button
           onClick={() => setActiveSection('letras')}
-          className={`px-3 py-2 border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+          className={`px-2.5 py-1.5 border-b-2 transition-colors whitespace-nowrap flex items-center gap-1 cursor-pointer shrink-0 ${
             activeSection === 'letras' ? 'border-indigo-600 text-black font-black bg-white rounded-t-lg shadow-2xs' : 'border-transparent text-slate-800 hover:text-black font-bold'
           }`}
         >
@@ -389,17 +401,17 @@ export const LiveDesignerPanel: React.FC<LiveDesignerPanelProps> = ({
 
         <button
           onClick={() => setActiveSection('recipes')}
-          className={`px-3 py-2 border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+          className={`px-2.5 py-1.5 border-b-2 transition-colors whitespace-nowrap flex items-center gap-1 cursor-pointer shrink-0 ${
             activeSection === 'recipes' ? 'border-indigo-600 text-black font-black bg-white rounded-t-lg shadow-2xs' : 'border-transparent text-slate-800 hover:text-black font-bold'
           }`}
         >
           <FileText className="w-3.5 h-3.5 text-emerald-600" />
-          <span>3. Récipes & Formatos</span>
+          <span>3. Formatos</span>
         </button>
 
         <button
           onClick={() => setActiveSection('logos')}
-          className={`px-3 py-2 border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+          className={`px-2.5 py-1.5 border-b-2 transition-colors whitespace-nowrap flex items-center gap-1 cursor-pointer shrink-0 ${
             activeSection === 'logos' ? 'border-indigo-600 text-black font-black bg-white rounded-t-lg shadow-2xs' : 'border-transparent text-slate-800 hover:text-black font-bold'
           }`}
         >
@@ -409,7 +421,7 @@ export const LiveDesignerPanel: React.FC<LiveDesignerPanelProps> = ({
 
         <button
           onClick={() => setActiveSection('marcaAgua')}
-          className={`px-3 py-2 border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+          className={`px-2.5 py-1.5 border-b-2 transition-colors whitespace-nowrap flex items-center gap-1 cursor-pointer shrink-0 ${
             activeSection === 'marcaAgua' ? 'border-indigo-600 text-black font-black bg-white rounded-t-lg shadow-2xs' : 'border-transparent text-slate-800 hover:text-black font-bold'
           }`}
         >
@@ -419,7 +431,7 @@ export const LiveDesignerPanel: React.FC<LiveDesignerPanelProps> = ({
 
         <button
           onClick={() => setActiveSection('firma')}
-          className={`px-3 py-2 border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+          className={`px-2.5 py-1.5 border-b-2 transition-colors whitespace-nowrap flex items-center gap-1 cursor-pointer shrink-0 ${
             activeSection === 'firma' ? 'border-indigo-600 text-black font-black bg-white rounded-t-lg shadow-2xs' : 'border-transparent text-slate-800 hover:text-black font-bold'
           }`}
         >
@@ -429,7 +441,7 @@ export const LiveDesignerPanel: React.FC<LiveDesignerPanelProps> = ({
 
         <button
           onClick={() => setActiveSection('perfil')}
-          className={`px-3 py-2 border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+          className={`px-2.5 py-1.5 border-b-2 transition-colors whitespace-nowrap flex items-center gap-1 cursor-pointer shrink-0 ${
             activeSection === 'perfil' ? 'border-indigo-600 text-black font-black bg-white rounded-t-lg shadow-2xs' : 'border-transparent text-slate-800 hover:text-black font-bold'
           }`}
         >
@@ -800,21 +812,22 @@ export const LiveDesignerPanel: React.FC<LiveDesignerPanelProps> = ({
 
                   <div className="flex flex-wrap gap-1 text-[10px]">
                     <span className="text-black font-bold self-center">Especialidades:</span>
-                    <button onClick={() => onUpdateConfig({ logoIzq: CADUCEUS_SVG })} className="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 rounded text-black font-bold border border-slate-300">Caduceo</button>
-                    <button onClick={() => onUpdateConfig({ logoIzq: MEDICINE_EMBLEM_ESCULAPIO_SVG })} className="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 rounded text-black font-bold border border-slate-300">Esculapio</button>
-                    <button onClick={() => onUpdateConfig({ logoIzq: ANESTHESIOLOGY_LARYNGOSCOPE_SVG })} className="px-1.5 py-0.5 bg-sky-100 hover:bg-sky-200 text-sky-900 rounded font-bold border border-sky-300">Anestesia</button>
-                    <button onClick={() => onUpdateConfig({ logoIzq: OBSTETRICS_PREGNANCY_SVG })} className="px-1.5 py-0.5 bg-pink-100 hover:bg-pink-200 text-pink-900 rounded font-bold border border-pink-300">Obstetricia</button>
-                    <button onClick={() => onUpdateConfig({ logoIzq: PEDIATRICS_BABY_FOOTPRINT_SVG })} className="px-1.5 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded font-bold border border-amber-300">Pediatría</button>
-                    <button onClick={() => onUpdateConfig({ logoIzq: SURGERY_SCALPEL_SVG })} className="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 rounded text-black font-bold border border-slate-300">Cirugía</button>
-                    <button onClick={() => onUpdateConfig({ logoIzq: CARDIOLOGY_PULSE_SVG })} className="px-1.5 py-0.5 bg-rose-100 hover:bg-rose-200 text-rose-900 rounded font-bold border border-rose-300">Cardio</button>
-                    <button onClick={() => onUpdateConfig({ logoIzq: TRAUMATOLOGY_BONE_SPINE_SVG })} className="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 rounded text-black font-bold border border-slate-300">Traumato</button>
-                    <button onClick={() => onUpdateConfig({ logoIzq: PULMONOLOGY_LUNGS_SVG })} className="px-1.5 py-0.5 bg-blue-100 hover:bg-blue-200 text-blue-900 rounded font-bold border border-blue-300">Neumo</button>
-                    <button onClick={() => onUpdateConfig({ logoIzq: NEUROLOGY_BRAIN_SVG })} className="px-1.5 py-0.5 bg-purple-100 hover:bg-purple-200 text-purple-900 rounded font-bold border border-purple-300">Neuro</button>
-                    <button onClick={() => onUpdateConfig({ logoIzq: DENTAL_EMBLEM_SVG })} className="px-1.5 py-0.5 bg-teal-100 hover:bg-teal-200 text-teal-900 rounded font-bold border border-teal-300">Odonto</button>
-                    <button onClick={() => onUpdateConfig({ logoIzq: OPHTHALMOLOGY_EYE_SVG })} className="px-1.5 py-0.5 bg-indigo-100 hover:bg-indigo-200 text-indigo-900 rounded font-bold border border-indigo-300">Oftalmo</button>
-                    <button onClick={() => onUpdateConfig({ logoIzq: DERMATOLOGY_SKIN_SVG })} className="px-1.5 py-0.5 bg-orange-100 hover:bg-orange-200 text-orange-900 rounded font-bold border border-orange-300">Dermato</button>
-                    <button onClick={() => onUpdateConfig({ logoIzq: PSYCHOLOGY_PSI_SVG })} className="px-1.5 py-0.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-900 rounded font-bold border border-emerald-300">Psico</button>
-                    <button onClick={() => onUpdateConfig({ logoIzq: MEDICAL_SHIELD_SVG })} className="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 rounded text-black font-bold border border-slate-300">Cruz</button>
+                    <button onClick={() => selectLogoAndEnsureVisible('logoIzq', DIGITAL_MEDIC_OFFICIAL_LOGO_SVG)} className="px-1.5 py-0.5 bg-blue-600 hover:bg-blue-700 text-white font-black rounded border border-blue-500 shadow-2xs cursor-pointer">Logo App</button>
+                    <button onClick={() => selectLogoAndEnsureVisible('logoIzq', CADUCEUS_SVG)} className="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 rounded text-black font-bold border border-slate-300">Caduceo</button>
+                    <button onClick={() => selectLogoAndEnsureVisible('logoIzq', MEDICINE_EMBLEM_ESCULAPIO_SVG)} className="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 rounded text-black font-bold border border-slate-300">Esculapio</button>
+                    <button onClick={() => selectLogoAndEnsureVisible('logoIzq', ANESTHESIOLOGY_LARYNGOSCOPE_SVG)} className="px-1.5 py-0.5 bg-sky-100 hover:bg-sky-200 text-sky-900 rounded font-bold border border-sky-300">Anestesia</button>
+                    <button onClick={() => selectLogoAndEnsureVisible('logoIzq', OBSTETRICS_PREGNANCY_SVG)} className="px-1.5 py-0.5 bg-pink-100 hover:bg-pink-200 text-pink-900 rounded font-bold border border-pink-300">Obstetricia</button>
+                    <button onClick={() => selectLogoAndEnsureVisible('logoIzq', PEDIATRICS_BABY_FOOTPRINT_SVG)} className="px-1.5 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded font-bold border border-amber-300">Pediatría</button>
+                    <button onClick={() => selectLogoAndEnsureVisible('logoIzq', SURGERY_SCALPEL_SVG)} className="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 rounded text-black font-bold border border-slate-300">Cirugía</button>
+                    <button onClick={() => selectLogoAndEnsureVisible('logoIzq', CARDIOLOGY_PULSE_SVG)} className="px-1.5 py-0.5 bg-rose-100 hover:bg-rose-200 text-rose-900 rounded font-bold border border-rose-300">Cardio</button>
+                    <button onClick={() => selectLogoAndEnsureVisible('logoIzq', TRAUMATOLOGY_BONE_SPINE_SVG)} className="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 rounded text-black font-bold border border-slate-300">Traumato</button>
+                    <button onClick={() => selectLogoAndEnsureVisible('logoIzq', PULMONOLOGY_LUNGS_SVG)} className="px-1.5 py-0.5 bg-blue-100 hover:bg-blue-200 text-blue-900 rounded font-bold border border-blue-300">Neumo</button>
+                    <button onClick={() => selectLogoAndEnsureVisible('logoIzq', NEUROLOGY_BRAIN_SVG)} className="px-1.5 py-0.5 bg-purple-100 hover:bg-purple-200 text-purple-900 rounded font-bold border border-purple-300">Neuro</button>
+                    <button onClick={() => selectLogoAndEnsureVisible('logoIzq', DENTAL_EMBLEM_SVG)} className="px-1.5 py-0.5 bg-teal-100 hover:bg-teal-200 text-teal-900 rounded font-bold border border-teal-300">Odonto</button>
+                    <button onClick={() => selectLogoAndEnsureVisible('logoIzq', OPHTHALMOLOGY_EYE_SVG)} className="px-1.5 py-0.5 bg-indigo-100 hover:bg-indigo-200 text-indigo-900 rounded font-bold border border-indigo-300">Oftalmo</button>
+                    <button onClick={() => selectLogoAndEnsureVisible('logoIzq', DERMATOLOGY_SKIN_SVG)} className="px-1.5 py-0.5 bg-orange-100 hover:bg-orange-200 text-orange-900 rounded font-bold border border-orange-300">Dermato</button>
+                    <button onClick={() => selectLogoAndEnsureVisible('logoIzq', PSYCHOLOGY_PSI_SVG)} className="px-1.5 py-0.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-900 rounded font-bold border border-emerald-300">Psico</button>
+                    <button onClick={() => selectLogoAndEnsureVisible('logoIzq', MEDICAL_SHIELD_SVG)} className="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 rounded text-black font-bold border border-slate-300">Cruz</button>
                   </div>
                 </div>
               </div>
@@ -873,21 +886,22 @@ export const LiveDesignerPanel: React.FC<LiveDesignerPanelProps> = ({
 
                   <div className="flex flex-wrap gap-1 text-[10px]">
                     <span className="text-black font-bold self-center">Especialidades:</span>
-                    <button onClick={() => onUpdateConfig({ logoDer: MEDICAL_SHIELD_SVG })} className="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 rounded text-black font-bold border border-slate-300">Cruz</button>
-                    <button onClick={() => onUpdateConfig({ logoDer: CADUCEUS_SVG })} className="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 rounded text-black font-bold border border-slate-300">Caduceo</button>
-                    <button onClick={() => onUpdateConfig({ logoDer: MEDICINE_EMBLEM_ESCULAPIO_SVG })} className="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 rounded text-black font-bold border border-slate-300">Esculapio</button>
-                    <button onClick={() => onUpdateConfig({ logoDer: ANESTHESIOLOGY_LARYNGOSCOPE_SVG })} className="px-1.5 py-0.5 bg-sky-100 hover:bg-sky-200 text-sky-900 rounded font-bold border border-sky-300">Anestesia</button>
-                    <button onClick={() => onUpdateConfig({ logoDer: OBSTETRICS_PREGNANCY_SVG })} className="px-1.5 py-0.5 bg-pink-100 hover:bg-pink-200 text-pink-900 rounded font-bold border border-pink-300">Obstetricia</button>
-                    <button onClick={() => onUpdateConfig({ logoDer: PEDIATRICS_BABY_FOOTPRINT_SVG })} className="px-1.5 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded font-bold border border-amber-300">Pediatría</button>
-                    <button onClick={() => onUpdateConfig({ logoDer: SURGERY_SCALPEL_SVG })} className="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 rounded text-black font-bold border border-slate-300">Cirugía</button>
-                    <button onClick={() => onUpdateConfig({ logoDer: CARDIOLOGY_PULSE_SVG })} className="px-1.5 py-0.5 bg-rose-100 hover:bg-rose-200 text-rose-900 rounded font-bold border border-rose-300">Cardio</button>
-                    <button onClick={() => onUpdateConfig({ logoDer: TRAUMATOLOGY_BONE_SPINE_SVG })} className="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 rounded text-black font-bold border border-slate-300">Traumato</button>
-                    <button onClick={() => onUpdateConfig({ logoDer: PULMONOLOGY_LUNGS_SVG })} className="px-1.5 py-0.5 bg-blue-100 hover:bg-blue-200 text-blue-900 rounded font-bold border border-blue-300">Neumo</button>
-                    <button onClick={() => onUpdateConfig({ logoDer: NEUROLOGY_BRAIN_SVG })} className="px-1.5 py-0.5 bg-purple-100 hover:bg-purple-200 text-purple-900 rounded font-bold border border-purple-300">Neuro</button>
-                    <button onClick={() => onUpdateConfig({ logoDer: DENTAL_EMBLEM_SVG })} className="px-1.5 py-0.5 bg-teal-100 hover:bg-teal-200 text-teal-900 rounded font-bold border border-teal-300">Odonto</button>
-                    <button onClick={() => onUpdateConfig({ logoDer: OPHTHALMOLOGY_EYE_SVG })} className="px-1.5 py-0.5 bg-indigo-100 hover:bg-indigo-200 text-indigo-900 rounded font-bold border border-indigo-300">Oftalmo</button>
-                    <button onClick={() => onUpdateConfig({ logoDer: DERMATOLOGY_SKIN_SVG })} className="px-1.5 py-0.5 bg-orange-100 hover:bg-orange-200 text-orange-900 rounded font-bold border border-orange-300">Dermato</button>
-                    <button onClick={() => onUpdateConfig({ logoDer: PSYCHOLOGY_PSI_SVG })} className="px-1.5 py-0.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-900 rounded font-bold border border-emerald-300">Psico</button>
+                    <button onClick={() => selectLogoAndEnsureVisible('logoDer', DIGITAL_MEDIC_OFFICIAL_LOGO_SVG)} className="px-1.5 py-0.5 bg-blue-600 hover:bg-blue-700 text-white font-black rounded border border-blue-500 shadow-2xs cursor-pointer">Logo App</button>
+                    <button onClick={() => selectLogoAndEnsureVisible('logoDer', MEDICAL_SHIELD_SVG)} className="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 rounded text-black font-bold border border-slate-300">Cruz</button>
+                    <button onClick={() => selectLogoAndEnsureVisible('logoDer', CADUCEUS_SVG)} className="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 rounded text-black font-bold border border-slate-300">Caduceo</button>
+                    <button onClick={() => selectLogoAndEnsureVisible('logoDer', MEDICINE_EMBLEM_ESCULAPIO_SVG)} className="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 rounded text-black font-bold border border-slate-300">Esculapio</button>
+                    <button onClick={() => selectLogoAndEnsureVisible('logoDer', ANESTHESIOLOGY_LARYNGOSCOPE_SVG)} className="px-1.5 py-0.5 bg-sky-100 hover:bg-sky-200 text-sky-900 rounded font-bold border border-sky-300">Anestesia</button>
+                    <button onClick={() => selectLogoAndEnsureVisible('logoDer', OBSTETRICS_PREGNANCY_SVG)} className="px-1.5 py-0.5 bg-pink-100 hover:bg-pink-200 text-pink-900 rounded font-bold border border-pink-300">Obstetricia</button>
+                    <button onClick={() => selectLogoAndEnsureVisible('logoDer', PEDIATRICS_BABY_FOOTPRINT_SVG)} className="px-1.5 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded font-bold border border-amber-300">Pediatría</button>
+                    <button onClick={() => selectLogoAndEnsureVisible('logoDer', SURGERY_SCALPEL_SVG)} className="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 rounded text-black font-bold border border-slate-300">Cirugía</button>
+                    <button onClick={() => selectLogoAndEnsureVisible('logoDer', CARDIOLOGY_PULSE_SVG)} className="px-1.5 py-0.5 bg-rose-100 hover:bg-rose-200 text-rose-900 rounded font-bold border border-rose-300">Cardio</button>
+                    <button onClick={() => selectLogoAndEnsureVisible('logoDer', TRAUMATOLOGY_BONE_SPINE_SVG)} className="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 rounded text-black font-bold border border-slate-300">Traumato</button>
+                    <button onClick={() => selectLogoAndEnsureVisible('logoDer', PULMONOLOGY_LUNGS_SVG)} className="px-1.5 py-0.5 bg-blue-100 hover:bg-blue-200 text-blue-900 rounded font-bold border border-blue-300">Neumo</button>
+                    <button onClick={() => selectLogoAndEnsureVisible('logoDer', NEUROLOGY_BRAIN_SVG)} className="px-1.5 py-0.5 bg-purple-100 hover:bg-purple-200 text-purple-900 rounded font-bold border border-purple-300">Neuro</button>
+                    <button onClick={() => selectLogoAndEnsureVisible('logoDer', DENTAL_EMBLEM_SVG)} className="px-1.5 py-0.5 bg-teal-100 hover:bg-teal-200 text-teal-900 rounded font-bold border border-teal-300">Odonto</button>
+                    <button onClick={() => selectLogoAndEnsureVisible('logoDer', OPHTHALMOLOGY_EYE_SVG)} className="px-1.5 py-0.5 bg-indigo-100 hover:bg-indigo-200 text-indigo-900 rounded font-bold border border-indigo-300">Oftalmo</button>
+                    <button onClick={() => selectLogoAndEnsureVisible('logoDer', DERMATOLOGY_SKIN_SVG)} className="px-1.5 py-0.5 bg-orange-100 hover:bg-orange-200 text-orange-900 rounded font-bold border border-orange-300">Dermato</button>
+                    <button onClick={() => selectLogoAndEnsureVisible('logoDer', PSYCHOLOGY_PSI_SVG)} className="px-1.5 py-0.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-900 rounded font-bold border border-emerald-300">Psico</button>
                   </div>
                 </div>
               </div>

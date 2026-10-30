@@ -17,6 +17,8 @@ import {
   CreditCard,
   MapPin,
   ChevronLeft,
+  ChevronDown,
+  ChevronUp,
   Home,
   Grid2X2,
   Users,
@@ -28,13 +30,12 @@ import {
   Crown,
   Cloud,
   Monitor,
-  Smartphone
+  FlaskConical
 } from 'lucide-react';
 import { DoctorConfig, ActiveModule } from '../types';
 import { DIGITAL_MEDIC_OFFICIAL_LOGO_SVG, getMedicalSymbolSVG, CARLOS_LEAL_DEVELOPER_BADGE_SVG } from '../data/defaultAssets';
 import { CeLealStudioLogo } from './CeLealStudioLogo';
 import { formatSpecialtyTitle } from './DoctorOnboardingWizard';
-import { PWAInstallButton } from './PWAInstallButton';
 
 const Instagram: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
   <svg
@@ -67,6 +68,7 @@ interface DoctorLeftDrawerProps {
   onOpenAdminPanel?: () => void;
   onOpenEditPaymentConfig?: () => void;
   onOpenSyncDevices?: () => void;
+  onOpenWhatsAppStickers?: () => void;
   isDesktopMode?: boolean;
   onToggleDesktopMode?: () => void;
 }
@@ -84,10 +86,12 @@ export const DoctorLeftDrawer: React.FC<DoctorLeftDrawerProps> = ({
   onOpenAdminPanel,
   onOpenEditPaymentConfig,
   onOpenSyncDevices,
+  onOpenWhatsAppStickers,
   isDesktopMode = false,
   onToggleDesktopMode
 }) => {
   const [isEditing, setIsEditing] = useState(false);
+  const [isFooterExpanded, setIsFooterExpanded] = useState(false);
 
   const isAdminUser = Boolean(
     config.isAdmin ||
@@ -167,27 +171,40 @@ export const DoctorLeftDrawer: React.FC<DoctorLeftDrawerProps> = ({
     setTimeout(() => setSavedSuccess(false), 2500);
   };
 
+  // Close on Escape key press
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   return (
     <>
-      {/* Backdrop overlay */}
+      {/* Backdrop overlay - semi-transparente para ver el récipe detrás y plegar al tocar fuera */}
       <div 
         onClick={onClose}
-        className={`fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs transition-opacity duration-300 no-print ${
+        className={`fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-[2px] transition-opacity duration-300 no-print cursor-pointer ${
           isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
+        title="Tocar fuera para replegar el menú"
+        aria-hidden="true"
       />
 
       {/* Drawer Panel Sliding from Left */}
       <aside 
-        className={`fixed top-0 left-0 bottom-0 z-50 w-full max-w-sm sm:max-w-md bg-white shadow-2xl flex flex-col transition-transform duration-300 ease-in-out no-print border-r border-slate-200 ${
+        className={`fixed top-0 left-0 bottom-0 z-50 w-full max-w-xs sm:max-w-sm bg-white shadow-2xl flex flex-col transition-transform duration-300 ease-in-out no-print border-r border-slate-200 ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
         aria-label="Panel lateral del médico"
       >
         {/* Drawer Header */}
-        <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white p-4 sm:p-5 flex items-center justify-between border-b border-slate-800 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-white p-0.5 shadow-md flex items-center justify-center shrink-0 logo-animated-alive sheen-wrapper border border-cyan-400/40">
+        <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white p-3.5 sm:p-4 flex items-center justify-between border-b border-slate-800 shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-white p-0.5 shadow-md flex items-center justify-center shrink-0 logo-animated-alive sheen-wrapper border border-cyan-400/40">
               <img 
                 src={DIGITAL_MEDIC_OFFICIAL_LOGO_SVG} 
                 alt="Logo Digital Medic" 
@@ -196,11 +213,11 @@ export const DoctorLeftDrawer: React.FC<DoctorLeftDrawerProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <h2 className="text-sm font-black uppercase tracking-tight text-white">
+                <h2 className="text-xs sm:text-sm font-black uppercase tracking-tight text-white">
                   Datos del Médico & Clínica
                 </h2>
               </div>
-              <p className="text-[11px] text-teal-300 font-medium">
+              <p className="text-[10px] text-teal-300 font-medium">
                 Perfil Oficial y Consultorio Activo
               </p>
             </div>
@@ -208,10 +225,12 @@ export const DoctorLeftDrawer: React.FC<DoctorLeftDrawerProps> = ({
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
-            title="Cerrar panel (Tocar para ocultar)"
+            className="px-2.5 py-1.5 rounded-lg text-slate-200 hover:text-white bg-white/10 hover:bg-white/20 transition-all flex items-center gap-1 text-xs font-bold border border-white/10 cursor-pointer shadow-xs active:scale-95"
+            title="Plegar / Ocultar menú lateral"
+            aria-label="Plegar menú lateral"
           >
-            <ChevronLeft className="w-6 h-6" />
+            <ChevronLeft className="w-4 h-4" />
+            <span>Plegar</span>
           </button>
         </div>
 
@@ -731,11 +750,18 @@ export const DoctorLeftDrawer: React.FC<DoctorLeftDrawerProps> = ({
                       <span>Récipes Médicos (4 en 1)</span>
                     </button>
                     <button
-                      onClick={() => { onClose(); onNavigate('historias'); }}
-                      className="p-2.5 bg-slate-50 hover:bg-emerald-50 hover:text-emerald-700 rounded-xl font-bold text-slate-700 text-left border border-slate-200/80 transition-all flex items-center gap-2"
+                      onClick={() => { onClose(); onNavigate('examenes'); }}
+                      className="p-2.5 bg-cyan-50/70 hover:bg-cyan-100 hover:text-cyan-800 rounded-xl font-bold text-slate-700 text-left border border-cyan-200/80 transition-all flex items-center gap-2"
                     >
-                      <Users className="w-4 h-4 text-emerald-600 shrink-0" />
-                      <span>Historias</span>
+                      <FlaskConical className="w-4 h-4 text-cyan-600 shrink-0" />
+                      <span>Exámenes / Lab</span>
+                    </button>
+                    <button
+                      onClick={() => { onClose(); onNavigate('indicaciones'); }}
+                      className="p-2.5 bg-slate-50 hover:bg-indigo-50 hover:text-indigo-700 rounded-xl font-bold text-slate-700 text-left border border-slate-200/80 transition-all flex items-center gap-2"
+                    >
+                      <ClipboardList className="w-4 h-4 text-indigo-600 shrink-0" />
+                      <span>Indicaciones</span>
                     </button>
                     <button
                       onClick={() => { onClose(); onNavigate('informes'); }}
@@ -745,11 +771,11 @@ export const DoctorLeftDrawer: React.FC<DoctorLeftDrawerProps> = ({
                       <span>Informes</span>
                     </button>
                     <button
-                      onClick={() => { onClose(); onNavigate('indicaciones'); }}
-                      className="p-2.5 bg-slate-50 hover:bg-cyan-50 hover:text-cyan-700 rounded-xl font-bold text-slate-700 text-left border border-slate-200/80 transition-all flex items-center gap-2"
+                      onClick={() => { onClose(); onNavigate('historias'); }}
+                      className="p-2.5 bg-slate-50 hover:bg-emerald-50 hover:text-emerald-700 rounded-xl font-bold text-slate-700 text-left border border-slate-200/80 transition-all flex items-center gap-2"
                     >
-                      <ClipboardList className="w-4 h-4 text-cyan-600 shrink-0" />
-                      <span>Indicaciones</span>
+                      <Users className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>Historias</span>
                     </button>
                     <button
                       onClick={() => { onClose(); onNavigate('reposo'); }}
@@ -761,7 +787,7 @@ export const DoctorLeftDrawer: React.FC<DoctorLeftDrawerProps> = ({
                     {onOpenPatientBank && (
                       <button
                         onClick={() => { onClose(); onOpenPatientBank(); }}
-                        className="p-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-xl font-bold text-left border border-emerald-200/80 transition-all flex items-center gap-2 col-span-2 shadow-2xs"
+                        className="p-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-xl font-bold text-left border border-emerald-200/80 transition-all flex items-center gap-2 col-span-2 shadow-2xs cursor-pointer"
                       >
                         <Users className="w-4 h-4 text-emerald-600 shrink-0" />
                         <span>📂 Abrir Banco de Pacientes Grabados</span>
@@ -776,69 +802,80 @@ export const DoctorLeftDrawer: React.FC<DoctorLeftDrawerProps> = ({
 
         </div>
 
-        {/* Drawer Footer Actions & Developer Branding */}
-        <div className="p-4 bg-slate-900 border-t border-slate-800 space-y-2.5 shrink-0">
-          
-
-
-          {/* Botón Instalar Aplicación */}
-          <PWAInstallButton variant="drawer" />
-
-          {/* Botón Sincronizar Móvil / PC */}
-          {onOpenSyncDevices && (
-            <button
-              type="button"
-              onClick={() => {
-                onClose();
-                onOpenSyncDevices();
-              }}
-              className="w-full py-2.5 px-3 bg-gradient-to-r from-blue-700 via-indigo-700 to-slate-900 hover:from-blue-600 hover:to-indigo-600 text-white rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md border border-blue-400/40"
-            >
-              <Smartphone className="w-4 h-4 text-cyan-300" />
-              <span>📱 Abrir en mi Celular / PC (QR & Enlace)</span>
-            </button>
-          )}
-
-          {/* C.E. LEAL Studio Developer Branding Badge */}
-          <CeLealStudioLogo variant="badge" className="w-full justify-center" />
-
-          {onOpenPlans && (
-            <button
-              onClick={() => {
-                onClose();
-                onOpenPlans();
-              }}
-              className="w-full py-2 px-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 shadow-xs"
-            >
-              <CreditCard className="w-4 h-4" />
-              <span>Ver Planes de Pago & Suscripción</span>
-            </button>
-          )}
-
-          {onOpenEditPaymentConfig && (
-            <button
-              onClick={() => {
-                onClose();
-                onOpenEditPaymentConfig();
-              }}
-              className="w-full py-2 px-3 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-400/50 text-amber-300 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs"
-            >
-              <CreditCard className="w-4 h-4 text-amber-400" />
-              <span>⚙️ Mis Métodos de Cobro (Bs / Binance / Zinli)</span>
-            </button>
-          )}
-
-
+        {/* Drawer Footer Actions & Developer Branding (Desplegable hacia arriba / abajo) */}
+        <div className="bg-slate-900 border-t border-slate-800 shrink-0 transition-all duration-300">
+          {/* Barra con flecha para desplegar / replegar */}
           <button
-            onClick={() => {
-              onClose();
-              onLogout();
-            }}
-            className="w-full py-2 px-3 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2"
+            type="button"
+            onClick={() => setIsFooterExpanded(prev => !prev)}
+            className="w-full px-4 py-2.5 flex items-center justify-between text-slate-300 hover:text-white bg-slate-900 hover:bg-slate-800/90 transition-colors cursor-pointer text-xs font-bold border-b border-slate-800/60"
+            title={isFooterExpanded ? "Plegar opciones hacia abajo" : "Desplegar planes y opciones hacia arriba"}
+            aria-expanded={isFooterExpanded}
           >
-            <LogOut className="w-4 h-4" />
-            <span>Cerrar Sesión</span>
+            <div className="flex items-center gap-2">
+              <CreditCard className="w-4 h-4 text-amber-400 shrink-0" />
+              <span className="text-[11px] font-black uppercase tracking-wider text-slate-200">
+                C.E. LEAL Studio & Planes
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1.5 text-[10px] text-cyan-300 font-bold bg-white/5 hover:bg-white/10 px-2 py-1 rounded-lg border border-white/10">
+              <span>{isFooterExpanded ? 'Plegar' : 'Desplegar'}</span>
+              {isFooterExpanded ? (
+                <ChevronDown className="w-4 h-4 text-cyan-300 transition-transform" />
+              ) : (
+                <ChevronUp className="w-4 h-4 text-cyan-300 transition-transform" />
+              )}
+            </div>
           </button>
+
+          {/* Contenido desplegable hacia arriba y abajo */}
+          {isFooterExpanded && (
+            <div className="p-4 pt-3 space-y-2.5 animate-in slide-in-from-bottom-2 duration-200 max-h-[55vh] overflow-y-auto">
+              {/* C.E. LEAL Studio Developer Branding Badge */}
+              <CeLealStudioLogo variant="badge" className="w-full justify-center" />
+
+              {onOpenPlans && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenPlans();
+                  }}
+                  className="w-full py-2 px-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+                >
+                  <CreditCard className="w-4 h-4" />
+                  <span>Ver Planes de Pago & Suscripción</span>
+                </button>
+              )}
+
+              {onOpenEditPaymentConfig && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenEditPaymentConfig();
+                  }}
+                  className="w-full py-2 px-3 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-400/50 text-amber-300 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+                >
+                  <CreditCard className="w-4 h-4 text-amber-400" />
+                  <span>⚙️ Mis Métodos de Cobro (Bs / Binance / Zinli)</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onLogout();
+                }}
+                className="w-full py-2 px-3 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Cerrar Sesión</span>
+              </button>
+            </div>
+          )}
         </div>
       </aside>
     </>

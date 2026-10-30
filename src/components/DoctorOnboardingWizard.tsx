@@ -970,11 +970,11 @@ export const DoctorOnboardingWizard: React.FC<DoctorOnboardingWizardProps> = ({
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#060c18] via-[#08101e] to-slate-950 flex flex-col justify-between p-3 sm:p-4 md:p-8 text-slate-100 font-sans selection:bg-blue-600 selection:text-white">
       
-      {/* Top Header - Dark executive medical branding */}
-      <header className="max-w-3xl w-full mx-auto flex items-center justify-between py-2.5 sm:py-3 px-4 bg-slate-900/90 backdrop-blur-md rounded-2xl border border-slate-800/90 shadow-2xl mb-4 text-white">
+      {/* Top Header - Dark executive medical branding (Responsive: flex-col on mobile, flex-row on desktop) */}
+      <header className="max-w-3xl w-full mx-auto flex flex-col sm:flex-row items-center justify-between gap-2.5 sm:gap-3 py-2.5 sm:py-3 px-3.5 sm:px-4 bg-slate-900/90 backdrop-blur-md rounded-2xl border border-slate-800/90 shadow-2xl mb-4 text-white">
         <div 
           onClick={handleSecretDeveloperTrigger}
-          className="flex items-center gap-3 cursor-pointer select-none group"
+          className="flex items-center gap-2.5 sm:gap-3 cursor-pointer select-none group"
           title="Digital Médic - Formatos Médicos Digitales"
         >
           {/* Animated Logo Container with Heartbeat & Sheen */}

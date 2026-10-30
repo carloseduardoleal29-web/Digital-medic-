@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { DoctorConfig } from '../types';
 import { Camera, Image as ImageIcon } from 'lucide-react';
 import { getMedicalSymbolSVG, DIGITAL_MEDIC_OFFICIAL_LOGO_SVG, MEDICINE_EMBLEM_ESCULAPIO_SVG } from '../data/defaultAssets';
+import { safeFormatSrcUrl } from '../utils/exportDocument';
 import { BasicLogoSelectorModal } from './BasicLogoSelectorModal';
 
 interface DocumentHeaderProps {
@@ -52,6 +53,9 @@ export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
         } else if (onUpdateField) {
           onUpdateField(side, evt.target.result);
         }
+        if (onUpdateField && (cfg.headerLayout === 'solo-texto' || cfg.headerLayout === 'sin-logos')) {
+          onUpdateField('headerLayout', 'ambos-logos');
+        }
       }
     };
     reader.readAsDataURL(file);
@@ -62,6 +66,9 @@ export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
       onUploadLogo(side, dataUrl);
     } else if (onUpdateField) {
       onUpdateField(side, dataUrl);
+    }
+    if (onUpdateField && (cfg.headerLayout === 'solo-texto' || cfg.headerLayout === 'sin-logos')) {
+      onUpdateField('headerLayout', 'ambos-logos');
     }
   };
 
@@ -74,8 +81,11 @@ export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
   };
 
   const layout = (cfg.headerLayout || 'ambos-logos') as string;
-  const showLeft = layout !== 'sin-logos' && layout !== 'logo-der';
-  const showRight = layout !== 'sin-logos' && layout !== 'logo-izq';
+  const isSinLogos = layout === 'sin-logos' || layout === 'solo-texto';
+  const isSoloDer = layout === 'logo-der' || layout === 'solo-logo-der';
+  const isSoloIzq = layout === 'logo-izq' || layout === 'solo-logo-izq';
+  const showLeft = !isSinLogos && !isSoloDer;
+  const showRight = !isSinLogos && !isSoloIzq;
 
   const logoClasses = cfg.formaLogo === 'logo-redondo'
     ? 'rounded-full object-contain bg-transparent transition-transform'
@@ -89,8 +99,11 @@ export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
   const symbolColor = cfg.medicalSymbolColor || cfg.nombreColor || cfg.primaryDocColor || '#2563eb';
   const symbolSvg = getMedicalSymbolSVG(symbolType, symbolColor);
 
-  const leftLogo = cfg.logoIzq !== undefined ? cfg.logoIzq : DIGITAL_MEDIC_OFFICIAL_LOGO_SVG;
-  const rightLogo = cfg.logoDer || '';
+  const rawLeftLogo = (cfg.logoIzq && cfg.logoIzq.trim()) ? cfg.logoIzq : DIGITAL_MEDIC_OFFICIAL_LOGO_SVG;
+  const rawRightLogo = (cfg.logoDer && cfg.logoDer.trim()) ? cfg.logoDer : MEDICINE_EMBLEM_ESCULAPIO_SVG;
+
+  const leftLogo = safeFormatSrcUrl(rawLeftLogo);
+  const rightLogo = safeFormatSrcUrl(rawRightLogo);
 
   const scaleCompact = cfg.headerScaleCompact ?? (compact ? 0.64 : 0.78);
 
@@ -148,10 +161,10 @@ export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
               alt="Logo Izquierdo"
               className={`${logoClasses} transition-transform group-hover:scale-105`}
               style={{
-                width: compact ? Math.max(32, (config.logoSize || 52) * 0.75) + 'px' : (config.logoSize || 52) + 'px',
-                height: compact ? Math.max(32, (config.logoSize || 52) * 0.75) + 'px' : (config.logoSize || 52) + 'px',
-                maxHeight: compact ? Math.max(48, (config.logoSize || 52) * 0.85) + 'px' : Math.max(80, (config.logoSize || 52) * 1.3) + 'px',
-                maxWidth: compact ? '80px' : '160px',
+                width: compact ? Math.max(52, (config.logoSize || 52) * 1.0) + 'px' : Math.max(56, (config.logoSize || 52)) + 'px',
+                height: compact ? Math.max(52, (config.logoSize || 52) * 1.0) + 'px' : Math.max(56, (config.logoSize || 52)) + 'px',
+                maxHeight: compact ? Math.max(68, (config.logoSize || 52) * 1.3) + 'px' : Math.max(85, (config.logoSize || 52) * 1.5) + 'px',
+                maxWidth: compact ? '135px' : '170px',
                 objectFit: 'contain',
                 borderColor: logoBorderColor,
               }}
@@ -159,8 +172,8 @@ export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
           ) : editableInline ? (
             <div 
               style={{ 
-                width: (compact ? 32 : Math.min(48, config.logoSize)) + 'px', 
-                height: (compact ? 32 : Math.min(48, config.logoSize)) + 'px',
+                width: (compact ? 36 : Math.min(48, config.logoSize)) + 'px', 
+                height: (compact ? 36 : Math.min(48, config.logoSize)) + 'px',
                 borderColor: logoBorderColor
               }}
               className="rounded-xl bg-slate-50 border-2 border-dashed flex flex-col items-center justify-center text-[9px] text-slate-400 no-print hover:border-blue-500 hover:text-blue-600 transition-colors p-1 text-center"
@@ -237,8 +250,8 @@ export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
                   editableInline ? 'hover:bg-blue-50/70 hover:ring-1 hover:ring-blue-300 rounded px-1.5' : ''
                 }`}
                 style={{
-                  color: config.nombreColor || '#0f172a',
-                  fontFamily: config.fuenteNombre,
+                  color: config.nombreColor || config.primaryDocColor || '#2563eb',
+                  fontFamily: config.fuenteNombre || "'Dancing Script', 'Playfair Display', Georgia, serif",
                   fontSize: nameFontSize,
                   letterSpacing: '0.01em',
                   lineHeight: '1.25',
@@ -481,10 +494,10 @@ export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
               alt="Logo Derecho"
               className={`${logoClasses} transition-transform group-hover:scale-105`}
               style={{
-                width: compact ? Math.max(32, (config.logoSize || 52) * 0.75) + 'px' : (config.logoSize || 52) + 'px',
-                height: compact ? Math.max(32, (config.logoSize || 52) * 0.75) + 'px' : (config.logoSize || 52) + 'px',
-                maxHeight: compact ? Math.max(48, (config.logoSize || 52) * 0.85) + 'px' : Math.max(80, (config.logoSize || 52) * 1.3) + 'px',
-                maxWidth: compact ? '80px' : '160px',
+                width: compact ? Math.max(52, (config.logoSize || 52) * 1.0) + 'px' : Math.max(56, (config.logoSize || 52)) + 'px',
+                height: compact ? Math.max(52, (config.logoSize || 52) * 1.0) + 'px' : Math.max(56, (config.logoSize || 52)) + 'px',
+                maxHeight: compact ? Math.max(68, (config.logoSize || 52) * 1.3) + 'px' : Math.max(85, (config.logoSize || 52) * 1.5) + 'px',
+                maxWidth: compact ? '135px' : '170px',
                 objectFit: 'contain',
                 borderColor: logoBorderColor,
               }}
@@ -492,8 +505,8 @@ export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
           ) : editableInline ? (
             <div 
               style={{ 
-                width: (compact ? 32 : Math.min(48, config.logoSize)) + 'px', 
-                height: (compact ? 32 : Math.min(48, config.logoSize)) + 'px',
+                width: (compact ? 36 : Math.min(48, config.logoSize)) + 'px', 
+                height: (compact ? 36 : Math.min(48, config.logoSize)) + 'px',
                 borderColor: logoBorderColor
               }}
               className="rounded-xl bg-slate-50 border-2 border-dashed flex flex-col items-center justify-center text-[9px] text-slate-400 no-print hover:border-blue-500 hover:text-blue-600 transition-colors p-1 text-center"

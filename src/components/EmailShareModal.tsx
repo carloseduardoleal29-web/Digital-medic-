@@ -99,6 +99,16 @@ export const EmailShareModal: React.FC<EmailShareModalProps> = ({
 
   if (!isOpen) return null;
 
+  const formatDoctorDisplayName = (rawName: string = ''): string => {
+    let clean = (rawName || '').trim();
+    if (!clean) return 'Dr(a). Médico Tratante';
+    clean = clean.replace(/^(dr\(a\)\.?|dr\s*\(a\)|dr\.|dra\.|dr|dra|médico|cirujano)\s*/gi, '').trim();
+    clean = clean.replace(/^(dr\(a\)\.?|dr\s*\(a\)|dr\.|dra\.|dr|dra)\s*/gi, '').trim();
+    return `Dr(a). ${clean}`;
+  };
+
+  const doctorDisplayName = formatDoctorDisplayName(config.doctorName);
+
   // Title translation
   let docTypeHeader = 'RÉCIPE MÉDICO OFICIAL';
   if (documentType === 'report') docTypeHeader = 'INFORME MÉDICO OFICIAL';
@@ -106,7 +116,7 @@ export const EmailShareModal: React.FC<EmailShareModalProps> = ({
   if (documentType === 'rest') docTypeHeader = 'CONSTANCIA DE REPOSO MÉDICO';
   if (documentType === 'recipe-4en1') docTypeHeader = 'HOJA DE RÉCIPES MÉDICOS';
 
-  const emailSubject = `${docTypeHeader} - ${patientName || 'Paciente'} - Dr. ${config.doctorName}`;
+  const emailSubject = `${docTypeHeader} - ${patientName || 'Paciente'} - ${doctorDisplayName}`;
 
   const buildEmailBody = () => {
     let pdfLine = '';
@@ -115,10 +125,10 @@ export const EmailShareModal: React.FC<EmailShareModalProps> = ({
     }
 
     return `Estimado(a) ${patientName || 'Paciente'},\n\n` +
-      `Le adjuntamos su documento médico oficial en formato PDF emitido por Dr(a). ${config.doctorName} (${config.specialty || 'Médico Cirujano'}).\n\n` +
+      `Le adjuntamos su documento médico oficial en formato PDF emitido por ${doctorDisplayName} (${config.specialty || 'Médico Cirujano'}).\n\n` +
       `Este es un documento médico legal firmado y sellado digitalmente con plena validez para su presentación en farmacias, empresas y centros de salud.\n\n` +
       `DOCUMENTO: ${docTypeHeader}\n` +
-      `MÉDICO TRATANTE: Dr(a). ${config.doctorName}\n` +
+      `MÉDICO TRATANTE: ${doctorDisplayName}\n` +
       `MPPS: ${config.mpps || '00.000'} · C.I.: ${config.ci || 'V-00.000.000'}\n` +
       (config.collegeNumber ? `COLEGIO MÉDICO: ${config.collegeNumber}\n` : '') +
       `FECHA DE EMISIÓN: ${new Intl.DateTimeFormat('es-ES').format(new Date())}\n\n` +
@@ -126,10 +136,11 @@ export const EmailShareModal: React.FC<EmailShareModalProps> = ({
       `📄 ARCHIVO ADJUNTO: Por favor encuentre adjunto el archivo PDF oficial con membrete de alta gama, firma caligráfica y sello húmedo digital.\n\n` +
       `Siga rigurosamente las indicaciones médicas especificadas en el archivo adjunto.\n\n` +
       `Atentamente,\n` +
-      `Dr(a). ${config.doctorName}\n` +
+      `${doctorDisplayName}\n` +
       `${config.specialty || 'Médico Cirujano'}\n` +
       `${config.phone ? 'Contacto: ' + config.phone + '\n' : ''}` +
-      `${config.institution ? config.institution : ''}`;
+      `${config.institution ? config.institution + '\n' : ''}` +
+      ` Digital Médic ⚕️ Formatos Médicos Oficiales`;
   };
 
   const emailBodyText = buildEmailBody();
@@ -142,14 +153,11 @@ export const EmailShareModal: React.FC<EmailShareModalProps> = ({
 
   const handleOpenEmailClient = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    if (onTriggerPrintPdf) {
+      onTriggerPrintPdf();
+    }
     const mailtoUrl = `mailto:${encodeURIComponent(emailAddress)}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBodyText)}`;
-    const link = document.createElement('a');
-    link.href = mailtoUrl;
-    link.target = '_blank';
-    link.style.display = 'none';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    window.location.href = mailtoUrl;
   };
 
   const handleSendDirectEmail = async (e: React.FormEvent) => {
@@ -326,7 +334,7 @@ export const EmailShareModal: React.FC<EmailShareModalProps> = ({
 
             <div className="text-right">
               <span className="text-[10px] text-slate-500 font-bold block uppercase tracking-wider">Médico emisor:</span>
-              <span className="font-semibold text-slate-800 text-xs">Dr(a). {config.doctorName}</span>
+              <span className="font-semibold text-slate-800 text-xs">{doctorDisplayName}</span>
             </div>
           </div>
 

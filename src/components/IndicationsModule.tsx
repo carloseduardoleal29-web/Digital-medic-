@@ -1120,7 +1120,7 @@ export const IndicationsModule: React.FC<IndicationsModuleProps> = ({
                     element: printableSheetRef.current,
                     patientName: safeIndications.patientName || 'Carlos leal',
                     documentTitle: 'Indicaciones Médicas',
-                    dateStr: safeIndications.date || '14/10/26',
+                    dateStr: safeIndications.date || new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date()),
                     patientPhone: safeIndications.patientPhone,
                     doctorName: config.doctorName || 'Dr. Carlos Leal',
                     treatmentDetails: treatment,
@@ -1183,10 +1183,10 @@ export const IndicationsModule: React.FC<IndicationsModuleProps> = ({
       <div className={`w-full flex justify-center py-2 ${currentStep === 4 ? 'block' : 'hidden print:block'}`}>
         <div
           ref={printableSheetRef}
-          id="recibo-medico indications-print-container"
+          id="indications-print-container"
           className={`relative w-full max-w-[816px] bg-white shadow-2xl p-6 sm:p-8 rounded-2xl transition-all report-sheet-container indications-container print-container border border-slate-200/90 ${textureClass} ${
             safeConfig.enforcePureBlackText ? 'enforce-pure-black' : ''
-          }`}
+          } preview-mode`}
           style={{
             backgroundColor: safeConfig.tonePapel || '#ffffff',
             border: borderStyle,
@@ -1232,7 +1232,7 @@ export const IndicationsModule: React.FC<IndicationsModuleProps> = ({
 
             {/* Patient Info Row */}
             <div 
-              className="py-2.5 px-4 bg-slate-50/50 border border-slate-200 rounded-xl mb-4 space-y-2 text-xs sm:text-sm"
+              className="py-2 px-3.5 bg-slate-50/20 border border-slate-200/60 rounded-xl mb-4 space-y-1.5 text-xs sm:text-sm"
               style={{ fontSize: safeConfig.patientBarSize || '12px' }}
             >
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">

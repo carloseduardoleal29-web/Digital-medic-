@@ -28,6 +28,7 @@
     "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
+    "@firebase/eslint-plugin-security-rules": "^0.0.2",
     "@types/express": "^5.0.6",
     "@types/nodemailer": "^8.0.2",
     "@types/qrcode": "^1.5.6",

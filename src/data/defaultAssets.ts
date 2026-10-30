@@ -27,42 +27,42 @@ export const CARLOS_LEAL_DEVELOPER_LOGO_SVG = `data:image/svg+xml;utf8,<svg xmln
 </svg>`;
 
 // Digital Médic Official Logo - "DIGITAL MÉDIC formatos médicos digitales" (Official App Brand Vector)
-export const DIGITAL_MEDIC_OFFICIAL_LOGO_SVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 580" fill="none">
+export const DIGITAL_MEDIC_OFFICIAL_LOGO_SVG = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 580" fill="none">
   <defs>
     <linearGradient id="dmNavyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="%23002B49" />
-      <stop offset="100%" stop-color="%23001F3F" />
+      <stop offset="0%" stop-color="#002B49" />
+      <stop offset="100%" stop-color="#001F3F" />
     </linearGradient>
     <linearGradient id="dmGreenGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="%230D7C52" />
-      <stop offset="100%" stop-color="%23058257" />
+      <stop offset="0%" stop-color="#0D7C52" />
+      <stop offset="100%" stop-color="#058257" />
     </linearGradient>
     <linearGradient id="dmTealGrad2" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="%2300A896" />
-      <stop offset="100%" stop-color="%23009688" />
+      <stop offset="0%" stop-color="#00A896" />
+      <stop offset="100%" stop-color="#009688" />
     </linearGradient>
   </defs>
 
   <!-- TOP BRAND TITLE: "DIGITAL MÉDIC" -->
   <g transform="translate(300, 110)">
     <!-- DIGITAL wordmark -->
-    <text x="-270" y="0" font-family="'Impact', 'Arial Black', sans-serif" font-weight="900" font-size="72" fill="%23002B49" letter-spacing="1">DIGITAL</text>
+    <text x="-270" y="0" font-family="'Impact', 'Arial Black', sans-serif" font-weight="900" font-size="72" fill="#002B49" letter-spacing="1">DIGITAL</text>
     
     <!-- Green double wave swoosh under "DIG" -->
-    <path d="M-280 12 C-250 -10, -210 25, -170 -2 C-190 18, -240 -2, -280 12 Z" fill="url(%23dmGreenGrad)" />
-    <path d="M-270 20 C-245 4, -215 28, -180 8 C-195 22, -235 8, -270 20 Z" fill="%230D7C52" opacity="0.8" />
+    <path d="M-280 12 C-250 -10, -210 25, -170 -2 C-190 18, -240 -2, -280 12 Z" fill="url(#dmGreenGrad)" />
+    <path d="M-270 20 C-245 4, -215 28, -180 8 C-195 22, -235 8, -270 20 Z" fill="#0D7C52" opacity="0.8" />
 
     <!-- MÉDIC wordmark -->
-    <text x="30" y="0" font-family="'Impact', 'Arial Black', sans-serif" font-weight="900" font-size="72" fill="%23002B49" letter-spacing="1">MÉDIC</text>
+    <text x="30" y="0" font-family="'Impact', 'Arial Black', sans-serif" font-weight="900" font-size="72" fill="#002B49" letter-spacing="1">MÉDIC</text>
 
     <!-- Green Medical Cross over/inside the letter "É" -->
     <g transform="translate(98, -26)">
-      <rect x="-14" y="-14" width="28" height="28" fill="%230D7C52" rx="3" />
-      <rect x="-4" y="-22" width="8" height="44" fill="%230D7C52" rx="2" />
-      <rect x="-22" y="-4" width="44" height="8" fill="%230D7C52" rx="2" />
+      <rect x="-14" y="-14" width="28" height="28" fill="#0D7C52" rx="3" />
+      <rect x="-4" y="-22" width="8" height="44" fill="#0D7C52" rx="2" />
+      <rect x="-22" y="-4" width="44" height="8" fill="#0D7C52" rx="2" />
       <!-- Cross Inner Highlight -->
-      <rect x="-3" y="-12" width="6" height="24" fill="%23FFFFFF" opacity="0.9" />
-      <rect x="-12" y="-3" width="24" height="6" fill="%23FFFFFF" opacity="0.9" />
+      <rect x="-3" y="-12" width="6" height="24" fill="#FFFFFF" opacity="0.9" />
+      <rect x="-12" y="-3" width="24" height="6" fill="#FFFFFF" opacity="0.9" />
     </g>
   </g>
 
@@ -72,63 +72,63 @@ export const DIGITAL_MEDIC_OFFICIAL_LOGO_SVG = `data:image/svg+xml;utf8,<svg xml
     <!-- LEFT ICON: DIGITAL TABLET WITH CLOUD & DOCUMENT -->
     <g transform="translate(15, 0)">
       <!-- Tablet Frame -->
-      <rect x="0" y="0" width="230" height="200" rx="28" fill="%23002B49" stroke="%23001F3F" stroke-width="4" />
-      <rect x="12" y="12" width="206" height="176" rx="16" fill="%23FFFFFF" />
-      <circle cx="10" cy="100" r="3" fill="%2394A3B8" />
-      <circle cx="220" cy="100" r="5" fill="%2394A3B8" />
+      <rect x="0" y="0" width="230" height="200" rx="28" fill="#002B49" stroke="#001F3F" stroke-width="4" />
+      <rect x="12" y="12" width="206" height="176" rx="16" fill="#FFFFFF" />
+      <circle cx="10" cy="100" r="3" fill="#94A3B8" />
+      <circle cx="220" cy="100" r="5" fill="#94A3B8" />
 
       <!-- Document Icon inside Tablet -->
       <g transform="translate(62, 42)">
-        <path d="M0 0 L55 0 L75 20 L75 95 L0 95 Z" fill="%230D7C52" rx="4" />
-        <path d="M55 0 L55 20 L75 20 Z" fill="%23058257" />
+        <path d="M0 0 L55 0 L75 20 L75 95 L0 95 Z" fill="#0D7C52" rx="4" />
+        <path d="M55 0 L55 20 L75 20 Z" fill="#058257" />
         <!-- Horizontal Document Lines -->
-        <line x1="12" y1="28" x2="48" y2="28" stroke="%23FFFFFF" stroke-width="4" stroke-linecap="round" />
-        <line x1="12" y1="42" x2="62" y2="42" stroke="%23FFFFFF" stroke-width="4" stroke-linecap="round" />
-        <line x1="12" y1="56" x2="62" y2="56" stroke="%23FFFFFF" stroke-width="4" stroke-linecap="round" />
-        <line x1="12" y1="70" x2="62" y2="70" stroke="%23FFFFFF" stroke-width="4" stroke-linecap="round" />
-        <line x1="12" y1="84" x2="48" y2="84" stroke="%23FFFFFF" stroke-width="4" stroke-linecap="round" />
+        <line x1="12" y1="28" x2="48" y2="28" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" />
+        <line x1="12" y1="42" x2="62" y2="42" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" />
+        <line x1="12" y1="56" x2="62" y2="56" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" />
+        <line x1="12" y1="70" x2="62" y2="70" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" />
+        <line x1="12" y1="84" x2="48" y2="84" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" />
       </g>
 
       <!-- Cloud Icon above Document with Sync Arrow -->
       <g transform="translate(100, 25)">
-        <path d="M20 30 C10 30, 5 20, 12 10 C18 0, 35 -2, 42 8 C48 0, 68 2, 70 15 C78 18, 78 30, 68 30 Z" fill="%23005A9C" />
-        <path d="M38 28 C28 28, 28 42, 10 42 L22 42 M10 42 L18 34" stroke="%23002B49" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+        <path d="M20 30 C10 30, 5 20, 12 10 C18 0, 35 -2, 42 8 C48 0, 68 2, 70 15 C78 18, 78 30, 68 30 Z" fill="#005A9C" />
+        <path d="M38 28 C28 28, 28 42, 10 42 L22 42 M10 42 L18 34" stroke="#002B49" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none" />
       </g>
     </g>
 
     <!-- RIGHT ICON: DOCTOR'S COAT (BATA MÉDICA) & STETHOSCOPE -->
     <g transform="translate(265, 0)">
       <!-- Coat Base Frame -->
-      <rect x="0" y="0" width="160" height="200" rx="28" fill="%23002B49" stroke="%23001F3F" stroke-width="4" />
-      <rect x="6" y="6" width="148" height="188" rx="22" fill="%23FFFFFF" />
+      <rect x="0" y="0" width="160" height="200" rx="28" fill="#002B49" stroke="#001F3F" stroke-width="4" />
+      <rect x="6" y="6" width="148" height="188" rx="22" fill="#FFFFFF" />
       
       <!-- Inner Dark Suit V-Neck & Collar -->
-      <path d="M45 6 L80 80 L115 6 Z" fill="%23001F3F" />
-      <path d="M70 6 L80 30 L90 6 Z" fill="%23002B49" />
+      <path d="M45 6 L80 80 L115 6 Z" fill="#001F3F" />
+      <path d="M70 6 L80 30 L90 6 Z" fill="#002B49" />
       
       <!-- Coat Lapels (Solapas de la Bata) -->
-      <path d="M20 6 L55 90 L6 110 Z" fill="%23F8FAFC" stroke="%23002B49" stroke-width="4" />
-      <path d="M140 6 L105 90 L154 110 Z" fill="%23F8FAFC" stroke="%23002B49" stroke-width="4" />
-      <line x1="80" y1="80" x2="80" y2="194" stroke="%23002B49" stroke-width="4" />
+      <path d="M20 6 L55 90 L6 110 Z" fill="#F8FAFC" stroke="#002B49" stroke-width="4" />
+      <path d="M140 6 L105 90 L154 110 Z" fill="#F8FAFC" stroke="#002B49" stroke-width="4" />
+      <line x1="80" y1="80" x2="80" y2="194" stroke="#002B49" stroke-width="4" />
       
       <!-- Pocket & Buttons -->
-      <rect x="100" y="130" width="40" height="40" fill="%23F1F5F9" stroke="%23002B49" stroke-width="3" rx="4" />
-      <circle cx="72" cy="115" r="3" fill="%2394A3B8" />
+      <rect x="100" y="130" width="40" height="40" fill="#F1F5F9" stroke="#002B49" stroke-width="3" rx="4" />
+      <circle cx="72" cy="115" r="3" fill="#94A3B8" />
 
       <!-- Stethoscope hanging over neck -->
-      <path d="M35 20 C20 60, 25 120, 50 120 C70 120, 68 90, 60 70" stroke="%23002B49" stroke-width="6" fill="none" stroke-linecap="round" />
-      <circle cx="50" cy="120" r="12" fill="%230D7C52" stroke="%23002B49" stroke-width="4" />
-      <circle cx="128" cy="70" r="9" fill="%23002B49" />
+      <path d="M35 20 C20 60, 25 120, 50 120 C70 120, 68 90, 60 70" stroke="#002B49" stroke-width="6" fill="none" stroke-linecap="round" />
+      <circle cx="50" cy="120" r="12" fill="#0D7C52" stroke="#002B49" stroke-width="4" />
+      <circle cx="128" cy="70" r="9" fill="#002B49" />
     </g>
 
   </g>
 
   <!-- BOTTOM SUBTITLE: "formatos médicos digitales" -->
   <g transform="translate(300, 450)" text-anchor="middle">
-    <text x="0" y="0" font-family="'Arial Rounded MT Bold', 'Helvetica Neue', Arial, sans-serif" font-weight="900" font-size="46" fill="%2300A896" letter-spacing="-0.5">formatos médicos</text>
-    <text x="0" y="52" font-family="'Arial Rounded MT Bold', 'Helvetica Neue', Arial, sans-serif" font-weight="900" font-size="48" fill="%2300A896" letter-spacing="-0.5">digitales</text>
+    <text x="0" y="0" font-family="'Arial Rounded MT Bold', 'Helvetica Neue', Arial, sans-serif" font-weight="900" font-size="46" fill="#00A896" letter-spacing="-0.5">formatos médicos</text>
+    <text x="0" y="52" font-family="'Arial Rounded MT Bold', 'Helvetica Neue', Arial, sans-serif" font-weight="900" font-size="48" fill="#00A896" letter-spacing="-0.5">digitales</text>
   </g>
-</svg>`;
+</svg>`)}`;
 
 export const CARLOS_LEAL_DEVELOPER_BADGE_SVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
   <defs>
@@ -165,10 +165,24 @@ export const MEDICINE_EMBLEM_ESCULAPIO_SVG = `data:image/svg+xml;utf8,<svg xmlns
   <text x="100" y="185" text-anchor="middle" font-family="sans-serif" font-weight="bold" font-size="11" fill="%231e3a8a" letter-spacing="1">MEDICINA ⚕️</text>
 </svg>`;
 
-// Ultra-Modern Tech-Medical Logo - Minimalist, high-end healthcare gradient
-export const MODERN_MEDICAL_LOGO_SVG = DIGITAL_MEDIC_OFFICIAL_LOGO_SVG;
+// Official Winged Caduceus Vector (Staff with wings & two serpents)
+export const CADUCEUS_SVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <circle cx="100" cy="100" r="88" fill="%23f0f9ff" stroke="%230284c7" stroke-width="5"/>
+  <!-- Central winged staff (Caduceus) -->
+  <line x1="100" y1="35" x2="100" y2="170" stroke="%230369a1" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="100" cy="35" r="7" fill="%230284c7"/>
+  <!-- Wings at top -->
+  <path d="M100 48 C75 30, 45 35, 30 52 C50 58, 70 56, 100 62 C130 56, 150 58, 170 52 C155 35, 125 30, 100 48 Z" fill="%230284c7" opacity="0.9"/>
+  <!-- Snake 1 -->
+  <path d="M82 70 C125 75, 125 100, 100 110 C75 120, 75 145, 118 152" stroke="%230284c7" stroke-width="5" stroke-linecap="round" fill="none"/>
+  <!-- Snake 2 -->
+  <path d="M118 70 C75 75, 75 100, 100 110 C125 120, 125 145, 82 152" stroke="%230369a1" stroke-width="5" stroke-linecap="round" fill="none"/>
+  <circle cx="82" cy="68" r="4" fill="%230284c7"/>
+  <circle cx="118" cy="68" r="4" fill="%230369a1"/>
+  <text x="100" y="186" text-anchor="middle" font-family="sans-serif" font-weight="bold" font-size="10" fill="%230369a1" letter-spacing="1">CADUCEO ⚕️</text>
+</svg>`;
 
-export const CADUCEUS_SVG = MODERN_MEDICAL_LOGO_SVG;
+export const MODERN_MEDICAL_LOGO_SVG = CADUCEUS_SVG;
 
 // Medical Shield Cross
 export const MEDICAL_SHIELD_SVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
@@ -443,9 +457,9 @@ export interface BasicMedicalLogo {
 
 export const BASIC_MEDICAL_LOGOS: BasicMedicalLogo[] = [
   // Apps & Emblemas Oficiales
-  { id: 'digital-medic', name: 'Digital Médic (Oficial)', category: 'App Oficial', svgDataUri: DIGITAL_MEDIC_OFFICIAL_LOGO_SVG },
+  { id: 'logo-app', name: 'Logo App (Digital Médic)', category: 'Marca App', svgDataUri: DIGITAL_MEDIC_OFFICIAL_LOGO_SVG },
   { id: 'esculapio-medicina', name: 'Símbolo Medicina ⚕️', category: 'Oficial ⚕️', svgDataUri: MEDICINE_EMBLEM_ESCULAPIO_SVG },
-  { id: 'caduceo', name: 'Caduceo y Esculapio', category: 'Médico General', svgDataUri: MODERN_MEDICAL_LOGO_SVG },
+  { id: 'caduceo', name: 'Caduceo Médico ⚕️', category: 'Médico General', svgDataUri: CADUCEUS_SVG },
   { id: 'escudo', name: 'Escudo Cruz Médica', category: 'Médico General', svgDataUri: MEDICAL_SHIELD_SVG },
   { id: 'cruz-suiza', name: 'Cruz Médica Clásica', category: 'Salud / Clínica', svgDataUri: SWISS_CROSS_SVG },
   { id: 'hospital', name: 'Centro Clínico / Hospital', category: 'Institucional', svgDataUri: HOSPITAL_EMBLEM_SVG },

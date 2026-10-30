@@ -33,6 +33,7 @@ interface MedicalRestModuleProps {
   onChangeCertificate: (updated: Partial<MedicalRestCert>) => void;
   onPrint: () => void;
   onDownloadPdf?: () => void;
+  onInstantWhatsApp?: () => void;
   onOpenEmailModal?: () => void;
   onSaveAndShare?: (shouldDownload?: boolean) => void;
   onOpenPreview?: () => void;
@@ -91,6 +92,7 @@ export const MedicalRestModule: React.FC<MedicalRestModuleProps> = ({
   onChangeCertificate,
   onPrint,
   onDownloadPdf,
+  onInstantWhatsApp,
   onOpenEmailModal,
   onSaveAndShare,
   onOpenPreview,
@@ -101,6 +103,13 @@ export const MedicalRestModule: React.FC<MedicalRestModuleProps> = ({
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
+  const [zoom, setZoom] = useState<number>(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 860) {
+      const calc = Math.round(((window.innerWidth - 24) / 816) * 100);
+      return Math.max(35, Math.min(100, calc));
+    }
+    return 100;
+  });
 
   const todayFormatted = new Intl.DateTimeFormat('es-ES', {
     day: '2-digit',
@@ -133,16 +142,19 @@ export const MedicalRestModule: React.FC<MedicalRestModuleProps> = ({
     paperTexture: 'lisa',
   };
 
-  // Ensure default startDate is populated
+  // Ensure dates default strictly to today's active date
   useEffect(() => {
-    if (!certificate.startDate) {
-      onChangeCertificate({ startDate: todayFormatted });
+    if (!certificate.date || certificate.date === '14/10/26' || certificate.date.includes('14/10/') || !certificate.startDate) {
+      onChangeCertificate({
+        date: todayFormatted,
+        startDate: todayFormatted,
+      });
     }
-  }, []);
+  }, [todayFormatted]);
 
   // Update days of rest and auto-calculate end date
   const handleDaysChange = (daysVal: string | number) => {
-    const start = certificate.startDate || todayFormatted;
+    const start = certificate.startDate || certificate.date || todayFormatted;
     const computedEnd = daysVal !== '' ? computeEndDate(start, daysVal) : '';
     onChangeCertificate({
       daysRest: daysVal as any,
@@ -151,11 +163,12 @@ export const MedicalRestModule: React.FC<MedicalRestModuleProps> = ({
     });
   };
 
-  // When start date changes, recalculate end date automatically
+  // When start date changes, recalculate end date and sync date automatically
   const handleStartDateChange = (newStart: string) => {
     const daysVal = certificate.daysRest;
     const computedEnd = daysVal ? computeEndDate(newStart, daysVal) : certificate.endDate || '';
     onChangeCertificate({
+      date: newStart,
       startDate: newStart,
       endDate: computedEnd,
     });
@@ -168,7 +181,45 @@ export const MedicalRestModule: React.FC<MedicalRestModuleProps> = ({
   const pdfFilename = buildDocumentPdfFilename('Reposo_Medico', safeCert.patientName, todayDateStr);
 
   const handleDownloadRestPdf = async () => {
-    await exportElementAsPDF(printableSheetRef.current, pdfFilename);
+    const restDetails = `CONSTANCIA DE REPOSO MÉDICO\n\nPor medio de la presente se hace constar que el (la) paciente ${safeCert.patientName || 'indicado'}, titular de la C.I. ${safeCert.patientCI || '—'}, amerita REPOSO MÉDICO por un período de ${safeCert.daysRest || 1} días continuos a partir del ${safeCert.startDate || safeCert.date || todayFormatted} hasta el ${safeCert.endDate || 'cumplimiento del período'}.\n\nDiagnóstico: ${safeCert.diagnosis || 'Reposo médico'}\n${safeCert.observations ? `Observaciones: ${safeCert.observations}` : ''}`;
+    
+    await exportElementAsPDF(printableSheetRef.current, pdfFilename, {
+      documentType: 'rest',
+      nombrePaciente: safeCert.patientName,
+      cedulaPaciente: safeCert.patientCI,
+      edadPaciente: safeCert.patientAge,
+      telefonoPaciente: safeCert.patientPhone,
+      diagnostico: safeCert.diagnosis || 'Reposo médico',
+      textoRp: restDetails,
+      textoIndicaciones: safeCert.observations || '',
+      fecha: safeCert.startDate || safeCert.date || todayFormatted,
+      diasReposo: safeCert.daysRest,
+      fechaInicioReposo: safeCert.startDate || safeCert.date || todayFormatted,
+      fechaFinReposo: safeCert.endDate,
+      observacionesReposo: safeCert.observations,
+      nombreMedico: safeConfig.doctorName,
+      especialidad: safeConfig.specialty,
+      mpps: safeConfig.mpps,
+      ci: safeConfig.ci,
+      rif: safeConfig.rif,
+      cm: safeConfig.collegeNumber,
+      institucion: safeConfig.institution,
+      clinicaDireccion: safeConfig.address || safeConfig.clinicAddress,
+      telefonoMedico: safeConfig.phone,
+      emailMedico: safeConfig.email,
+      logoIzq: safeConfig.logoIzq,
+      logoDer: safeConfig.logoDer,
+      selloBase64: safeConfig.selloImg,
+      firmaBase64: safeConfig.firmaImg,
+      primaryColor: safeConfig.primaryDocColor,
+      nombreColor: safeConfig.nombreColor,
+      fuenteNombre: safeConfig.fuenteNombre,
+      tonePapel: safeConfig.tonePapel,
+    });
+
+    if (onDownloadPdf) {
+      onDownloadPdf();
+    }
   };
 
   const handlePrintSpecificRest = () => {
@@ -259,14 +310,14 @@ export const MedicalRestModule: React.FC<MedicalRestModuleProps> = ({
           </div>
         </div>
 
-        {/* Step Visual Progress Bar */}
-        <div className="grid grid-cols-3 gap-1.5 sm:gap-3 pt-3">
+        {/* Step Visual Progress Bar (Touch-Scrollable Cintillo for Mobile) */}
+        <div className="flex sm:grid sm:grid-cols-3 gap-1.5 sm:gap-2.5 pt-2.5 overflow-x-auto no-scrollbar scroll-smooth touch-pan-x py-0.5 px-0.5">
           
           {/* Paso 1: Paciente */}
           <button
             type="button"
             onClick={() => setCurrentStep(1)}
-            className={`flex items-center gap-1.5 sm:gap-2 p-2 sm:p-2.5 rounded-2xl transition-all text-left cursor-pointer ${
+            className={`shrink-0 min-w-[108px] sm:min-w-0 flex-1 flex items-center gap-1.5 sm:gap-2 p-1.5 sm:p-2.5 rounded-xl sm:rounded-2xl transition-all text-left cursor-pointer ${
               currentStep === 1
                 ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-300'
                 : currentStep > 1
@@ -274,20 +325,20 @@ export const MedicalRestModule: React.FC<MedicalRestModuleProps> = ({
                 : 'bg-slate-50 text-slate-400'
             }`}
           >
-            <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-xl flex items-center justify-center font-black text-xs shrink-0 ${
+            <div className={`w-5 h-5 sm:w-7 sm:h-7 rounded-lg sm:rounded-xl flex items-center justify-center font-black text-[10px] sm:text-xs shrink-0 ${
               currentStep === 1
                 ? 'bg-white text-blue-600 shadow-xs'
                 : currentStep > 1
                 ? 'bg-emerald-600 text-white'
                 : 'bg-slate-200 text-slate-600'
             }`}>
-              {currentStep > 1 ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : '1'}
+              {currentStep > 1 ? <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5 stroke-[3]" /> : '1'}
             </div>
             <div className="min-w-0">
               <span className="text-[10px] sm:text-xs font-black block leading-tight truncate">
                 1. Paciente
               </span>
-              <span className={`text-[9px] sm:text-[10px] block truncate ${currentStep === 1 ? 'text-blue-100' : 'text-slate-500'}`}>
+              <span className={`text-[8.5px] sm:text-[10px] block truncate ${currentStep === 1 ? 'text-blue-100' : 'text-slate-500'}`}>
                 {safeCert.patientName ? safeCert.patientName.split(' ')[0] : 'Datos'}
               </span>
             </div>
@@ -297,7 +348,7 @@ export const MedicalRestModule: React.FC<MedicalRestModuleProps> = ({
           <button
             type="button"
             onClick={() => setCurrentStep(2)}
-            className={`flex items-center gap-1.5 sm:gap-2 p-2 sm:p-2.5 rounded-2xl transition-all text-left cursor-pointer ${
+            className={`shrink-0 min-w-[108px] sm:min-w-0 flex-1 flex items-center gap-1.5 sm:gap-2 p-1.5 sm:p-2.5 rounded-xl sm:rounded-2xl transition-all text-left cursor-pointer ${
               currentStep === 2
                 ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-300'
                 : currentStep > 2
@@ -305,21 +356,21 @@ export const MedicalRestModule: React.FC<MedicalRestModuleProps> = ({
                 : 'bg-slate-50 text-slate-400'
             }`}
           >
-            <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-xl flex items-center justify-center font-black text-xs shrink-0 ${
+            <div className={`w-5 h-5 sm:w-7 sm:h-7 rounded-lg sm:rounded-xl flex items-center justify-center font-black text-[10px] sm:text-xs shrink-0 ${
               currentStep === 2
                 ? 'bg-white text-blue-600 shadow-xs'
                 : currentStep > 2
                 ? 'bg-emerald-600 text-white'
                 : 'bg-slate-200 text-slate-600'
             }`}>
-              {currentStep > 2 ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : '2'}
+              {currentStep > 2 ? <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5 stroke-[3]" /> : '2'}
             </div>
             <div className="min-w-0">
               <span className="text-[10px] sm:text-xs font-black block leading-tight truncate">
                 2. Reposo
               </span>
-              <span className={`text-[9px] sm:text-[10px] block truncate ${currentStep === 2 ? 'text-blue-100' : 'text-slate-500'}`}>
-                Días y Diagnóstico
+              <span className={`text-[8.5px] sm:text-[10px] block truncate ${currentStep === 2 ? 'text-blue-100' : 'text-slate-500'}`}>
+                Días & Dx
               </span>
             </div>
           </button>
@@ -328,13 +379,13 @@ export const MedicalRestModule: React.FC<MedicalRestModuleProps> = ({
           <button
             type="button"
             onClick={() => setCurrentStep(3)}
-            className={`flex items-center gap-1.5 sm:gap-2 p-2 sm:p-2.5 rounded-2xl transition-all text-left cursor-pointer ${
+            className={`shrink-0 min-w-[108px] sm:min-w-0 flex-1 flex items-center gap-1.5 sm:gap-2 p-1.5 sm:p-2.5 rounded-xl sm:rounded-2xl transition-all text-left cursor-pointer ${
               currentStep === 3
                 ? 'bg-emerald-600 text-white shadow-md ring-2 ring-emerald-300'
                 : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
             }`}
           >
-            <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-xl flex items-center justify-center font-black text-xs shrink-0 ${
+            <div className={`w-5 h-5 sm:w-7 sm:h-7 rounded-lg sm:rounded-xl flex items-center justify-center font-black text-[10px] sm:text-xs shrink-0 ${
               currentStep === 3
                 ? 'bg-white text-emerald-600 shadow-xs'
                 : 'bg-slate-200 text-slate-600'
@@ -345,8 +396,8 @@ export const MedicalRestModule: React.FC<MedicalRestModuleProps> = ({
               <span className="text-[10px] sm:text-xs font-black block leading-tight truncate">
                 3. Listo
               </span>
-              <span className={`text-[9px] sm:text-[10px] block truncate ${currentStep === 3 ? 'text-emerald-100' : 'text-slate-500'}`}>
-                Descargar PDF
+              <span className={`text-[8.5px] sm:text-[10px] block truncate ${currentStep === 3 ? 'text-emerald-100' : 'text-slate-500'}`}>
+                PDF / Enviar
               </span>
             </div>
           </button>
@@ -580,15 +631,23 @@ export const MedicalRestModule: React.FC<MedicalRestModuleProps> = ({
 
               {/* Automatic Dates Calculation */}
               <div className="pt-4 border-t border-blue-100 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs sm:text-sm">
-                <div className="flex items-center gap-2 w-full sm:w-auto">
+                <div className="flex items-center gap-1.5 w-full sm:w-auto">
                   <span className="text-slate-700 font-bold shrink-0">Desde (Inicio):</span>
                   <input
                     type="text"
                     value={safeCert.startDate || todayFormatted}
                     onChange={(e) => handleStartDateChange(e.target.value)}
                     placeholder="DD/MM/AAAA"
-                    className="bg-white border-2 border-slate-200 rounded-xl px-3 py-2 w-full sm:w-36 font-bold text-slate-800 text-center shadow-2xs outline-none focus:border-blue-500 text-sm"
+                    className="bg-white border-2 border-slate-200 rounded-xl px-2.5 py-1.5 w-full sm:w-32 font-bold text-slate-800 text-center shadow-2xs outline-none focus:border-blue-500 text-xs sm:text-sm"
                   />
+                  <button
+                    type="button"
+                    onClick={() => handleStartDateChange(todayFormatted)}
+                    className="px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-[10px] rounded-lg border border-blue-200 shrink-0 cursor-pointer transition-colors"
+                    title={`Fijar a la fecha de hoy (${todayFormatted})`}
+                  >
+                    Hoy
+                  </button>
                 </div>
 
                 <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -671,6 +730,53 @@ export const MedicalRestModule: React.FC<MedicalRestModuleProps> = ({
                   </span>
                 </div>
               </div>
+
+              {/* Zoom & Fit Mobile Controls */}
+              <div className="flex items-center gap-1.5 bg-slate-800/90 p-1 rounded-xl border border-slate-700 text-xs">
+                <span className="text-[10px] text-slate-300 font-mono font-bold px-1 hidden sm:inline">
+                  Escala: {zoom}%
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setZoom((prev) => Math.max(35, prev - 10))}
+                  className="px-2 py-1 bg-slate-700 hover:bg-slate-600 text-white font-black rounded-lg text-xs cursor-pointer"
+                  title="Alejar"
+                >
+                  -
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setZoom(100)}
+                  className="px-2 py-1 bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold rounded-lg text-[10px] cursor-pointer"
+                  title="Restablecer al 100%"
+                >
+                  100%
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setZoom((prev) => Math.min(140, prev + 10))}
+                  className="px-2 py-1 bg-slate-700 hover:bg-slate-600 text-white font-black rounded-lg text-xs cursor-pointer"
+                  title="Acercar"
+                >
+                  +
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const screenW = window.innerWidth;
+                    if (screenW < 860) {
+                      const calc = Math.round(((screenW - 24) / 816) * 100);
+                      setZoom(Math.max(35, Math.min(100, calc)));
+                    } else {
+                      setZoom(100);
+                    }
+                  }}
+                  className="px-2.5 py-1 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-black rounded-lg text-[10px] cursor-pointer flex items-center gap-1 border border-cyan-400/40"
+                  title="Ajustar exactamente a la pantalla del móvil"
+                >
+                  📱 Fit Móvil
+                </button>
+              </div>
             </div>
 
             {/* Direct Instant Action Buttons */}
@@ -691,17 +797,33 @@ export const MedicalRestModule: React.FC<MedicalRestModuleProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  const restDetails = `Reposo por ${safeCert.daysRest || 1} días continuos (Desde ${safeCert.startDate || safeCert.date} hasta ${safeCert.endDate || 'cumplimiento'}). Diagnóstico: ${safeCert.diagnosis || 'Reposo médico'}`;
+                  if (onInstantWhatsApp) {
+                    onInstantWhatsApp();
+                    return;
+                  }
+                  const restDetails = `CONSTANCIA DE REPOSO MÉDICO por ${safeCert.daysRest || 1} días continuos\nDesde: ${safeCert.startDate || safeCert.date || todayFormatted} Hasta: ${safeCert.endDate || 'cumplimiento'}\nDiagnóstico: ${safeCert.diagnosis || 'Reposo médico'}${safeCert.observations ? `\nObservaciones: ${safeCert.observations}` : ''}`;
 
                   exportAndSendWhatsAppBusiness({
                     element: printableSheetRef.current,
                     patientName: safeCert.patientName || 'Carlos leal',
                     documentTitle: 'Constancia de Reposo',
-                    dateStr: safeCert.date || '14/10/26',
+                    dateStr: safeCert.date || todayFormatted,
                     patientPhone: safeCert.patientPhone,
-                    doctorName: config.doctorName || 'Dr. Carlos Leal',
+                    doctorName: safeConfig.doctorName || 'Dr. Carlos Leal',
                     treatmentDetails: restDetails,
                     documentType: 'rest',
+                    config: safeConfig,
+                    recipe: {
+                      patientName: safeCert.patientName,
+                      patientCI: safeCert.patientCI,
+                      patientPhone: safeCert.patientPhone,
+                      rp: restDetails,
+                      diagnosis: safeCert.diagnosis,
+                      date: safeCert.date || todayFormatted,
+                    },
+                    indications: {
+                      generalInstructions: safeCert.observations || '',
+                    }
                   });
                 }}
                 className="w-full min-h-[46px] p-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black text-xs flex items-center justify-center gap-2 shadow-md transition-all hover:scale-[1.01] active:scale-95 cursor-pointer border border-emerald-400/40"
@@ -757,22 +879,49 @@ export const MedicalRestModule: React.FC<MedicalRestModuleProps> = ({
       {/* ========================================================= */}
       {/* VISTA PREVIA REAL DEL REPOSO EN FORMATO CARTA             */}
       {/* ========================================================= */}
-      <div className={currentStep === 3 ? "w-full flex justify-center py-2" : "hidden"}>
-            <div
-              ref={printableSheetRef}
-              id="rest-print-container"
-              className={`relative w-full max-w-[816px] bg-white shadow-2xl p-6 sm:p-8 rounded-2xl transition-all report-sheet-container print-container border border-slate-200/90 ${textureClass} ${
-                safeConfig.enforcePureBlackText ? 'enforce-pure-black' : ''
-              }`}
+      <div className={currentStep === 3 ? "w-full overflow-x-auto overflow-y-visible touch-pan-x touch-pan-y py-2 flex justify-center" : "w-full flex justify-center py-2 fixed -left-[9999px] -top-[9999px] pointer-events-none opacity-0"}>
+        {(() => {
+          const scale = zoom / 100;
+          const docW = 816;
+          const docH = 1056;
+          const scaledW = Math.round(docW * scale);
+          const scaledH = Math.round(docH * scale);
+
+          return (
+            <div 
+              className="relative mx-auto shrink-0 select-none transition-all duration-150"
               style={{
-                backgroundColor: safeConfig.tonePapel || '#ffffff',
-                border: borderStyle,
-                borderRadius: safeConfig.docCornerRadius || '16px',
-                minHeight: '1056px',
-                boxSizing: 'border-box',
+                width: `${scaledW}px`,
+                height: `${scaledH}px`,
               }}
             >
-              {/* Watermark */}
+              <div 
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  top: 0,
+                  width: `${docW}px`,
+                  transform: `scale(${scale})`,
+                  WebkitTransform: `scale(${scale})`,
+                  transformOrigin: 'top left',
+                }}
+              >
+                <div
+                  ref={printableSheetRef}
+                  id="rest-print-container"
+                  data-doc-orientation="portrait"
+                  className={`relative w-[816px] max-w-[816px] bg-white shadow-2xl p-6 sm:p-8 rounded-2xl transition-all report-sheet-container print-container border border-slate-200/90 ${textureClass} ${
+                    safeConfig.enforcePureBlackText ? 'enforce-pure-black' : ''
+                  } preview-mode`}
+                  style={{
+                    backgroundColor: safeConfig.tonePapel || '#ffffff',
+                    border: borderStyle,
+                    borderRadius: safeConfig.docCornerRadius || '16px',
+                    minHeight: '1056px',
+                    boxSizing: 'border-box',
+                  }}
+                >
+                  {/* Watermark */}
               {safeConfig.marcaAgua && !safeConfig.marcaAgua.includes('DIGITAL') && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
                   <img
@@ -922,6 +1071,10 @@ export const MedicalRestModule: React.FC<MedicalRestModuleProps> = ({
 
               </div>
             </div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
       {/* ========================================================= */}

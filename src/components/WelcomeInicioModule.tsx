@@ -32,7 +32,8 @@ import {
   Pill,
   Crown,
   Handshake,
-  Smartphone
+  Smartphone,
+  FlaskConical
 } from 'lucide-react';
 import { DoctorConfig, ActiveModule, RecipeItem, ClinicalRecord, MedicalReport, MedicalRestCert } from '../types';
 import { getDoctorTrialStatus } from '../utils/trialHelper';
@@ -232,20 +233,20 @@ export const WelcomeInicioModule: React.FC<WelcomeInicioModuleProps> = ({
     <div className="space-y-6 max-w-6xl mx-auto pb-12 animate-in fade-in duration-200">
       
       {/* 1. HERO HEADER: CLEAN, SLEEK LIGHT COMMAND BAR WITH LOGO, DEVELOPER BADGE & PATIENT CONTROLS */}
-      <div className="bg-white text-slate-900 rounded-3xl p-5 sm:p-6 border-2 border-blue-200/80 shadow-xl relative overflow-hidden">
+      <div className="bg-white text-slate-900 rounded-2xl sm:rounded-3xl p-4 sm:p-6 border-2 border-blue-200/80 shadow-xl relative overflow-hidden">
         
         {/* Decorative subtle medical ambient */}
         <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-blue-500/10 via-cyan-500/10 to-transparent rounded-full -mr-20 -mt-20 pointer-events-none" />
         <div className="absolute bottom-0 left-1/3 w-64 h-32 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
         
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 sm:gap-6 relative z-10">
           
-          {/* Left: Big Legible Official Logo & Stylized Brand Identity */}
-          <div className="flex items-start sm:items-center gap-4 sm:gap-6 flex-1 min-w-0">
+          {/* Left: Big Legible Official Logo & Stylized Brand Identity (Column on mobile, row on tablet/desktop) */}
+          <div className="flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left gap-3 sm:gap-5 flex-1 min-w-0 w-full">
             
             {/* Grand Crisp Vector Logo Container */}
-            <div className="w-20 h-20 sm:w-24 sm:h-24 lg:w-28 lg:h-28 rounded-3xl bg-gradient-to-tr from-blue-900 via-indigo-900 to-blue-950 p-2 shrink-0 shadow-xl border-2 border-blue-400/40 flex items-center justify-center ring-4 ring-blue-500/15">
-              <div className="w-full h-full bg-white rounded-2xl flex items-center justify-center p-2 overflow-hidden shadow-inner">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 rounded-2xl sm:rounded-3xl bg-gradient-to-tr from-blue-900 via-indigo-900 to-blue-950 p-1.5 sm:p-2 shrink-0 shadow-lg border-2 border-blue-400/40 flex items-center justify-center ring-2 sm:ring-4 ring-blue-500/15">
+              <div className="w-full h-full bg-white rounded-xl sm:rounded-2xl flex items-center justify-center p-1.5 sm:p-2 overflow-hidden shadow-inner">
                 <img 
                   src={DIGITAL_MEDIC_OFFICIAL_LOGO_SVG} 
                   alt="Digital Médic Logo Oficial" 
@@ -255,14 +256,14 @@ export const WelcomeInicioModule: React.FC<WelcomeInicioModuleProps> = ({
             </div>
 
             {/* App Brand Header & Developer Badge */}
-            <div className="space-y-2.5 min-w-0 flex-1">
+            <div className="space-y-2 min-w-0 flex-1">
               
-              <div className="flex items-center gap-2.5 flex-wrap">
-                <span className="text-sm sm:text-base font-black uppercase tracking-widest text-white bg-blue-700 px-3.5 py-1 rounded-xl border border-blue-500 flex items-center gap-2 shadow-xs">
-                  <span className="w-2.5 h-2.5 rounded-full bg-cyan-300 animate-pulse"></span>
+              <div className="flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2.5 flex-wrap">
+                <span className="text-xs sm:text-sm font-black uppercase tracking-wider text-white bg-blue-700 px-2.5 sm:px-3.5 py-1 rounded-xl border border-blue-500 flex items-center gap-1.5 shadow-xs">
+                  <span className="w-2 h-2 rounded-full bg-cyan-300 animate-pulse"></span>
                   DIGITAL MÉDIC
                 </span>
-                <span className="text-xs sm:text-sm font-black text-blue-900 bg-blue-100/90 px-3 py-1 rounded-xl border border-blue-300 shadow-2xs">
+                <span className="text-[11px] sm:text-xs font-black text-blue-900 bg-blue-100/90 px-2.5 sm:px-3 py-1 rounded-xl border border-blue-300 shadow-2xs">
                   Formatos Médicos Digitales 2026
                 </span>
 
@@ -270,15 +271,15 @@ export const WelcomeInicioModule: React.FC<WelcomeInicioModuleProps> = ({
                 <CeLealStudioLogo variant="badge" />
               </div>
 
-              <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-semibold">
+              <p className="text-xs sm:text-sm text-slate-700 leading-snug sm:leading-relaxed font-semibold">
                 Prescripción clínica oficial · Récipes Médicos · Informes · Reposos laborales · Historias Clínicas · Indicaciones
               </p>
 
-              {/* Saludo médico oficial limpio y profesional (sin animaciones ni destellos) */}
-              <div className="pt-2 flex items-center gap-3 flex-wrap">
-                <div className="inline-flex items-center gap-3 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 shadow-sm cursor-default">
+              {/* Saludo médico oficial limpio y profesional */}
+              <div className="pt-1 flex items-center justify-center sm:justify-start gap-3 flex-wrap">
+                <div className="inline-flex items-center gap-2 sm:gap-3 px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 shadow-sm cursor-default max-w-full">
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
-                  <span className="text-lg sm:text-xl md:text-2xl font-black text-slate-900 font-sans tracking-tight">
+                  <span className="text-base sm:text-xl md:text-2xl font-black text-slate-900 font-sans tracking-tight truncate">
                     ¡Hola, {config.doctorName || 'Dr(a). Médico'}!
                   </span>
                 </div>
@@ -287,83 +288,85 @@ export const WelcomeInicioModule: React.FC<WelcomeInicioModuleProps> = ({
             </div>
           </div>
 
-          {/* Right: PATIENT ADMISSION & SEARCH CONTROLS */}
-          <div className="w-full lg:w-80 shrink-0 flex flex-col gap-2.5">
+          {/* Right: PATIENT ADMISSION & SEARCH CONTROLS (Compact 3-Column Grid on Mobile, Full Width Column on Desktop) */}
+          <div className="w-full lg:w-80 shrink-0 grid grid-cols-3 lg:flex lg:flex-col gap-1.5 sm:gap-2.5">
             
             {/* BOTÓN PRINCIPAL: INGRESAR PACIENTE */}
             <button
               onClick={() => setIsPatientModalOpen(true)}
-              className="w-full p-3.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-700 text-white rounded-2xl transition-all flex items-center justify-between text-left shadow-md shadow-emerald-700/20 group hover:scale-[1.01] border border-emerald-400/40 cursor-pointer"
+              className="w-full p-2 sm:p-3 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl sm:rounded-2xl transition-all flex flex-col lg:flex-row items-center justify-center lg:justify-between text-center lg:text-left shadow-md shadow-emerald-700/20 group hover:scale-[1.01] border border-emerald-400/40 cursor-pointer min-h-[64px] lg:min-h-0"
             >
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-xl bg-white/20 text-white flex items-center justify-center shrink-0 border border-white/20 shadow-inner">
-                  <UserPlus className="w-6 h-6" />
+              <div className="flex flex-col lg:flex-row items-center gap-1 sm:gap-2.5">
+                <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-white/20 text-white flex items-center justify-center shrink-0 border border-white/20 shadow-inner">
+                  <UserPlus className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
                 <div>
-                  <div className="text-xs font-black uppercase tracking-wide flex items-center gap-1.5">
-                    <span>Ingresar Paciente</span>
-                    <span className="px-1.5 py-0.2 bg-white text-emerald-900 text-[9px] font-black rounded font-mono">
-                      NUEVO
+                  <div className="text-[10px] min-[360px]:text-[11px] sm:text-xs font-black uppercase tracking-tight flex items-center justify-center lg:justify-start gap-1">
+                    <span className="truncate">Ingresar</span>
+                    <span className="hidden min-[380px]:inline lg:inline">Paciente</span>
+                    <span className="px-1 py-0.2 bg-white text-emerald-900 text-[8px] font-black rounded font-mono hidden sm:inline">
+                      +
                     </span>
                   </div>
-                  <div className="text-[11px] text-emerald-100 mt-0.5 leading-tight">
-                    Nombre, C.I., Edad, Dirección, Teléfono y Correo
+                  <div className="hidden lg:block text-[10px] sm:text-[11px] text-emerald-100 mt-0.5 leading-tight">
+                    Nombre, C.I., Edad, Teléfono y Correo
                   </div>
                 </div>
               </div>
-              <ArrowRight className="w-4 h-4 text-emerald-100 group-hover:translate-x-1 transition-transform shrink-0" />
+              <ArrowRight className="hidden lg:block w-4 h-4 text-emerald-100 group-hover:translate-x-1 transition-transform shrink-0" />
             </button>
 
             {/* BOTÓN SECUNDARIO: BUSCAR PACIENTE GRABADO */}
             <button
               onClick={() => setIsSearchPatientModalOpen(true)}
-              className="w-full p-3 bg-slate-100 hover:bg-blue-50 text-slate-900 rounded-2xl transition-all flex items-center justify-between text-left shadow-sm group hover:scale-[1.01] border border-slate-300 cursor-pointer"
+              className="w-full p-2 sm:p-3 bg-slate-100 hover:bg-blue-50 text-slate-900 rounded-xl sm:rounded-2xl transition-all flex flex-col lg:flex-row items-center justify-center lg:justify-between text-center lg:text-left shadow-sm group hover:scale-[1.01] border border-slate-300 cursor-pointer min-h-[64px] lg:min-h-0"
             >
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0 border border-blue-200">
-                  <Search className="w-4 h-4" />
+              <div className="flex flex-col lg:flex-row items-center gap-1 sm:gap-2.5">
+                <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0 border border-blue-200">
+                  <Search className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
                 <div>
-                  <div className="text-xs font-black uppercase tracking-wide text-slate-900 flex items-center gap-1.5">
-                    <span>Buscar Paciente</span>
+                  <div className="text-[10px] min-[360px]:text-[11px] sm:text-xs font-black uppercase tracking-tight text-slate-900 flex items-center justify-center lg:justify-start gap-1">
+                    <span className="truncate">Buscar</span>
+                    <span className="hidden min-[380px]:inline lg:inline">Paciente</span>
                     {existingPatients.length > 0 && (
-                      <span className="text-[10px] text-blue-700 font-mono">({existingPatients.length})</span>
+                      <span className="text-[10px] text-blue-700 font-mono font-black">({existingPatients.length})</span>
                     )}
                   </div>
-                  <div className="text-[10.5px] text-slate-600">
+                  <div className="hidden lg:block text-[10px] sm:text-[10.5px] text-slate-600">
                     Cargar datos guardados a todos los formatos
                   </div>
                 </div>
               </div>
-              <ChevronRight className="w-4 h-4 text-slate-500 group-hover:translate-x-1 transition-transform shrink-0" />
+              <ChevronRight className="hidden lg:block w-4 h-4 text-slate-500 group-hover:translate-x-1 transition-transform shrink-0" />
             </button>
 
             {/* BANNER ANIMADO LLAMATIVO: CREAR RÉCIPE */}
             <button
               onClick={() => onNavigate('recipe-master')}
-              className="w-full p-3.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white rounded-2xl transition-all flex items-center justify-between text-left shadow-lg shadow-blue-600/25 group hover:scale-[1.02] border-2 border-cyan-300/60 cursor-pointer relative overflow-hidden ring-4 ring-blue-500/10"
+              className="w-full p-2 sm:p-3 bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white rounded-xl sm:rounded-2xl transition-all flex flex-col lg:flex-row items-center justify-center lg:justify-between text-center lg:text-left shadow-lg shadow-blue-600/25 group hover:scale-[1.02] border border-cyan-300/60 cursor-pointer relative overflow-hidden min-h-[64px] lg:min-h-0"
             >
               {/* Shimmer background animation */}
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out pointer-events-none" />
               
-              <div className="flex items-center gap-3 relative z-10">
-                <div className="w-11 h-11 rounded-xl bg-white/20 text-white flex items-center justify-center shrink-0 border border-white/30 shadow-inner group-hover:rotate-12 transition-transform">
-                  <Sparkles className="w-6 h-6 text-amber-300 animate-pulse" />
+              <div className="flex flex-col lg:flex-row items-center gap-1 sm:gap-2.5 relative z-10">
+                <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-white/20 text-white flex items-center justify-center shrink-0 border border-white/30 shadow-inner group-hover:rotate-12 transition-transform">
+                  <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-amber-300 animate-pulse" />
                 </div>
                 <div>
-                  <div className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5 text-white">
-                    <span>✨ CREAR RÉCIPE ✨</span>
-                    <span className="px-1.5 py-0.5 bg-amber-400 text-slate-950 text-[9px] font-black rounded font-mono shadow-xs animate-bounce">
-                      NUEVO
+                  <div className="text-[10px] min-[360px]:text-[11px] sm:text-xs font-black uppercase tracking-tight flex items-center justify-center lg:justify-start gap-1 text-white">
+                    <span>Crear</span>
+                    <span className="hidden min-[380px]:inline lg:inline">Récipe</span>
+                    <span className="px-1 py-0.2 bg-amber-400 text-slate-950 text-[8px] font-black rounded font-mono shadow-xs">
+                      ✨
                     </span>
                   </div>
-                  <div className="text-[11px] text-cyan-100 mt-0.5 font-bold leading-tight">
+                  <div className="hidden lg:block text-[10px] sm:text-[11px] text-cyan-100 mt-0.5 font-bold leading-tight">
                     Redactar prescripción rápida & descargar PDF
                   </div>
                 </div>
               </div>
             </button>
-
 
           </div>
 
@@ -372,10 +375,10 @@ export const WelcomeInicioModule: React.FC<WelcomeInicioModuleProps> = ({
 
       {/* PACIENTE ACTIVO ECOSYSTEM PANEL (COMMAND CENTER) */}
       {activePatientName && (
-        <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border-2 border-emerald-500 rounded-3xl p-5 sm:p-6 shadow-xl relative overflow-hidden animate-in fade-in slide-in-from-top-4 duration-200">
+        <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border-2 border-emerald-500 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-xl relative overflow-hidden animate-in fade-in slide-in-from-top-4 duration-200">
           <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-400/10 rounded-full blur-2xl" />
           
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 relative z-10">
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <span className="flex h-3 w-3 relative">
@@ -387,29 +390,29 @@ export const WelcomeInicioModule: React.FC<WelcomeInicioModuleProps> = ({
                 </span>
               </div>
               
-              <h3 className="text-xl sm:text-2xl font-black text-slate-900 font-sans flex items-center gap-2 flex-wrap">
+              <h3 className="text-lg sm:text-xl md:text-2xl font-black text-slate-900 font-sans flex items-center gap-2 flex-wrap">
                 <span className="bg-emerald-600 text-white p-1 rounded-lg shrink-0">👤</span>
                 <span>{activePatientName}</span>
               </h3>
               
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs font-bold text-slate-700">
+              <div className="flex flex-wrap items-center gap-x-2.5 sm:gap-x-4 gap-y-1.5 text-xs font-bold text-slate-700">
                 {activePatientCI && (
-                  <span className="bg-slate-200/80 text-slate-800 px-2.5 py-1 rounded-lg border border-slate-300 shadow-2xs">
+                  <span className="bg-slate-200/80 text-slate-800 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg border border-slate-300 shadow-2xs">
                     C.I: <strong className="text-slate-950 font-mono">{activePatientCI}</strong>
                   </span>
                 )}
                 {activePatientAge && (
-                  <span className="bg-slate-200/80 text-slate-800 px-2.5 py-1 rounded-lg border border-slate-300 shadow-2xs">
+                  <span className="bg-slate-200/80 text-slate-800 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg border border-slate-300 shadow-2xs">
                     Edad: <strong className="text-slate-950">{activePatientAge}</strong>
                   </span>
                 )}
                 {activePatientPhone && (
-                  <span className="bg-slate-200/80 text-slate-800 px-2.5 py-1 rounded-lg border border-slate-300 shadow-2xs">
+                  <span className="bg-slate-200/80 text-slate-800 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg border border-slate-300 shadow-2xs">
                     📱 {activePatientPhone}
                   </span>
                 )}
                 {activePatientEmail && (
-                  <span className="bg-slate-200/80 text-slate-800 px-2.5 py-1 rounded-lg border border-slate-300 shadow-2xs">
+                  <span className="bg-slate-200/80 text-slate-800 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg border border-slate-300 shadow-2xs truncate max-w-[200px] sm:max-w-none">
                     ✉️ {activePatientEmail}
                   </span>
                 )}
@@ -420,11 +423,11 @@ export const WelcomeInicioModule: React.FC<WelcomeInicioModuleProps> = ({
               </p>
             </div>
             
-            <div className="shrink-0 pt-2 md:pt-0">
+            <div className="shrink-0 pt-2 md:pt-0 w-full md:w-auto">
               <button
                 type="button"
                 onClick={onClearActivePatient}
-                className="w-full md:w-auto px-5 py-3 bg-rose-600 hover:bg-rose-700 text-white font-black rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-rose-600/20 border-2 border-rose-500 transition-all hover:scale-[1.02] cursor-pointer"
+                className="w-full md:w-auto px-4 py-2.5 sm:px-5 sm:py-3 bg-rose-600 hover:bg-rose-700 text-white font-black rounded-xl sm:rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-rose-600/20 border-2 border-rose-500 transition-all hover:scale-[1.02] cursor-pointer"
                 title="Limpiar paciente actual para ingresar uno nuevo"
               >
                 <X className="w-4 h-4 text-white shrink-0" />
@@ -447,83 +450,79 @@ export const WelcomeInicioModule: React.FC<WelcomeInicioModuleProps> = ({
           </span>
         </div>
 
-        {/* Beautiful Modern Grid with Stylized Visual Graphics */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        {/* Beautiful Modern Responsive Grid (2 columns on mobile, 3 on tablet/desktop) */}
+        <div className="grid grid-cols-2 min-[640px]:grid-cols-3 lg:grid-cols-3 gap-2 sm:gap-4">
           
           {/* 1. RÉCIPES MÉDICOS */}
           <div 
             onClick={() => onNavigate('recipe-master')}
-            className="bg-white rounded-3xl border border-slate-200/90 hover:border-blue-500/70 hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-300 cursor-pointer group flex flex-col justify-between overflow-hidden transform hover:-translate-y-1 shadow-md"
+            className="bg-white rounded-xl sm:rounded-2xl border border-slate-200/90 hover:border-blue-500/70 hover:shadow-xl transition-all duration-300 cursor-pointer group flex flex-col justify-between overflow-hidden transform hover:-translate-y-0.5 shadow-xs"
           >
-            {/* STYLIZED MODERN HERO IMAGE BANNER */}
-            <div className="relative h-40 w-full bg-gradient-to-br from-blue-600 via-indigo-700 to-slate-900 overflow-hidden flex items-center justify-center p-4">
+            {/* STYLIZED MODERN HERO IMAGE BANNER (COMPACT FOR MOBILE) */}
+            <div className="relative h-14 min-[400px]:h-16 sm:h-28 w-full bg-gradient-to-br from-blue-600 via-indigo-700 to-slate-900 overflow-hidden flex items-center justify-center p-1.5 sm:p-3">
               {/* Background ambient glows */}
-              <div className="absolute -top-10 -right-10 w-36 h-36 bg-cyan-400/25 rounded-full blur-2xl group-hover:scale-125 transition-transform" />
-              <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-blue-500/20 rounded-full blur-xl" />
+              <div className="absolute -top-6 -right-6 w-16 h-16 sm:w-28 sm:h-28 bg-cyan-400/25 rounded-full blur-lg sm:blur-xl group-hover:scale-125 transition-transform" />
+              <div className="absolute -bottom-6 -left-6 w-16 h-16 sm:w-24 sm:h-24 bg-blue-500/20 rounded-full blur-md sm:blur-lg" />
               
-              {/* Stylized Vector Illustration: Prescription Sheet + Rx Badge + Pills */}
-              <div className="relative z-10 flex items-center justify-center gap-3 transform group-hover:scale-105 transition-all duration-300">
-                {/* Prescription Pad Mockup */}
-                <div className="w-24 h-32 bg-white/95 backdrop-blur-md rounded-xl shadow-2xl p-2.5 border border-white/60 flex flex-col justify-between transform -rotate-3 group-hover:rotate-0 transition-transform">
-                  <div className="flex items-center justify-between border-b border-blue-100 pb-1">
-                    <span className="text-[9px] font-black tracking-tighter text-blue-800">DIGITAL MÉDIC</span>
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              {/* Stylized Vector Illustration: Prescription Sheet + Rx Badge */}
+              <div className="relative z-10 flex items-center justify-center gap-1.5 sm:gap-2.5 transform group-hover:scale-105 transition-all duration-300">
+                <div className="w-9 h-11 min-[400px]:w-11 min-[400px]:h-13 sm:w-18 sm:h-24 bg-white/95 backdrop-blur-md rounded-md sm:rounded-lg shadow-md p-1 sm:p-2 border border-white/60 flex flex-col justify-between transform -rotate-3 group-hover:rotate-0 transition-transform">
+                  <div className="flex items-center justify-between border-b border-blue-100 pb-0.5">
+                    <span className="text-[5px] sm:text-[8px] font-black tracking-tighter text-blue-800">DIGITAL MÉDIC</span>
+                    <span className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                   </div>
-                  <div className="space-y-1 my-1">
-                    <div className="text-[12px] font-black italic text-blue-600 font-serif">Rp.</div>
-                    <div className="w-full h-1 bg-slate-200 rounded"></div>
-                    <div className="w-4/5 h-1 bg-slate-200 rounded"></div>
-                    <div className="w-3/5 h-1 bg-blue-100 rounded"></div>
+                  <div className="space-y-0.5 my-0.5">
+                    <div className="text-[7px] sm:text-[10px] font-black italic text-blue-600 font-serif leading-none">Rp.</div>
+                    <div className="w-full h-0.5 bg-slate-200 rounded"></div>
                   </div>
-                  <div className="pt-1 border-t border-slate-100 flex items-center justify-between">
-                    <div className="w-6 h-1.5 bg-slate-300 rounded"></div>
-                    <div className="w-4 h-4 rounded-full bg-blue-50 border border-blue-300 flex items-center justify-center text-[7px] text-blue-700 font-bold">✓</div>
+                  <div className="pt-0.5 border-t border-slate-100 flex items-center justify-between">
+                    <div className="w-2.5 sm:w-4 h-0.5 bg-slate-300 rounded"></div>
+                    <div className="w-1.5 h-1.5 sm:w-3 sm:h-3 rounded-full bg-blue-50 border border-blue-300 flex items-center justify-center text-[4px] sm:text-[6px] text-blue-700 font-bold">✓</div>
                   </div>
                 </div>
 
-                {/* Floating 3D Pill & Rx Badge */}
-                <div className="flex flex-col gap-2">
-                  <div className="px-3 py-1.5 bg-white/20 backdrop-blur-md border border-white/40 rounded-xl shadow-lg flex items-center gap-1.5 text-white">
-                    <span className="text-xs font-black bg-cyan-400 text-slate-950 px-1.5 py-0.5 rounded font-mono">Rx</span>
-                    <span className="text-[11px] font-bold">Digital</span>
+                <div className="flex flex-col gap-0.5 sm:gap-1.5">
+                  <div className="px-1 sm:px-2 py-0.5 bg-white/20 backdrop-blur-md border border-white/40 rounded sm:rounded-md shadow-xs flex items-center gap-0.5 text-white">
+                    <span className="text-[6.5px] sm:text-[9px] font-black bg-cyan-400 text-slate-950 px-0.5 rounded font-mono">Rx</span>
+                    <span className="text-[6.5px] sm:text-[9px] font-bold hidden min-[360px]:inline">Digital</span>
                   </div>
-                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-400 to-blue-500 flex items-center justify-center text-white shadow-lg shadow-cyan-500/30 transform rotate-12 group-hover:rotate-45 transition-transform">
-                    <Pill className="w-5 h-5 text-white" />
+                  <div className="w-4 h-4 sm:w-7 sm:h-7 rounded sm:rounded-lg bg-gradient-to-tr from-cyan-400 to-blue-500 flex items-center justify-center text-white shadow-xs transform rotate-12 group-hover:rotate-45 transition-transform">
+                    <Pill className="w-2 sm:w-3.5 sm:h-3.5 text-white" />
                   </div>
                 </div>
               </div>
 
               {/* Top Tag */}
-              <div className="absolute top-3 left-3 z-20">
-                <span className="px-2.5 py-1 bg-slate-950/80 backdrop-blur-md text-cyan-300 text-[10px] font-black uppercase tracking-wider rounded-lg shadow-xs border border-cyan-500/30">
-                  Asistente Progresivo
+              <div className="absolute top-1 left-1 sm:top-2 sm:left-2 z-20">
+                <span className="px-1 sm:px-2 py-0.2 sm:py-0.5 bg-slate-950/80 backdrop-blur-md text-cyan-300 text-[6.5px] sm:text-[8.5px] font-black uppercase tracking-wider rounded border border-cyan-500/30">
+                  Asistente
                 </span>
               </div>
             </div>
             
             {/* CARD BODY */}
-            <div className="p-5 sm:p-6 space-y-4 flex-1 flex flex-col justify-between bg-gradient-to-b from-white to-blue-50/25">
+            <div className="p-2 sm:p-3.5 space-y-1 sm:space-y-2.5 flex-1 flex flex-col justify-between bg-gradient-to-b from-white to-blue-50/25">
               <div>
-                <h3 className="font-black text-slate-900 text-xl group-hover:text-blue-600 transition-colors flex items-center justify-between">
-                  <span>Récipes Médicos</span>
-                  <span className="text-[10px] font-extrabold text-blue-700 bg-blue-100 px-3 py-1 rounded-full border border-blue-200 uppercase tracking-wider">
-                    Asistente
+                <h3 className="font-black text-slate-900 text-[11px] min-[360px]:text-xs sm:text-base group-hover:text-blue-600 transition-colors flex items-center justify-between gap-1 leading-tight">
+                  <span className="truncate">Récipes Médicos</span>
+                  <span className="text-[6.5px] sm:text-[8.5px] font-extrabold text-blue-700 bg-blue-100 px-1 py-0.2 rounded uppercase tracking-wider shrink-0">
+                    Rx
                   </span>
                 </h3>
-                <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                  Flujo guiado paso a paso optimizado para celulares: 1. Paciente ➜ 2. Fármacos/Rp. ➜ 3. Descargar PDF / WhatsApp.
+                <p className="text-[9px] sm:text-xs text-slate-500 mt-0.5 leading-tight line-clamp-1 sm:line-clamp-2">
+                  Prescripción guiada: Paciente ➜ Fármacos ➜ PDF / WhatsApp.
                 </p>
               </div>
 
-              <div className="pt-4 border-t border-slate-200/60 flex flex-col gap-2.5">
+              <div className="pt-1 sm:pt-2 border-t border-slate-200/60 flex flex-col gap-1 sm:gap-2">
                 {activePatientName && (
-                  <div className="bg-emerald-500/10 text-emerald-800 border-2 border-emerald-500/25 rounded-2xl py-2 px-3 text-center text-xs font-black flex items-center justify-center gap-1.5 animate-pulse">
-                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span className="truncate">Listo para: {activePatientName}</span>
+                  <div className="bg-emerald-500/10 text-emerald-800 border border-emerald-500/25 rounded-md py-0.5 px-1 text-center text-[8px] sm:text-[10px] font-black flex items-center justify-center gap-1">
+                    <Check className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
+                    <span className="truncate">{activePatientName}</span>
                   </div>
                 )}
                 
-                <div className="flex gap-2">
+                <div className="flex gap-1 sm:gap-1.5 w-full">
                   <button
                     type="button"
                     onClick={(e) => {
@@ -531,10 +530,10 @@ export const WelcomeInicioModule: React.FC<WelcomeInicioModuleProps> = ({
                       if (onOpenFormatPreview) onOpenFormatPreview('recipe-master');
                       else onOpenPreview();
                     }}
-                    className="px-4 py-3 bg-blue-50 hover:bg-blue-100 text-blue-700 font-black rounded-2xl text-xs flex items-center gap-1.5 transition-all cursor-pointer border-2 border-blue-200 shadow-sm shrink-0 hover:scale-[1.02] active:scale-95"
-                    title="Ver vista previa de la hoja de récipe con su membrete y diseño"
+                    className="px-1.5 sm:px-2.5 py-1 sm:py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 font-black rounded-lg text-[8px] min-[360px]:text-[9px] sm:text-xs flex items-center justify-center gap-0.5 transition-all cursor-pointer border border-blue-200 shrink-0"
+                    title="Ver vista previa de la hoja de récipe"
                   >
-                    <Eye className="w-4 h-4 text-blue-600" />
+                    <Eye className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 text-blue-600 shrink-0" />
                     <span>DISEÑO</span>
                   </button>
 
@@ -544,92 +543,184 @@ export const WelcomeInicioModule: React.FC<WelcomeInicioModuleProps> = ({
                       e.stopPropagation();
                       onNavigate('recipe-master');
                     }}
-                    className="flex-1 py-3.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-700 text-white font-black rounded-2xl text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-md shadow-blue-600/20 border-2 border-blue-500/40 hover:scale-[1.02] active:scale-95 cursor-pointer text-center"
+                    className="flex-1 py-1 sm:py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black rounded-lg text-[8px] min-[360px]:text-[9px] sm:text-xs uppercase tracking-tight flex items-center justify-center gap-0.5 transition-all shadow-xs cursor-pointer text-center truncate"
                   >
-                    <span>{activePatientName ? 'Emitir Récipe' : 'Redactar Récipes'}</span>
-                    <ArrowRight className="w-4 h-4 text-white" />
+                    <span className="truncate">{activePatientName ? 'Emitir' : 'Redactar'}</span>
+                    <ArrowRight className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 text-white shrink-0" />
                   </button>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* 2. INFORME MÉDICO */}
+          {/* 2. EXÁMENES Y LABORATORIOS */}
           <div 
-            onClick={() => onNavigate('informes')}
-            className="bg-white rounded-3xl border border-slate-200/90 hover:border-teal-500/70 hover:shadow-2xl hover:shadow-teal-500/10 transition-all duration-300 cursor-pointer group flex flex-col justify-between overflow-hidden transform hover:-translate-y-1 shadow-md"
+            onClick={() => onNavigate('examenes')}
+            className="bg-white rounded-xl sm:rounded-2xl border border-slate-200/90 hover:border-cyan-500/70 hover:shadow-xl transition-all duration-300 cursor-pointer group flex flex-col justify-between overflow-hidden transform hover:-translate-y-0.5 shadow-xs"
           >
-            {/* STYLIZED MODERN HERO IMAGE BANNER */}
-            <div className="relative h-40 w-full bg-gradient-to-br from-teal-600 via-emerald-700 to-slate-900 overflow-hidden flex items-center justify-center p-4">
-              <div className="absolute -top-10 -right-10 w-36 h-36 bg-emerald-400/25 rounded-full blur-2xl group-hover:scale-125 transition-transform" />
-              <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-teal-500/20 rounded-full blur-xl" />
+            {/* STYLIZED MODERN HERO IMAGE BANNER (COMPACT FOR MOBILE) */}
+            <div className="relative h-14 min-[400px]:h-16 sm:h-28 w-full bg-gradient-to-br from-cyan-600 via-blue-700 to-slate-900 overflow-hidden flex items-center justify-center p-1.5 sm:p-3">
+              <div className="absolute -top-6 -right-6 w-16 h-16 sm:w-28 sm:h-28 bg-cyan-400/25 rounded-full blur-lg sm:blur-xl group-hover:scale-125 transition-transform" />
+              <div className="absolute -bottom-6 -left-6 w-16 h-16 sm:w-24 sm:h-24 bg-blue-500/20 rounded-full blur-md sm:blur-lg" />
 
-              {/* Stylized Vector Illustration: Clinical Clipboard + Pulse + Stethoscope */}
-              <div className="relative z-10 flex items-center justify-center gap-3 transform group-hover:scale-105 transition-all duration-300">
-                {/* Clinical Report Mockup */}
-                <div className="w-24 h-32 bg-white/95 backdrop-blur-md rounded-xl shadow-2xl p-2.5 border border-white/60 flex flex-col justify-between transform rotate-2 group-hover:rotate-0 transition-transform">
-                  <div className="flex items-center justify-between border-b border-teal-100 pb-1">
-                    <span className="text-[9px] font-black tracking-tighter text-teal-800">INFORME</span>
-                    <span className="w-2 h-2 rounded-full bg-teal-500"></span>
+              <div className="relative z-10 flex items-center justify-center gap-1.5 sm:gap-2.5 transform group-hover:scale-105 transition-all duration-300">
+                <div className="w-10 h-11 min-[400px]:w-12 min-[400px]:h-13 sm:w-18 sm:h-24 bg-white/95 backdrop-blur-md rounded-md sm:rounded-lg shadow-md p-1 sm:p-2 border border-white/60 flex flex-col justify-between transform -rotate-2 group-hover:rotate-0 transition-transform">
+                  <div className="flex items-center justify-between border-b border-cyan-100 pb-0.5">
+                    <span className="text-[5px] sm:text-[8px] font-black tracking-tighter text-cyan-900">LAB / RX</span>
+                    <span className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-cyan-500"></span>
                   </div>
-                  <div className="space-y-1 my-1">
-                    {/* ECG Pulse Wave */}
-                    <div className="w-full h-3 flex items-center">
-                      <svg className="w-full h-3 text-teal-600" viewBox="0 0 100 20" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <path d="M0,10 L30,10 L35,2 L42,18 L48,5 L54,14 L60,10 L100,10" />
-                      </svg>
-                    </div>
-                    <div className="w-full h-1 bg-slate-200 rounded"></div>
-                    <div className="w-4/5 h-1 bg-slate-200 rounded"></div>
-                    <div className="w-3/5 h-1 bg-teal-100 rounded"></div>
+                  <div className="space-y-0.5 my-0.5">
+                    <div className="text-[5px] sm:text-[7px] font-bold text-slate-800 leading-none">🩸 Perfil 20</div>
+                    <div className="text-[5px] sm:text-[7px] font-bold text-slate-800 leading-none">🩻 Rx Tórax</div>
                   </div>
-                  <div className="pt-1 border-t border-slate-100 flex items-center justify-between">
-                    <span className="text-[8px] font-bold text-teal-700">OFICIAL</span>
-                    <div className="w-4 h-4 rounded-full bg-emerald-100 border border-emerald-300 flex items-center justify-center text-[8px] text-emerald-800 font-bold">★</div>
+                  <div className="pt-0.5 border-t border-slate-100 flex items-center justify-between">
+                    <span className="text-[5px] sm:text-[7px] text-cyan-700 font-bold">Orden</span>
+                    <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-cyan-100 flex items-center justify-center text-[4px] sm:text-[6px] text-cyan-800 font-bold">🔬</div>
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-2">
-                  <div className="px-3 py-1.5 bg-white/20 backdrop-blur-md border border-white/40 rounded-xl shadow-lg flex items-center gap-1.5 text-white">
-                    <FileCheck2 className="w-3.5 h-3.5 text-emerald-300" />
-                    <span className="text-[11px] font-bold">Clínico</span>
+                <div className="flex flex-col gap-0.5 sm:gap-1.5">
+                  <div className="px-1 sm:px-2 py-0.5 bg-white/20 backdrop-blur-md border border-white/40 rounded sm:rounded-md shadow-xs flex items-center gap-0.5 text-white">
+                    <FlaskConical className="w-2 sm:w-3 sm:h-3 text-cyan-300" />
+                    <span className="text-[6.5px] sm:text-[9px] font-bold hidden min-[360px]:inline">Estudios</span>
                   </div>
-                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-400 to-teal-500 flex items-center justify-center text-white shadow-lg shadow-teal-500/30 transform -rotate-6 group-hover:rotate-0 transition-transform">
-                    <Stethoscope className="w-5 h-5 text-white" />
+                  <div className="w-4 h-4 sm:w-7 sm:h-7 rounded sm:rounded-lg bg-gradient-to-tr from-cyan-400 to-blue-500 flex items-center justify-center text-white shadow-xs transform rotate-6 group-hover:rotate-12 transition-transform">
+                    <FlaskConical className="w-2 sm:w-3.5 sm:h-3.5 text-white" />
                   </div>
                 </div>
               </div>
 
-              <div className="absolute top-3 left-3 z-20">
-                <span className="px-2.5 py-1 bg-slate-950/80 backdrop-blur-md text-emerald-300 text-[10px] font-black uppercase tracking-wider rounded-lg shadow-xs border border-emerald-500/30">
-                  Informe Oficial
+              <div className="absolute top-1 left-1 sm:top-2 sm:left-2 z-20">
+                <span className="px-1 sm:px-2 py-0.2 sm:py-0.5 bg-slate-950/80 backdrop-blur-md text-cyan-300 text-[6.5px] sm:text-[8.5px] font-black uppercase tracking-wider rounded border border-cyan-500/30">
+                  Estudios
                 </span>
               </div>
             </div>
 
             {/* CARD BODY */}
-            <div className="p-5 sm:p-6 space-y-4 flex-1 flex flex-col justify-between bg-gradient-to-b from-white to-teal-50/25">
+            <div className="p-2 sm:p-3.5 space-y-1 sm:space-y-2.5 flex-1 flex flex-col justify-between bg-gradient-to-b from-white to-cyan-50/25">
               <div>
-                <h3 className="font-black text-slate-900 text-xl group-hover:text-teal-600 transition-colors flex items-center justify-between">
-                  <span>Informe Médico</span>
-                  <span className="text-[10px] font-extrabold text-teal-700 bg-teal-100 px-3 py-1 rounded-full border border-teal-200 uppercase tracking-wider">
-                    Consulta / Alta
+                <h3 className="font-black text-slate-900 text-[11px] min-[360px]:text-xs sm:text-base group-hover:text-cyan-700 transition-colors flex items-center justify-between gap-1 leading-tight">
+                  <span className="truncate">Exámenes / Lab</span>
+                  <span className="text-[6.5px] sm:text-[8.5px] font-extrabold text-cyan-800 bg-cyan-100 px-1 py-0.2 rounded uppercase tracking-wider shrink-0">
+                    Orden
                   </span>
                 </h3>
-                <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                  Informes clínicos, diagnósticos, procedimientos quirúrgicos, resumen de evolución y pautas médicas.
+                <p className="text-[9px] sm:text-xs text-slate-500 mt-0.5 leading-tight line-clamp-1 sm:line-clamp-2">
+                  Sangre, química, orina, Rx, ecografía y preparación.
                 </p>
               </div>
 
-              <div className="pt-4 border-t border-slate-200/60 flex flex-col gap-2.5">
+              <div className="pt-1 sm:pt-2 border-t border-slate-200/60 flex flex-col gap-1 sm:gap-2">
                 {activePatientName && (
-                  <div className="bg-emerald-500/10 text-emerald-800 border-2 border-emerald-500/25 rounded-2xl py-2 px-3 text-center text-xs font-black flex items-center justify-center gap-1.5 animate-pulse">
-                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span className="truncate">Listo para: {activePatientName}</span>
+                  <div className="bg-emerald-500/10 text-emerald-800 border border-emerald-500/25 rounded-md py-0.5 px-1 text-center text-[8px] sm:text-[10px] font-black flex items-center justify-center gap-1">
+                    <Check className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
+                    <span className="truncate">{activePatientName}</span>
                   </div>
                 )}
                 
-                <div className="flex gap-2">
+                <div className="flex gap-1 sm:gap-1.5 w-full">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onOpenFormatPreview) onOpenFormatPreview('examenes');
+                      else onNavigate('examenes');
+                    }}
+                    className="px-1.5 sm:px-2.5 py-1 sm:py-2 bg-cyan-50 hover:bg-cyan-100 text-cyan-800 font-black rounded-lg text-[8px] min-[360px]:text-[9px] sm:text-xs flex items-center justify-center gap-0.5 transition-all cursor-pointer border border-cyan-200 shrink-0"
+                    title="Ver vista previa de la orden de exámenes"
+                  >
+                    <Eye className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 text-cyan-700 shrink-0" />
+                    <span>DISEÑO</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onNavigate('examenes');
+                    }}
+                    className="flex-1 py-1 sm:py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white font-black rounded-lg text-[8px] min-[360px]:text-[9px] sm:text-xs uppercase tracking-tight flex items-center justify-center gap-0.5 transition-all shadow-xs cursor-pointer text-center truncate"
+                  >
+                    <span className="truncate">{activePatientName ? 'Emitir' : 'Indicar'}</span>
+                    <ArrowRight className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 text-white shrink-0" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 3. INFORME MÉDICO */}
+          <div 
+            onClick={() => onNavigate('informes')}
+            className="bg-white rounded-xl sm:rounded-2xl border border-slate-200/90 hover:border-teal-500/70 hover:shadow-xl transition-all duration-300 cursor-pointer group flex flex-col justify-between overflow-hidden transform hover:-translate-y-0.5 shadow-xs"
+          >
+            {/* STYLIZED MODERN HERO IMAGE BANNER (COMPACT FOR MOBILE) */}
+            <div className="relative h-14 min-[400px]:h-16 sm:h-28 w-full bg-gradient-to-br from-teal-600 via-emerald-700 to-slate-900 overflow-hidden flex items-center justify-center p-1.5 sm:p-3">
+              <div className="absolute -top-6 -right-6 w-16 h-16 sm:w-28 sm:h-28 bg-emerald-400/25 rounded-full blur-lg sm:blur-xl group-hover:scale-125 transition-transform" />
+              <div className="absolute -bottom-6 -left-6 w-16 h-16 sm:w-24 sm:h-24 bg-teal-500/20 rounded-full blur-md sm:blur-lg" />
+
+              <div className="relative z-10 flex items-center justify-center gap-1.5 sm:gap-2.5 transform group-hover:scale-105 transition-all duration-300">
+                <div className="w-10 h-11 min-[400px]:w-12 min-[400px]:h-13 sm:w-18 sm:h-24 bg-white/95 backdrop-blur-md rounded-md sm:rounded-lg shadow-md p-1 sm:p-2 border border-white/60 flex flex-col justify-between transform rotate-2 group-hover:rotate-0 transition-transform">
+                  <div className="flex items-center justify-between border-b border-teal-100 pb-0.5">
+                    <span className="text-[5px] sm:text-[8px] font-black tracking-tighter text-teal-800">INFORME</span>
+                    <span className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-teal-500"></span>
+                  </div>
+                  <div className="space-y-0.5 my-0.5">
+                    <div className="w-full h-1 flex items-center">
+                      <svg className="w-full h-1 text-teal-600" viewBox="0 0 100 20" fill="none" stroke="currentColor" strokeWidth="3">
+                        <path d="M0,10 L30,10 L35,2 L42,18 L48,5 L54,14 L60,10 L100,10" />
+                      </svg>
+                    </div>
+                    <div className="w-full h-0.5 bg-slate-200 rounded"></div>
+                  </div>
+                  <div className="pt-0.5 border-t border-slate-100 flex items-center justify-between">
+                    <span className="text-[5px] sm:text-[7px] font-bold text-teal-700">OFICIAL</span>
+                    <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-emerald-100 flex items-center justify-center text-[4px] sm:text-[6px] text-emerald-800 font-bold">★</div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-0.5 sm:gap-1.5">
+                  <div className="px-1 sm:px-2 py-0.5 bg-white/20 backdrop-blur-md border border-white/40 rounded sm:rounded-md shadow-xs flex items-center gap-0.5 text-white">
+                    <FileCheck2 className="w-2 sm:w-3 sm:h-3 text-emerald-300" />
+                    <span className="text-[6.5px] sm:text-[9px] font-bold hidden min-[360px]:inline">Clínico</span>
+                  </div>
+                  <div className="w-4 h-4 sm:w-7 sm:h-7 rounded sm:rounded-lg bg-gradient-to-tr from-emerald-400 to-teal-500 flex items-center justify-center text-white shadow-xs transform -rotate-6 group-hover:rotate-0 transition-transform">
+                    <Stethoscope className="w-2 sm:w-3.5 sm:h-3.5 text-white" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="absolute top-1 left-1 sm:top-2 sm:left-2 z-20">
+                <span className="px-1 sm:px-2 py-0.2 sm:py-0.5 bg-slate-950/80 backdrop-blur-md text-emerald-300 text-[6.5px] sm:text-[8.5px] font-black uppercase tracking-wider rounded border border-emerald-500/30">
+                  Informe
+                </span>
+              </div>
+            </div>
+
+            {/* CARD BODY */}
+            <div className="p-2 sm:p-3.5 space-y-1 sm:space-y-2.5 flex-1 flex flex-col justify-between bg-gradient-to-b from-white to-teal-50/25">
+              <div>
+                <h3 className="font-black text-slate-900 text-[11px] min-[360px]:text-xs sm:text-base group-hover:text-teal-600 transition-colors flex items-center justify-between gap-1 leading-tight">
+                  <span className="truncate">Informe Médico</span>
+                  <span className="text-[6.5px] sm:text-[8.5px] font-extrabold text-teal-700 bg-teal-100 px-1 py-0.2 rounded uppercase tracking-wider shrink-0">
+                    Clínico
+                  </span>
+                </h3>
+                <p className="text-[9px] sm:text-xs text-slate-500 mt-0.5 leading-tight line-clamp-1 sm:line-clamp-2">
+                  Informes clínicos, diagnósticos, evolución y procedimientos.
+                </p>
+              </div>
+
+              <div className="pt-1 sm:pt-2 border-t border-slate-200/60 flex flex-col gap-1 sm:gap-2">
+                {activePatientName && (
+                  <div className="bg-emerald-500/10 text-emerald-800 border border-emerald-500/25 rounded-md py-0.5 px-1 text-center text-[8px] sm:text-[10px] font-black flex items-center justify-center gap-1">
+                    <Check className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
+                    <span className="truncate">{activePatientName}</span>
+                  </div>
+                )}
+                
+                <div className="flex gap-1 sm:gap-1.5 w-full">
                   <button
                     type="button"
                     onClick={(e) => {
@@ -637,10 +728,10 @@ export const WelcomeInicioModule: React.FC<WelcomeInicioModuleProps> = ({
                       if (onOpenFormatPreview) onOpenFormatPreview('informes');
                       else onNavigate('informes');
                     }}
-                    className="px-4 py-3 bg-teal-50 hover:bg-teal-100 text-teal-700 font-black rounded-2xl text-xs flex items-center gap-1.5 transition-all cursor-pointer border-2 border-teal-200 shadow-sm shrink-0 hover:scale-[1.02] active:scale-95"
-                    title="Ver vista previa del informe médico oficial con membrete y sello"
+                    className="px-1.5 sm:px-2.5 py-1 sm:py-2 bg-teal-50 hover:bg-teal-100 text-teal-700 font-black rounded-lg text-[8px] min-[360px]:text-[9px] sm:text-xs flex items-center justify-center gap-0.5 transition-all cursor-pointer border border-teal-200 shrink-0"
+                    title="Ver vista previa del informe médico"
                   >
-                    <Eye className="w-4 h-4 text-teal-600" />
+                    <Eye className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 text-teal-600 shrink-0" />
                     <span>DISEÑO</span>
                   </button>
 
@@ -650,84 +741,82 @@ export const WelcomeInicioModule: React.FC<WelcomeInicioModuleProps> = ({
                       e.stopPropagation();
                       onNavigate('informes');
                     }}
-                    className="flex-1 py-3.5 bg-gradient-to-r from-teal-600 via-emerald-600 to-teal-700 hover:from-teal-700 hover:to-emerald-700 text-white font-black rounded-2xl text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-md shadow-teal-600/20 border-2 border-teal-500/40 hover:scale-[1.02] active:scale-95 cursor-pointer text-center"
+                    className="flex-1 py-1 sm:py-2 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-black rounded-lg text-[8px] min-[360px]:text-[9px] sm:text-xs uppercase tracking-tight flex items-center justify-center gap-0.5 transition-all shadow-xs cursor-pointer text-center truncate"
                   >
-                    <span>{activePatientName ? 'Emitir Informe' : 'Redactar Informe'}</span>
-                    <ArrowRight className="w-4 h-4 text-white" />
+                    <span className="truncate">{activePatientName ? 'Emitir' : 'Redactar'}</span>
+                    <ArrowRight className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 text-white shrink-0" />
                   </button>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* 3. CONSTANCIA / REPOSO */}
+          {/* 4. CONSTANCIA / REPOSO */}
           <div 
             onClick={() => onNavigate('reposo')}
-            className="bg-white rounded-3xl border border-slate-200/90 hover:border-amber-500/70 hover:shadow-2xl hover:shadow-amber-500/10 transition-all duration-300 cursor-pointer group flex flex-col justify-between overflow-hidden transform hover:-translate-y-1 shadow-md"
+            className="bg-white rounded-xl sm:rounded-2xl border border-slate-200/90 hover:border-amber-500/70 hover:shadow-xl transition-all duration-300 cursor-pointer group flex flex-col justify-between overflow-hidden transform hover:-translate-y-0.5 shadow-xs"
           >
-            {/* STYLIZED MODERN HERO IMAGE BANNER */}
-            <div className="relative h-40 w-full bg-gradient-to-br from-amber-500 via-orange-600 to-slate-900 overflow-hidden flex items-center justify-center p-4">
-              <div className="absolute -top-10 -right-10 w-36 h-36 bg-amber-300/25 rounded-full blur-2xl group-hover:scale-125 transition-transform" />
-              <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-orange-500/20 rounded-full blur-xl" />
+            {/* STYLIZED MODERN HERO IMAGE BANNER (COMPACT FOR MOBILE) */}
+            <div className="relative h-14 min-[400px]:h-16 sm:h-28 w-full bg-gradient-to-br from-amber-500 via-orange-600 to-slate-900 overflow-hidden flex items-center justify-center p-1.5 sm:p-3">
+              <div className="absolute -top-6 -right-6 w-16 h-16 sm:w-28 sm:h-28 bg-amber-300/25 rounded-full blur-lg sm:blur-xl group-hover:scale-125 transition-transform" />
+              <div className="absolute -bottom-6 -left-6 w-16 h-16 sm:w-24 sm:h-24 bg-orange-500/20 rounded-full blur-md sm:blur-lg" />
 
-              {/* Stylized Vector Illustration: Calendar + Rest Days Stopwatch */}
-              <div className="relative z-10 flex items-center justify-center gap-3 transform group-hover:scale-105 transition-all duration-300">
-                {/* Calendar Card Mockup */}
-                <div className="w-24 h-32 bg-white/95 backdrop-blur-md rounded-xl shadow-2xl p-2.5 border border-white/60 flex flex-col justify-between transform -rotate-2 group-hover:rotate-0 transition-transform">
-                  <div className="bg-amber-600 text-white rounded-lg py-1 px-2 text-center">
-                    <span className="text-[9px] font-black uppercase tracking-wider block">REPOSO</span>
+              <div className="relative z-10 flex items-center justify-center gap-1.5 sm:gap-2.5 transform group-hover:scale-105 transition-all duration-300">
+                <div className="w-10 h-11 min-[400px]:w-12 min-[400px]:h-13 sm:w-18 sm:h-24 bg-white/95 backdrop-blur-md rounded-md sm:rounded-lg shadow-md p-1 sm:p-2 border border-white/60 flex flex-col justify-between transform -rotate-2 group-hover:rotate-0 transition-transform">
+                  <div className="bg-amber-600 text-white rounded py-0.2 px-1 text-center">
+                    <span className="text-[5px] sm:text-[7px] font-black uppercase tracking-wider block">REPOSO</span>
                   </div>
-                  <div className="text-center my-1">
-                    <span className="text-2xl font-black text-slate-900 leading-none block">10</span>
-                    <span className="text-[8.5px] font-bold text-amber-700 uppercase">Días Laborales</span>
+                  <div className="text-center my-0.2">
+                    <span className="text-xs sm:text-base font-black text-slate-900 leading-none block">10</span>
+                    <span className="text-[5px] sm:text-[7px] font-bold text-amber-700 uppercase">Días</span>
                   </div>
-                  <div className="pt-1 border-t border-slate-100 flex items-center justify-between">
-                    <span className="text-[8px] text-slate-500 font-semibold">Cálculo Auto</span>
-                    <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                  <div className="pt-0.5 border-t border-slate-100 flex items-center justify-between">
+                    <span className="text-[5px] sm:text-[7px] text-slate-500 font-semibold">Cálculo</span>
+                    <span className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-amber-500"></span>
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-2">
-                  <div className="px-3 py-1.5 bg-white/20 backdrop-blur-md border border-white/40 rounded-xl shadow-lg flex items-center gap-1.5 text-white">
-                    <Clock className="w-3.5 h-3.5 text-amber-300" />
-                    <span className="text-[11px] font-bold">Laboral</span>
+                <div className="flex flex-col gap-0.5 sm:gap-1.5">
+                  <div className="px-1 sm:px-2 py-0.5 bg-white/20 backdrop-blur-md border border-white/40 rounded sm:rounded-md shadow-xs flex items-center gap-0.5 text-white">
+                    <Clock className="w-2 sm:w-3 sm:h-3 text-amber-300" />
+                    <span className="text-[6.5px] sm:text-[9px] font-bold hidden min-[360px]:inline">Laboral</span>
                   </div>
-                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-400 to-orange-500 flex items-center justify-center text-white shadow-lg shadow-orange-500/30 transform rotate-6 group-hover:rotate-12 transition-transform">
-                    <Calendar className="w-5 h-5 text-white" />
+                  <div className="w-4 h-4 sm:w-7 sm:h-7 rounded sm:rounded-lg bg-gradient-to-tr from-amber-400 to-orange-500 flex items-center justify-center text-white shadow-xs transform rotate-6 group-hover:rotate-12 transition-transform">
+                    <Clock className="w-2 sm:w-3.5 sm:h-3.5 text-white" />
                   </div>
                 </div>
               </div>
 
-              <div className="absolute top-3 left-3 z-20">
-                <span className="px-2.5 py-1 bg-slate-950/80 backdrop-blur-md text-amber-300 text-[10px] font-black uppercase tracking-wider rounded-lg shadow-xs border border-amber-500/30">
-                  Días de Reposo
+              <div className="absolute top-1 left-1 sm:top-2 sm:left-2 z-20">
+                <span className="px-1 sm:px-2 py-0.2 sm:py-0.5 bg-slate-950/80 backdrop-blur-md text-amber-300 text-[6.5px] sm:text-[8.5px] font-black uppercase tracking-wider rounded border border-amber-500/30">
+                  Reposo
                 </span>
               </div>
             </div>
 
             {/* CARD BODY */}
-            <div className="p-5 sm:p-6 space-y-4 flex-1 flex flex-col justify-between bg-gradient-to-b from-white to-amber-50/25">
+            <div className="p-2 sm:p-3.5 space-y-1 sm:space-y-2.5 flex-1 flex flex-col justify-between bg-gradient-to-b from-white to-amber-50/25">
               <div>
-                <h3 className="font-black text-slate-900 text-xl group-hover:text-amber-600 transition-colors flex items-center justify-between">
-                  <span>Constancia / Reposo</span>
-                  <span className="text-[10px] font-extrabold text-amber-700 bg-amber-100 px-3 py-1 rounded-full border border-amber-200 uppercase tracking-wider">
-                    Cálculo de Fechas
+                <h3 className="font-black text-slate-900 text-[11px] min-[360px]:text-xs sm:text-base group-hover:text-amber-600 transition-colors flex items-center justify-between gap-1 leading-tight">
+                  <span className="truncate">Constancia / Reposo</span>
+                  <span className="text-[6.5px] sm:text-[8.5px] font-extrabold text-amber-700 bg-amber-100 px-1 py-0.2 rounded uppercase tracking-wider shrink-0">
+                    Reposo
                   </span>
                 </h3>
-                <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                  Certificados de asistencia y reposos médicos laborales oficiales con cálculo automático de días y fechas.
+                <p className="text-[9px] sm:text-xs text-slate-500 mt-0.5 leading-tight line-clamp-1 sm:line-clamp-2">
+                  Certificados oficiales y reposos laborales con cálculo de días.
                 </p>
               </div>
 
-              <div className="pt-4 border-t border-slate-200/60 flex flex-col gap-2.5">
+              <div className="pt-1 sm:pt-2 border-t border-slate-200/60 flex flex-col gap-1 sm:gap-2">
                 {activePatientName && (
-                  <div className="bg-emerald-500/10 text-emerald-800 border-2 border-emerald-500/25 rounded-2xl py-2 px-3 text-center text-xs font-black flex items-center justify-center gap-1.5 animate-pulse">
-                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span className="truncate">Listo para: {activePatientName}</span>
+                  <div className="bg-emerald-500/10 text-emerald-800 border border-emerald-500/25 rounded-md py-0.5 px-1 text-center text-[8px] sm:text-[10px] font-black flex items-center justify-center gap-1">
+                    <Check className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
+                    <span className="truncate">{activePatientName}</span>
                   </div>
                 )}
                 
-                <div className="flex gap-2">
+                <div className="flex gap-1 sm:gap-1.5 w-full">
                   <button
                     type="button"
                     onClick={(e) => {
@@ -735,10 +824,10 @@ export const WelcomeInicioModule: React.FC<WelcomeInicioModuleProps> = ({
                       if (onOpenFormatPreview) onOpenFormatPreview('reposo');
                       else onNavigate('reposo');
                     }}
-                    className="px-4 py-3 bg-amber-50 hover:bg-amber-100 text-amber-800 font-black rounded-2xl text-xs flex items-center gap-1.5 transition-all cursor-pointer border-2 border-amber-200 shadow-sm shrink-0 hover:scale-[1.02] active:scale-95"
-                    title="Ver vista previa de la constancia de reposo laboral con sello"
+                    className="px-1.5 sm:px-2.5 py-1 sm:py-2 bg-amber-50 hover:bg-amber-100 text-amber-800 font-black rounded-lg text-[8px] min-[360px]:text-[9px] sm:text-xs flex items-center justify-center gap-0.5 transition-all cursor-pointer border border-amber-200 shrink-0"
+                    title="Ver vista previa de la constancia de reposo"
                   >
-                    <Eye className="w-4 h-4 text-amber-600" />
+                    <Eye className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 text-amber-600 shrink-0" />
                     <span>DISEÑO</span>
                   </button>
 
@@ -748,89 +837,83 @@ export const WelcomeInicioModule: React.FC<WelcomeInicioModuleProps> = ({
                       e.stopPropagation();
                       onNavigate('reposo');
                     }}
-                    className="flex-1 py-3.5 bg-gradient-to-r from-amber-500 via-orange-600 to-amber-600 hover:from-amber-600 hover:to-orange-700 text-white font-black rounded-2xl text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-md shadow-amber-600/20 border-2 border-amber-500/40 hover:scale-[1.02] active:scale-95 cursor-pointer text-center"
+                    className="flex-1 py-1 sm:py-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-black rounded-lg text-[8px] min-[360px]:text-[9px] sm:text-xs uppercase tracking-tight flex items-center justify-center gap-0.5 transition-all shadow-xs cursor-pointer text-center truncate"
                   >
-                    <span>{activePatientName ? 'Emitir Reposo' : 'Emitir Reposo'}</span>
-                    <ArrowRight className="w-4 h-4 text-white" />
+                    <span className="truncate">{activePatientName ? 'Emitir' : 'Emitir'}</span>
+                    <ArrowRight className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 text-white shrink-0" />
                   </button>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* 4. HISTORIA CLÍNICA */}
+          {/* 5. HISTORIA CLÍNICA */}
           <div 
             onClick={() => onNavigate('historias')}
-            className="bg-white rounded-3xl border border-slate-200/90 hover:border-purple-500/70 hover:shadow-2xl hover:shadow-purple-500/10 transition-all duration-300 cursor-pointer group flex flex-col justify-between overflow-hidden transform hover:-translate-y-1 shadow-md"
+            className="bg-white rounded-xl sm:rounded-2xl border border-slate-200/90 hover:border-purple-500/70 hover:shadow-xl transition-all duration-300 cursor-pointer group flex flex-col justify-between overflow-hidden transform hover:-translate-y-0.5 shadow-xs"
           >
-            {/* STYLIZED MODERN HERO IMAGE BANNER */}
-            <div className="relative h-40 w-full bg-gradient-to-br from-purple-600 via-indigo-800 to-slate-900 overflow-hidden flex items-center justify-center p-4">
-              <div className="absolute -top-10 -right-10 w-36 h-36 bg-purple-400/25 rounded-full blur-2xl group-hover:scale-125 transition-transform" />
-              <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-indigo-500/20 rounded-full blur-xl" />
+            {/* STYLIZED MODERN HERO IMAGE BANNER (COMPACT FOR MOBILE) */}
+            <div className="relative h-14 min-[400px]:h-16 sm:h-28 w-full bg-gradient-to-br from-purple-600 via-indigo-800 to-slate-900 overflow-hidden flex items-center justify-center p-1.5 sm:p-3">
+              <div className="absolute -top-6 -right-6 w-16 h-16 sm:w-28 sm:h-28 bg-purple-400/25 rounded-full blur-lg sm:blur-xl group-hover:scale-125 transition-transform" />
+              <div className="absolute -bottom-6 -left-6 w-16 h-16 sm:w-24 sm:h-24 bg-indigo-500/20 rounded-full blur-md sm:blur-lg" />
 
-              {/* Stylized Vector Illustration: Digital Folder + Patient Vitals */}
-              <div className="relative z-10 flex items-center justify-center gap-3 transform group-hover:scale-105 transition-all duration-300">
-                {/* Dossier Mockup */}
-                <div className="w-24 h-32 bg-white/95 backdrop-blur-md rounded-xl shadow-2xl p-2.5 border border-white/60 flex flex-col justify-between transform rotate-3 group-hover:rotate-0 transition-transform">
-                  <div className="flex items-center justify-between border-b border-purple-100 pb-1">
-                    <span className="text-[9px] font-black tracking-tighter text-purple-900">HISTORIA</span>
-                    <span className="text-[8px] font-bold text-purple-600">HC-01</span>
+              <div className="relative z-10 flex items-center justify-center gap-1.5 sm:gap-2.5 transform group-hover:scale-105 transition-all duration-300">
+                <div className="w-10 h-11 min-[400px]:w-12 min-[400px]:h-13 sm:w-18 sm:h-24 bg-white/95 backdrop-blur-md rounded-md sm:rounded-lg shadow-md p-1 sm:p-2 border border-white/60 flex flex-col justify-between transform rotate-3 group-hover:rotate-0 transition-transform">
+                  <div className="flex items-center justify-between border-b border-purple-100 pb-0.5">
+                    <span className="text-[5px] sm:text-[8px] font-black tracking-tighter text-purple-900">HISTORIA</span>
+                    <span className="text-[4px] sm:text-[7px] font-bold text-purple-600">HC</span>
                   </div>
-                  <div className="space-y-1.5 my-1">
-                    <div className="grid grid-cols-2 gap-1 text-[7px] font-bold text-slate-700 bg-purple-50/70 p-1 rounded">
-                      <div>TA: 120/80</div>
-                      <div>FC: 72 lpm</div>
-                    </div>
-                    <div className="w-full h-1 bg-slate-200 rounded"></div>
-                    <div className="w-4/5 h-1 bg-purple-200 rounded"></div>
+                  <div className="space-y-0.5 my-0.2">
+                    <div className="text-[5px] sm:text-[6.5px] font-bold text-slate-700 bg-purple-50 p-0.5 rounded leading-none">TA: 120/80</div>
+                    <div className="w-full h-0.5 bg-slate-200 rounded"></div>
                   </div>
-                  <div className="pt-1 border-t border-slate-100 flex items-center justify-between">
-                    <span className="text-[8px] text-slate-500 font-semibold">Expediente</span>
-                    <div className="w-3.5 h-3.5 rounded-full bg-purple-100 flex items-center justify-center text-[7px] text-purple-800 font-bold">📁</div>
+                  <div className="pt-0.5 border-t border-slate-100 flex items-center justify-between">
+                    <span className="text-[5px] sm:text-[7px] text-slate-500 font-semibold">Exp.</span>
+                    <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-purple-100 flex items-center justify-center text-[4px] text-purple-800 font-bold">📁</div>
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-2">
-                  <div className="px-3 py-1.5 bg-white/20 backdrop-blur-md border border-white/40 rounded-xl shadow-lg flex items-center gap-1.5 text-white">
-                    <Users className="w-3.5 h-3.5 text-purple-300" />
-                    <span className="text-[11px] font-bold">Paciente</span>
+                <div className="flex flex-col gap-0.5 sm:gap-1.5">
+                  <div className="px-1 sm:px-2 py-0.5 bg-white/20 backdrop-blur-md border border-white/40 rounded sm:rounded-md shadow-xs flex items-center gap-0.5 text-white">
+                    <Users className="w-2 sm:w-3 sm:h-3 text-purple-300" />
+                    <span className="text-[6.5px] sm:text-[9px] font-bold hidden min-[360px]:inline">Paciente</span>
                   </div>
-                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-purple-400 to-indigo-500 flex items-center justify-center text-white shadow-lg shadow-purple-500/30 transform -rotate-12 group-hover:rotate-0 transition-transform">
-                    <FileText className="w-5 h-5 text-white" />
+                  <div className="w-4 h-4 sm:w-7 sm:h-7 rounded sm:rounded-lg bg-gradient-to-tr from-purple-400 to-indigo-500 flex items-center justify-center text-white shadow-xs transform -rotate-12 group-hover:rotate-0 transition-transform">
+                    <FileText className="w-2 sm:w-3.5 sm:h-3.5 text-white" />
                   </div>
                 </div>
               </div>
 
-              <div className="absolute top-3 left-3 z-20">
-                <span className="px-2.5 py-1 bg-slate-950/80 backdrop-blur-md text-purple-300 text-[10px] font-black uppercase tracking-wider rounded-lg shadow-xs border border-purple-500/30">
-                  Expediente Clínico
+              <div className="absolute top-1 left-1 sm:top-2 sm:left-2 z-20">
+                <span className="px-1 sm:px-2 py-0.2 sm:py-0.5 bg-slate-950/80 backdrop-blur-md text-purple-300 text-[6.5px] sm:text-[8.5px] font-black uppercase tracking-wider rounded border border-purple-500/30">
+                  Expediente
                 </span>
               </div>
             </div>
 
             {/* CARD BODY */}
-            <div className="p-5 sm:p-6 space-y-4 flex-1 flex flex-col justify-between bg-gradient-to-b from-white to-purple-50/25">
+            <div className="p-2 sm:p-3.5 space-y-1 sm:space-y-2.5 flex-1 flex flex-col justify-between bg-gradient-to-b from-white to-purple-50/25">
               <div>
-                <h3 className="font-black text-slate-900 text-xl group-hover:text-purple-600 transition-colors flex items-center justify-between">
-                  <span>Historia Clínica</span>
-                  <span className="text-[10px] font-extrabold text-purple-700 bg-purple-100 px-3 py-1 rounded-full border border-purple-200 uppercase tracking-wider">
-                    Signos &amp; Examen
+                <h3 className="font-black text-slate-900 text-[11px] min-[360px]:text-xs sm:text-base group-hover:text-purple-600 transition-colors flex items-center justify-between gap-1 leading-tight">
+                  <span className="truncate">Historia Clínica</span>
+                  <span className="text-[6.5px] sm:text-[8.5px] font-extrabold text-purple-700 bg-purple-100 px-1 py-0.2 rounded uppercase tracking-wider shrink-0">
+                    Signos
                   </span>
                 </h3>
-                <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                  Expediente clínico integral: antecedentes médicos, signos vitales, exploración física y evolución.
+                <p className="text-[9px] sm:text-xs text-slate-500 mt-0.5 leading-tight line-clamp-1 sm:line-clamp-2">
+                  Expediente clínico integral: antecedentes y evolución.
                 </p>
               </div>
 
-              <div className="pt-4 border-t border-slate-200/60 flex flex-col gap-2.5">
+              <div className="pt-1 sm:pt-2 border-t border-slate-200/60 flex flex-col gap-1 sm:gap-2">
                 {activePatientName && (
-                  <div className="bg-emerald-500/10 text-emerald-800 border-2 border-emerald-500/25 rounded-2xl py-2 px-3 text-center text-xs font-black flex items-center justify-center gap-1.5 animate-pulse">
-                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span className="truncate">Listo para: {activePatientName}</span>
+                  <div className="bg-emerald-500/10 text-emerald-800 border border-emerald-500/25 rounded-md py-0.5 px-1 text-center text-[8px] sm:text-[10px] font-black flex items-center justify-center gap-1">
+                    <Check className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
+                    <span className="truncate">{activePatientName}</span>
                   </div>
                 )}
                 
-                <div className="flex gap-2">
+                <div className="flex gap-1 sm:gap-1.5 w-full">
                   <button
                     type="button"
                     onClick={(e) => {
@@ -838,10 +921,10 @@ export const WelcomeInicioModule: React.FC<WelcomeInicioModuleProps> = ({
                       if (onOpenFormatPreview) onOpenFormatPreview('historias');
                       else onNavigate('historias');
                     }}
-                    className="px-4 py-3 bg-purple-50 hover:bg-purple-100 text-purple-700 font-black rounded-2xl text-xs flex items-center gap-1.5 transition-all cursor-pointer border-2 border-purple-200 shadow-sm shrink-0 hover:scale-[1.02] active:scale-95"
+                    className="px-1.5 sm:px-2.5 py-1 sm:py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 font-black rounded-lg text-[8px] min-[360px]:text-[9px] sm:text-xs flex items-center justify-center gap-0.5 transition-all cursor-pointer border border-purple-200 shrink-0"
                     title="Ver vista previa de la historia clínica"
                   >
-                    <Eye className="w-4 h-4 text-purple-600" />
+                    <Eye className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 text-purple-600 shrink-0" />
                     <span>DISEÑO</span>
                   </button>
 
@@ -851,91 +934,83 @@ export const WelcomeInicioModule: React.FC<WelcomeInicioModuleProps> = ({
                       e.stopPropagation();
                       onNavigate('historias');
                     }}
-                    className="flex-1 py-3.5 bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-700 hover:from-purple-700 hover:to-indigo-700 text-white font-black rounded-2xl text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-md shadow-purple-600/20 border-2 border-purple-500/40 hover:scale-[1.02] active:scale-95 cursor-pointer text-center"
+                    className="flex-1 py-1 sm:py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-black rounded-lg text-[8px] min-[360px]:text-[9px] sm:text-xs uppercase tracking-tight flex items-center justify-center gap-0.5 transition-all shadow-xs cursor-pointer text-center truncate"
                   >
-                    <span>{activePatientName ? 'Abrir Expediente' : 'Historias Clínicas'}</span>
-                    <ArrowRight className="w-4 h-4 text-white" />
+                    <span className="truncate">{activePatientName ? 'Abrir' : 'Historias'}</span>
+                    <ArrowRight className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 text-white shrink-0" />
                   </button>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* 5. INDICACIONES MÉDICAS */}
+          {/* 6. INDICACIONES MÉDICAS */}
           <div 
             onClick={() => onNavigate('indicaciones')}
-            className="bg-white rounded-3xl border border-slate-200/90 hover:border-cyan-500/70 hover:shadow-2xl hover:shadow-cyan-500/10 transition-all duration-300 cursor-pointer group flex flex-col justify-between overflow-hidden transform hover:-translate-y-1 shadow-md"
+            className="bg-white rounded-xl sm:rounded-2xl border border-slate-200/90 hover:border-cyan-500/70 hover:shadow-xl transition-all duration-300 cursor-pointer group flex flex-col justify-between overflow-hidden transform hover:-translate-y-0.5 shadow-xs"
           >
-            {/* STYLIZED MODERN HERO IMAGE BANNER */}
-            <div className="relative h-40 w-full bg-gradient-to-br from-cyan-600 via-teal-700 to-slate-900 overflow-hidden flex items-center justify-center p-4">
-              <div className="absolute -top-10 -right-10 w-36 h-36 bg-cyan-300/25 rounded-full blur-2xl group-hover:scale-125 transition-transform" />
-              <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-teal-500/20 rounded-full blur-xl" />
+            {/* STYLIZED MODERN HERO IMAGE BANNER (COMPACT FOR MOBILE) */}
+            <div className="relative h-14 min-[400px]:h-16 sm:h-28 w-full bg-gradient-to-br from-cyan-600 via-teal-700 to-slate-900 overflow-hidden flex items-center justify-center p-1.5 sm:p-3">
+              <div className="absolute -top-6 -right-6 w-16 h-16 sm:w-28 sm:h-28 bg-cyan-300/25 rounded-full blur-lg sm:blur-xl group-hover:scale-125 transition-transform" />
+              <div className="absolute -bottom-6 -left-6 w-16 h-16 sm:w-24 sm:h-24 bg-teal-500/20 rounded-full blur-md sm:blur-lg" />
 
-              {/* Stylized Vector Illustration: Clock + Medication Schedule + Diet */}
-              <div className="relative z-10 flex items-center justify-center gap-3 transform group-hover:scale-105 transition-all duration-300">
-                {/* Schedule Sheet Mockup */}
-                <div className="w-24 h-32 bg-white/95 backdrop-blur-md rounded-xl shadow-2xl p-2.5 border border-white/60 flex flex-col justify-between transform -rotate-3 group-hover:rotate-0 transition-transform">
-                  <div className="flex items-center justify-between border-b border-cyan-100 pb-1">
-                    <span className="text-[9px] font-black tracking-tighter text-cyan-900">HORARIO</span>
-                    <span className="w-2 h-2 rounded-full bg-cyan-500"></span>
+              <div className="relative z-10 flex items-center justify-center gap-1.5 sm:gap-2.5 transform group-hover:scale-105 transition-all duration-300">
+                <div className="w-10 h-11 min-[400px]:w-12 min-[400px]:h-13 sm:w-18 sm:h-24 bg-white/95 backdrop-blur-md rounded-md sm:rounded-lg shadow-md p-1 sm:p-2 border border-white/60 flex flex-col justify-between transform -rotate-3 group-hover:rotate-0 transition-transform">
+                  <div className="flex items-center justify-between border-b border-cyan-100 pb-0.5">
+                    <span className="text-[5px] sm:text-[8px] font-black tracking-tighter text-cyan-900">HORARIO</span>
+                    <span className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-cyan-500"></span>
                   </div>
-                  <div className="space-y-1 my-1">
-                    <div className="flex items-center gap-1 text-[8px] font-bold text-slate-800">
-                      <span>⏰</span> <span>Cada 8 horas</span>
-                    </div>
-                    <div className="w-full h-1 bg-slate-200 rounded"></div>
-                    <div className="flex items-center gap-1 text-[8px] font-bold text-slate-800">
-                      <span>🥗</span> <span>Dieta blanda</span>
-                    </div>
-                    <div className="w-4/5 h-1 bg-cyan-100 rounded"></div>
+                  <div className="space-y-0.5 my-0.2">
+                    <div className="text-[5px] sm:text-[6.5px] font-bold text-slate-800 leading-none">⏰ Cada 8h</div>
+                    <div className="text-[5px] sm:text-[6.5px] font-bold text-slate-800 leading-none">🥗 Dieta</div>
                   </div>
-                  <div className="pt-1 border-t border-slate-100 flex items-center justify-between">
-                    <span className="text-[8px] text-cyan-700 font-bold">Posología</span>
-                    <div className="w-4 h-4 rounded-full bg-cyan-50 border border-cyan-300 flex items-center justify-center text-[8px] text-cyan-700 font-bold">💊</div>
+                  <div className="pt-0.5 border-t border-slate-100 flex items-center justify-between">
+                    <span className="text-[5px] sm:text-[7px] text-cyan-700 font-bold">Dosis</span>
+                    <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-cyan-50 border border-cyan-300 flex items-center justify-center text-[4px] sm:text-[6px] text-cyan-700 font-bold">💊</div>
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-2">
-                  <div className="px-3 py-1.5 bg-white/20 backdrop-blur-md border border-white/40 rounded-xl shadow-lg flex items-center gap-1.5 text-white">
-                    <ClipboardList className="w-3.5 h-3.5 text-cyan-300" />
-                    <span className="text-[11px] font-bold">Horarios</span>
+                <div className="flex flex-col gap-0.5 sm:gap-1.5">
+                  <div className="px-1 sm:px-2 py-0.5 bg-white/20 backdrop-blur-md border border-white/40 rounded sm:rounded-md shadow-xs flex items-center gap-0.5 text-white">
+                    <ClipboardList className="w-2 sm:w-3 sm:h-3 text-cyan-300" />
+                    <span className="text-[6.5px] sm:text-[9px] font-bold hidden min-[360px]:inline">Pautas</span>
                   </div>
-                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-400 to-teal-500 flex items-center justify-center text-white shadow-lg shadow-cyan-500/30 transform rotate-12 group-hover:rotate-45 transition-transform">
-                    <Clock className="w-5 h-5 text-white" />
+                  <div className="w-4 h-4 sm:w-7 sm:h-7 rounded sm:rounded-lg bg-gradient-to-tr from-cyan-400 to-teal-500 flex items-center justify-center text-white shadow-xs transform rotate-12 group-hover:rotate-45 transition-transform">
+                    <Clock className="w-2 sm:w-3.5 sm:h-3.5 text-white" />
                   </div>
                 </div>
               </div>
 
-              <div className="absolute top-3 left-3 z-20">
-                <span className="px-2.5 py-1 bg-slate-950/80 backdrop-blur-md text-cyan-300 text-[10px] font-black uppercase tracking-wider rounded-lg shadow-xs border border-cyan-500/30">
-                  Pautas y Horarios
+              <div className="absolute top-1 left-1 sm:top-2 sm:left-2 z-20">
+                <span className="px-1 sm:px-2 py-0.2 sm:py-0.5 bg-slate-950/80 backdrop-blur-md text-cyan-300 text-[6.5px] sm:text-[8.5px] font-black uppercase tracking-wider rounded border border-cyan-500/30">
+                  Indicaciones
                 </span>
               </div>
             </div>
 
             {/* CARD BODY */}
-            <div className="p-5 sm:p-6 space-y-4 flex-1 flex flex-col justify-between bg-gradient-to-b from-white to-cyan-50/25">
+            <div className="p-2 sm:p-3.5 space-y-1 sm:space-y-2.5 flex-1 flex flex-col justify-between bg-gradient-to-b from-white to-cyan-50/25">
               <div>
-                <h3 className="font-black text-slate-900 text-xl group-hover:text-cyan-700 transition-colors flex items-center justify-between">
-                  <span>Indicaciones</span>
-                  <span className="text-[10px] font-extrabold text-cyan-800 bg-cyan-100 px-3 py-1 rounded-full border border-cyan-200 uppercase tracking-wider">
-                    Posología &amp; Dieta
+                <h3 className="font-black text-slate-900 text-[11px] min-[360px]:text-xs sm:text-base group-hover:text-cyan-700 transition-colors flex items-center justify-between gap-1 leading-tight">
+                  <span className="truncate">Indicaciones</span>
+                  <span className="text-[6.5px] sm:text-[8.5px] font-extrabold text-cyan-800 bg-cyan-100 px-1 py-0.2 rounded uppercase tracking-wider shrink-0">
+                    Posología
                   </span>
                 </h3>
-                <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                  Horarios de toma de medicamentos, pautas de dieta blanda, cuidados generales y signos de alarma.
+                <p className="text-[9px] sm:text-xs text-slate-500 mt-0.5 leading-tight line-clamp-1 sm:line-clamp-2">
+                  Horarios de medicamentos, pautas de dieta y cuidados.
                 </p>
               </div>
 
-              <div className="pt-4 border-t border-slate-200/60 flex flex-col gap-2.5">
+              <div className="pt-1 sm:pt-2 border-t border-slate-200/60 flex flex-col gap-1 sm:gap-2">
                 {activePatientName && (
-                  <div className="bg-emerald-500/10 text-emerald-800 border-2 border-emerald-500/25 rounded-2xl py-2 px-3 text-center text-xs font-black flex items-center justify-center gap-1.5 animate-pulse">
-                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span className="truncate">Listo para: {activePatientName}</span>
+                  <div className="bg-emerald-500/10 text-emerald-800 border border-emerald-500/25 rounded-md py-0.5 px-1 text-center text-[8px] sm:text-[10px] font-black flex items-center justify-center gap-1">
+                    <Check className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
+                    <span className="truncate">{activePatientName}</span>
                   </div>
                 )}
                 
-                <div className="flex gap-2">
+                <div className="flex gap-1 sm:gap-1.5 w-full">
                   <button
                     type="button"
                     onClick={(e) => {
@@ -943,10 +1018,10 @@ export const WelcomeInicioModule: React.FC<WelcomeInicioModuleProps> = ({
                       if (onOpenFormatPreview) onOpenFormatPreview('indicaciones');
                       else onNavigate('indicaciones');
                     }}
-                    className="px-4 py-3 bg-cyan-50 hover:bg-cyan-100 text-cyan-800 font-black rounded-2xl text-xs flex items-center gap-1.5 transition-all cursor-pointer border-2 border-cyan-200 shadow-sm shrink-0 hover:scale-[1.02] active:scale-95"
-                    title="Ver vista previa de la hoja de indicaciones al paciente"
+                    className="px-1.5 sm:px-2.5 py-1 sm:py-2 bg-cyan-50 hover:bg-cyan-100 text-cyan-800 font-black rounded-lg text-[8px] min-[360px]:text-[9px] sm:text-xs flex items-center justify-center gap-0.5 transition-all cursor-pointer border border-cyan-200 shrink-0"
+                    title="Ver vista previa de la hoja de indicaciones"
                   >
-                    <Eye className="w-4 h-4 text-cyan-700" />
+                    <Eye className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 text-cyan-700 shrink-0" />
                     <span>DISEÑO</span>
                   </button>
 
@@ -956,174 +1031,166 @@ export const WelcomeInicioModule: React.FC<WelcomeInicioModuleProps> = ({
                       e.stopPropagation();
                       onNavigate('indicaciones');
                     }}
-                    className="flex-1 py-3.5 bg-gradient-to-r from-cyan-600 via-blue-600 to-cyan-700 hover:from-cyan-700 hover:to-blue-700 text-white font-black rounded-2xl text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-md shadow-cyan-600/20 border-2 border-cyan-500/40 hover:scale-[1.02] active:scale-95 cursor-pointer text-center"
+                    className="flex-1 py-1 sm:py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white font-black rounded-lg text-[8px] min-[360px]:text-[9px] sm:text-xs uppercase tracking-tight flex items-center justify-center gap-0.5 transition-all shadow-xs cursor-pointer text-center truncate"
                   >
-                    <span>{activePatientName ? 'Emitir Indicaciones' : 'Redactar Indicaciones'}</span>
-                    <ArrowRight className="w-4 h-4 text-white" />
+                    <span className="truncate">{activePatientName ? 'Emitir' : 'Redactar'}</span>
+                    <ArrowRight className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 text-white shrink-0" />
                   </button>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* 6. ESTUDIO DE DISEÑO Y PERSONALIZACIÓN (SOLO ADMINISTRADOR Y USUARIOS VIP) */}
+          {/* 7. ESTUDIO DE DISEÑO Y PERSONALIZACIÓN (SOLO ADMINISTRADOR Y USUARIOS VIP) */}
           {isAuthorizedForDesigner && (
             <div 
               onClick={() => onNavigate('diseno')}
-              className="bg-gradient-to-b from-amber-50/40 via-white to-white rounded-3xl border-2 border-amber-300/80 hover:border-amber-500 hover:shadow-2xl hover:shadow-amber-500/10 transition-all duration-300 cursor-pointer group flex flex-col justify-between overflow-hidden transform hover:-translate-y-1 shadow-md"
+              className="bg-gradient-to-b from-amber-50/40 via-white to-white rounded-xl sm:rounded-2xl border border-amber-300/80 hover:border-amber-500 hover:shadow-xl transition-all duration-300 cursor-pointer group flex flex-col justify-between overflow-hidden transform hover:-translate-y-0.5 shadow-xs"
             >
-              {/* STYLIZED MODERN HERO IMAGE BANNER */}
-              <div className="relative h-40 w-full bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 overflow-hidden flex items-center justify-center p-4">
-                <div className="absolute -top-10 -right-10 w-36 h-36 bg-amber-500/20 rounded-full blur-2xl group-hover:scale-125 transition-transform" />
-                <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-blue-500/20 rounded-full blur-xl" />
+              {/* STYLIZED MODERN HERO IMAGE BANNER (COMPACT FOR MOBILE) */}
+              <div className="relative h-14 min-[400px]:h-16 sm:h-28 w-full bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 overflow-hidden flex items-center justify-center p-1.5 sm:p-3">
+                <div className="absolute -top-6 -right-6 w-16 h-16 sm:w-28 sm:h-28 bg-amber-500/20 rounded-full blur-lg sm:blur-xl group-hover:scale-125 transition-transform" />
+                <div className="absolute -bottom-6 -left-6 w-16 h-16 sm:w-24 sm:h-24 bg-blue-500/20 rounded-full blur-md sm:blur-lg" />
 
-                {/* Stylized Vector Illustration: Design Palette + Signature + Seal */}
-                <div className="relative z-10 flex items-center justify-center gap-3 transform group-hover:scale-105 transition-all duration-300">
-                  {/* Branding Canvas Mockup */}
-                  <div className="w-24 h-32 bg-white/95 backdrop-blur-md rounded-xl shadow-2xl p-2.5 border border-white/60 flex flex-col justify-between transform rotate-2 group-hover:rotate-0 transition-transform">
-                    <div className="flex items-center justify-between border-b border-slate-200 pb-1">
-                      <span className="text-[9px] font-black tracking-tighter text-slate-900">DISEÑO</span>
-                      <Sparkles className="w-3 h-3 text-amber-500" />
+                <div className="relative z-10 flex items-center justify-center gap-1.5 sm:gap-2.5 transform group-hover:scale-105 transition-all duration-300">
+                  <div className="w-10 h-11 min-[400px]:w-12 min-[400px]:h-13 sm:w-18 sm:h-24 bg-white/95 backdrop-blur-md rounded-md sm:rounded-lg shadow-md p-1 sm:p-2 border border-white/60 flex flex-col justify-between transform rotate-2 group-hover:rotate-0 transition-transform">
+                    <div className="flex items-center justify-between border-b border-slate-200 pb-0.5">
+                      <span className="text-[5px] sm:text-[8px] font-black tracking-tighter text-slate-900">DISEÑO</span>
+                      <Sparkles className="w-2 h-2 text-amber-500" />
                     </div>
-                    <div className="space-y-1.5 my-1">
-                      <div className="flex items-center gap-1 justify-center">
-                        <div className="w-3 h-3 rounded-full bg-blue-600"></div>
-                        <div className="w-3 h-3 rounded-full bg-teal-600"></div>
-                        <div className="w-3 h-3 rounded-full bg-indigo-600"></div>
+                    <div className="space-y-0.5 my-0.2">
+                      <div className="flex items-center gap-0.5 justify-center">
+                        <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-blue-600"></div>
+                        <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-teal-600"></div>
                       </div>
-                      <div className="w-full h-1 bg-slate-200 rounded"></div>
-                      <div className="text-[8px] font-serif italic text-slate-700 text-center">Firma & Sello</div>
+                      <div className="text-[5px] sm:text-[7px] font-serif italic text-slate-700 text-center">Firma</div>
                     </div>
-                    <div className="pt-1 border-t border-slate-100 flex items-center justify-between">
-                      <span className="text-[8px] text-slate-500 font-bold">Personalizar</span>
-                      <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                    <div className="pt-0.5 border-t border-slate-100 flex items-center justify-between">
+                      <span className="text-[5px] sm:text-[7px] text-slate-500 font-bold">Personalizar</span>
+                      <Sparkles className="w-2 h-2 sm:w-2.5 sm:h-2.5 text-amber-500" />
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-2">
-                    <div className="px-3 py-1.5 bg-white/20 backdrop-blur-md border border-white/40 rounded-xl shadow-lg flex items-center gap-1.5 text-white">
-                      <Palette className="w-3.5 h-3.5 text-cyan-300" />
-                      <span className="text-[11px] font-bold">Estudio</span>
+                  <div className="flex flex-col gap-0.5 sm:gap-1.5">
+                    <div className="px-1 sm:px-2 py-0.5 bg-white/20 backdrop-blur-md border border-white/40 rounded sm:rounded-md shadow-xs flex items-center gap-0.5 text-white">
+                      <Palette className="w-2 sm:w-3 sm:h-3 text-cyan-300" />
+                      <span className="text-[6.5px] sm:text-[9px] font-bold hidden min-[360px]:inline">Estudio</span>
                     </div>
-                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30 transform -rotate-6 group-hover:rotate-0 transition-transform">
-                      <Sparkles className="w-5 h-5 text-amber-200" />
+                    <div className="w-4 h-4 sm:w-7 sm:h-7 rounded sm:rounded-lg bg-gradient-to-tr from-amber-500 to-indigo-600 flex items-center justify-center text-white shadow-xs transform -rotate-6 group-hover:rotate-0 transition-transform">
+                      <Sparkles className="w-2 sm:w-3.5 sm:h-3.5 text-amber-200" />
                     </div>
                   </div>
                 </div>
 
-                <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5">
-                  <span className="px-2.5 py-1 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-[10px] font-black uppercase tracking-wider rounded-lg shadow-sm border border-amber-300/40">
-                    👑 {config.isAdmin ? 'ADMINISTRADOR' : 'USUARIO VIP'}
-                  </span>
-                  <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 text-[9px] font-mono font-bold rounded-md border border-emerald-400/30">
-                    ✓ Activo
+                <div className="absolute top-1 left-1 sm:top-2 sm:left-2 z-20 flex items-center gap-1">
+                  <span className="px-1 sm:px-2 py-0.2 sm:py-0.5 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-[6.5px] sm:text-[8.5px] font-black uppercase tracking-wider rounded shadow-2xs">
+                    👑 VIP
                   </span>
                 </div>
               </div>
 
               {/* CARD BODY */}
-              <div className="p-5 sm:p-6 space-y-3 flex-1 flex flex-col justify-between">
+              <div className="p-2 sm:p-3.5 space-y-1 sm:space-y-2 flex-1 flex flex-col justify-between">
                 <div>
-                  <h3 className="font-black text-slate-900 text-lg group-hover:text-amber-600 transition-colors flex items-center justify-between">
-                    <span>Estudio de Diseño PRO</span>
-                    <span className="text-[10px] font-bold text-amber-900 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200 flex items-center gap-1">
-                      👑 Acceso VIP
+                  <h3 className="font-black text-slate-900 text-[11px] min-[360px]:text-xs sm:text-base group-hover:text-amber-600 transition-colors flex items-center justify-between gap-1 leading-tight">
+                    <span className="truncate">Estudio Diseño PRO</span>
+                    <span className="text-[6.5px] sm:text-[8.5px] font-bold text-amber-900 bg-amber-50 px-1 py-0.2 rounded border border-amber-200 flex items-center gap-0.5 shrink-0">
+                      👑 VIP
                     </span>
                   </h3>
-                  <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
-                    Personalice a su gusto total: <strong>letras, tipografías, colores, formatos de récipes, membretes, sellos y logos</strong>.
+                  <p className="text-[9px] sm:text-xs text-slate-500 mt-0.5 leading-tight line-clamp-1 sm:line-clamp-2">
+                    Membretes, tipografías, colores, sellos y logos.
                   </p>
                 </div>
 
-                <div className="pt-3.5 border-t border-slate-100 flex items-center justify-between gap-2">
+                <div className="pt-1 sm:pt-2 border-t border-slate-100 flex items-center justify-between gap-1">
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       onNavigate('diseno');
                     }}
-                    className="w-full py-2.5 bg-gradient-to-r from-amber-500 to-indigo-600 hover:from-amber-600 hover:to-indigo-700 text-white font-black rounded-xl text-xs flex items-center justify-center gap-2 transition-all shadow-sm hover:scale-[1.02] active:scale-95 cursor-pointer"
+                    className="w-full py-1 sm:py-2 bg-gradient-to-r from-amber-500 to-indigo-600 hover:from-amber-600 hover:to-indigo-700 text-white font-black rounded-lg text-[8px] min-[360px]:text-[9px] sm:text-xs flex items-center justify-center gap-0.5 transition-all shadow-xs cursor-pointer truncate"
                   >
-                    <Palette className="w-4 h-4 text-amber-200" />
-                    <span>Personalizar Formatos y Logotipos</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
+                    <Palette className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 text-amber-200 shrink-0" />
+                    <span className="truncate">Personalizar</span>
+                    <ArrowRight className="w-2.5 h-2.5 sm:w-3 sm:h-3 shrink-0" />
                   </button>
                 </div>
               </div>
             </div>
           )}
 
-          {/* 7. PAGOS, SUSCRIPCIÓN Y TASA BINANCE */}
+          {/* 8. PAGOS, SUSCRIPCIÓN Y TASA BINANCE */}
           <div 
             onClick={() => onNavigate('suscripcion')}
-            className="bg-white rounded-3xl border border-slate-200/90 hover:border-emerald-500/70 hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-300 cursor-pointer group flex flex-col justify-between overflow-hidden transform hover:-translate-y-1 shadow-md"
+            className="bg-white rounded-xl sm:rounded-3xl border border-slate-200/90 hover:border-emerald-500/70 hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-300 cursor-pointer group flex flex-col justify-between overflow-hidden transform hover:-translate-y-1 shadow-sm"
           >
             {/* STYLIZED MODERN HERO IMAGE BANNER */}
-            <div className="relative h-40 w-full bg-gradient-to-br from-emerald-600 via-teal-700 to-slate-900 overflow-hidden flex items-center justify-center p-4">
-              <div className="absolute -top-10 -right-10 w-36 h-36 bg-emerald-400/25 rounded-full blur-2xl group-hover:scale-125 transition-transform" />
-              <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-teal-500/20 rounded-full blur-xl" />
+            <div className="relative h-24 sm:h-36 w-full bg-gradient-to-br from-emerald-600 via-teal-700 to-slate-900 overflow-hidden flex items-center justify-center p-2 sm:p-4">
+              <div className="absolute -top-10 -right-10 w-24 h-24 sm:w-36 sm:h-36 bg-emerald-400/25 rounded-full blur-xl sm:blur-2xl group-hover:scale-125 transition-transform" />
+              <div className="absolute -bottom-8 -left-8 w-20 h-20 sm:w-32 sm:h-32 bg-teal-500/20 rounded-full blur-lg sm:blur-xl" />
 
               {/* Stylized Vector Illustration: Binance & Payment Badge */}
-              <div className="relative z-10 flex items-center justify-center gap-3 transform group-hover:scale-105 transition-all duration-300">
-                <div className="w-24 h-32 bg-white/95 backdrop-blur-md rounded-xl shadow-2xl p-2.5 border border-white/60 flex flex-col justify-between transform -rotate-2 group-hover:rotate-0 transition-transform">
-                  <div className="bg-emerald-600 text-white rounded-lg py-1 px-2 text-center">
-                    <span className="text-[9px] font-black uppercase tracking-wider block">PAGO MÓVIL</span>
+              <div className="relative z-10 flex items-center justify-center gap-1.5 sm:gap-3 transform group-hover:scale-105 transition-all duration-300">
+                <div className="w-14 h-20 sm:w-24 sm:h-32 bg-white/95 backdrop-blur-md rounded-lg sm:rounded-xl shadow-xl p-1.5 sm:p-2.5 border border-white/60 flex flex-col justify-between transform -rotate-2 group-hover:rotate-0 transition-transform">
+                  <div className="bg-emerald-600 text-white rounded-md sm:rounded-lg py-0.5 px-1 sm:px-2 text-center">
+                    <span className="text-[6px] sm:text-[9px] font-black uppercase tracking-wider block">PAGO MÓVIL</span>
                   </div>
-                  <div className="text-center my-1">
-                    <span className="text-[10px] font-bold text-slate-500">TASA EN VIVO</span>
-                    <span className="text-sm font-black text-emerald-800 leading-tight block">Binance P2P</span>
-                    <span className="text-[9px] font-black text-amber-600 bg-amber-50 px-1 py-0.5 rounded border border-amber-200 mt-1 inline-block">USDT / VES</span>
+                  <div className="text-center my-0.5">
+                    <span className="text-[7px] sm:text-[10px] font-bold text-slate-500">TASA EN VIVO</span>
+                    <span className="text-[10px] sm:text-sm font-black text-emerald-800 leading-tight block">Binance</span>
                   </div>
-                  <div className="pt-1 border-t border-slate-100 flex items-center justify-between">
-                    <span className="text-[8px] text-slate-500 font-semibold">Bs · USDT · Zinli</span>
-                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                  <div className="pt-0.5 border-t border-slate-100 flex items-center justify-between">
+                    <span className="text-[6px] sm:text-[8px] text-slate-500 font-semibold">Bs · USDT</span>
+                    <span className="w-1 h-1 sm:w-2 sm:h-2 rounded-full bg-emerald-500"></span>
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-2">
-                  <div className="px-3 py-1.5 bg-white/20 backdrop-blur-md border border-white/40 rounded-xl shadow-lg flex items-center gap-1.5 text-white">
-                    <CreditCard className="w-3.5 h-3.5 text-emerald-300" />
-                    <span className="text-[11px] font-bold">Cobros</span>
+                <div className="flex flex-col gap-1 sm:gap-2">
+                  <div className="px-1.5 sm:px-3 py-0.5 sm:py-1.5 bg-white/20 backdrop-blur-md border border-white/40 rounded-lg sm:rounded-xl shadow-md flex items-center gap-1 text-white">
+                    <CreditCard className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-emerald-300" />
+                    <span className="text-[8px] sm:text-[11px] font-bold hidden min-[360px]:inline">Cobros</span>
                   </div>
-                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-400 to-yellow-500 flex items-center justify-center text-slate-950 font-black shadow-lg shadow-amber-500/30 transform rotate-6 group-hover:rotate-12 transition-transform text-xs">
+                  <div className="w-6 h-6 sm:w-10 sm:h-10 rounded-lg sm:rounded-2xl bg-gradient-to-tr from-amber-400 to-yellow-500 flex items-center justify-center text-slate-950 font-black shadow-md shadow-amber-500/30 transform rotate-6 group-hover:rotate-12 transition-transform text-[10px] sm:text-xs">
                     ₿
                   </div>
                 </div>
               </div>
 
-              <div className="absolute top-3 left-3 z-20">
-                <span className="px-2.5 py-1 bg-slate-950/80 backdrop-blur-md text-emerald-300 text-[10px] font-black uppercase tracking-wider rounded-lg shadow-xs border border-emerald-500/30 flex items-center gap-1">
-                  <span>●</span> <span>Pagos & Suscripción</span>
+              <div className="absolute top-1.5 left-1.5 sm:top-3 sm:left-3 z-20">
+                <span className="px-1.5 sm:px-2.5 py-0.5 bg-slate-950/80 backdrop-blur-md text-emerald-300 text-[8px] sm:text-[10px] font-black uppercase tracking-wider rounded-md sm:rounded-lg border border-emerald-500/30">
+                  Pagos
                 </span>
               </div>
             </div>
 
             {/* CARD BODY */}
-            <div className="p-5 sm:p-6 space-y-3 flex-1 flex flex-col justify-between">
+            <div className="p-2.5 sm:p-5 space-y-2 sm:space-y-3 flex-1 flex flex-col justify-between">
               <div>
-                <h3 className="font-black text-slate-900 text-lg group-hover:text-emerald-600 transition-colors flex items-center justify-between">
-                  <span>Pagos y Tasa Binance</span>
-                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-                    Bs · USDT · Zinli
+                <h3 className="font-black text-slate-900 text-xs min-[400px]:text-sm sm:text-lg group-hover:text-emerald-600 transition-colors flex flex-col min-[380px]:flex-row min-[380px]:items-center justify-between gap-1 leading-tight">
+                  <span className="truncate">Pagos &amp; Tasa</span>
+                  <span className="text-[7.5px] sm:text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full border border-emerald-200 shrink-0 w-fit">
+                    Bs · USDT
                   </span>
                 </h3>
-                <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
-                  Consulte la <strong>Tasa Binance P2P del día</strong>, planes de membresía, datos de Pago Móvil en Bolívares y Binance Pay.
+                <p className="text-[10px] sm:text-xs text-slate-600 mt-1 sm:mt-1.5 leading-tight sm:leading-relaxed line-clamp-2 sm:line-clamp-none">
+                  Tasa Binance P2P del día, Pago Móvil en Bolívares y Binance Pay.
                 </p>
               </div>
 
-              <div className="pt-3.5 border-t border-slate-100 flex items-center justify-between gap-2">
+              <div className="pt-2 sm:pt-3 border-t border-slate-100 flex items-center justify-between gap-1.5">
                 <button
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
                     onNavigate('suscripcion');
                   }}
-                  className="w-full py-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-black rounded-xl text-xs flex items-center justify-center gap-2 transition-all shadow-sm hover:scale-[1.02] active:scale-95 cursor-pointer"
+                  className="w-full py-1.5 sm:py-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-black rounded-lg sm:rounded-xl text-[9px] min-[400px]:text-[10px] sm:text-xs flex items-center justify-center gap-1 transition-all shadow-xs hover:scale-[1.02] active:scale-95 cursor-pointer truncate"
                 >
-                  <CreditCard className="w-4 h-4 text-emerald-200" />
-                  <span>Ver Planes, Cuentas y Tasa Binance</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
+                  <CreditCard className="w-3 h-3 sm:w-4 sm:h-4 text-emerald-200 shrink-0" />
+                  <span className="truncate">Ver Planes &amp; Tasa</span>
+                  <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
                 </button>
               </div>
             </div>
@@ -1530,24 +1597,24 @@ export const WelcomeInicioModule: React.FC<WelcomeInicioModuleProps> = ({
         </div>
       )}
 
-      {/* 4. DEVELOPER STAMP & TECHNICAL SUPPORT CARD */}
-      <div className="bg-gradient-to-r from-slate-950 via-[#0a1529] to-slate-950 border border-cyan-500/30 rounded-3xl p-5 sm:p-6 text-white shadow-xl relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6">
+      {/* 4. DEVELOPER STAMP & TECHNICAL SUPPORT CARD (Responsive for Mobile & Desktop) */}
+      <div className="bg-gradient-to-r from-slate-950 via-[#0a1529] to-slate-950 border border-cyan-500/30 rounded-2xl sm:rounded-3xl p-4 sm:p-6 text-white shadow-xl relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-4 sm:gap-6 text-center sm:text-left">
         <div className="absolute top-0 right-0 w-64 h-32 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="flex items-center gap-4 sm:gap-5 flex-1 min-w-0">
+        <div className="flex flex-col sm:flex-row items-center gap-3.5 sm:gap-5 flex-1 min-w-0 w-full">
           <div className="p-1 rounded-2xl bg-slate-950 border border-cyan-500/40 shrink-0 shadow-md">
             <img 
               src={CARLOS_LEAL_DEVELOPER_LOGO_SVG} 
               alt="Carlos Leal Developer Logo" 
-              className="h-14 w-auto object-contain rounded-md"
+              className="h-12 sm:h-14 w-auto object-contain rounded-md"
             />
           </div>
 
-          <div className="space-y-1 min-w-0">
+          <div className="space-y-1 min-w-0 flex-1">
             <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-500/20 border border-cyan-400/30 text-cyan-300 text-[10px] font-black uppercase tracking-wider">
               <span>Ingeniería de Software & Aplicaciones Médicas</span>
             </div>
-            <h3 className="text-base sm:text-lg font-black text-white">
+            <h3 className="text-sm sm:text-base md:text-lg font-black text-white">
               Desarrollado y Respaldado por Carlos Leal · C.E. LEAL studio
             </h3>
             <p className="text-xs text-slate-300 leading-relaxed max-w-xl">
@@ -1556,11 +1623,11 @@ export const WelcomeInicioModule: React.FC<WelcomeInicioModuleProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center justify-center w-full md:w-auto shrink-0">
           <button
             type="button"
             onClick={() => onNavigate('suscripcion')}
-            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-xs shadow-md shadow-cyan-500/20 flex items-center gap-2 transition-all cursor-pointer hover:scale-105"
+            className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-xs shadow-md shadow-cyan-500/20 flex items-center justify-center gap-2 transition-all cursor-pointer hover:scale-105"
           >
             <Crown className="w-4 h-4" />
             <span>Gestionar Suscripción</span>

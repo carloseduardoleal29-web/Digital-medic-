@@ -3,7 +3,7 @@ import { DoctorConfig, RecipeItem } from '../types';
 import { DocumentHeader } from './DocumentHeader';
 import { DocumentFooter } from './DocumentFooter';
 import { getDocumentBorderStyle, getPaperTextureClass } from '../utils/documentStyles';
-import { exportAndSendWhatsAppBusiness } from '../utils/exportDocument';
+import { exportAndSendWhatsAppBusiness, exportElementAsImage } from '../utils/exportDocument';
 import { 
   Copy, 
   RefreshCw, 
@@ -21,7 +21,10 @@ import {
   Sparkles,
   Check,
   Grid2X2,
-  FileText
+  FileText,
+  Camera,
+  ZoomIn,
+  ZoomOut
 } from 'lucide-react';
 
 interface FourInOneRecipeViewProps {
@@ -80,13 +83,23 @@ export const FourInOneRecipeView: React.FC<FourInOneRecipeViewProps> = ({
   const [visibleCount, setVisibleCount] = useState<number>(4);
   const [showCutGuides, setShowCutGuides] = useState<boolean>(true);
 
+  // Zoom state with mobile auto-fit for 816px Letter sheet
+  const [zoom, setZoom] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const w = window.innerWidth;
+      if (w < 480) return Math.max(38, Math.min(50, Math.floor(((w - 24) / 816) * 100)));
+      if (w < 860) return Math.max(50, Math.min(85, Math.floor(((w - 32) / 816) * 100)));
+    }
+    return 100;
+  });
+
   const fallbackRecipe: RecipeItem = {
     id: 'rec-1',
     patientName: 'Carlos leal',
     patientAge: '35 años',
     patientCI: 'V-18.456.789',
     patientPhone: '',
-    date: '14/10/26',
+    date: new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date()),
     diagnosis: 'Consulta médica general',
     rp: '',
     indicationsNotes: '',
@@ -176,39 +189,36 @@ export const FourInOneRecipeView: React.FC<FourInOneRecipeViewProps> = ({
         {/* Derecha: Botones de Acción (WhatsApp Business, Imprimir, Vista Previa, Guardar) */}
         <div className="flex items-center gap-1.5 flex-wrap">
 
-          {/* Botón Envío por WhatsApp con Guía Paso a Paso */}
-          <button
-            type="button"
-            onClick={() => setIsWhatsAppModalOpen(true)}
-            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow-xs hover:scale-105 active:scale-95 transition-all cursor-pointer border border-emerald-500 animate-pulse hover:animate-none"
-            title="Enviar récipe por WhatsApp (Descarga PDF, abre WhatsApp y explica cómo adjuntarlo)"
-          >
-            <span className="text-sm">📱</span>
-            <span>Enviar por WhatsApp</span>
-          </button>
-
           {onDownloadPdf && (
             <button
               type="button"
               onClick={onDownloadPdf}
-              className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs flex items-center gap-1 transition-all cursor-pointer border border-blue-500 shadow-xs"
-              title="Descargar PDF en Hoja Carta (4 récipes idénticos)"
+              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow-xs transition-all cursor-pointer border border-blue-500"
+              title="Descargar PDF en Hoja Carta"
             >
               <Download className="w-3.5 h-3.5 text-white" />
               <span>Descargar PDF</span>
             </button>
           )}
 
-
+          <button
+            type="button"
+            onClick={() => setIsWhatsAppModalOpen(true)}
+            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow-xs transition-all cursor-pointer border border-emerald-500"
+            title="Enviar por WhatsApp"
+          >
+            <span className="text-sm">📱</span>
+            <span>WhatsApp</span>
+          </button>
 
           {onOpenEmailModal && (
             <button
               type="button"
               onClick={onOpenEmailModal}
-              className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs flex items-center gap-1 transition-all cursor-pointer border border-slate-300"
-              title="Enviar por correo electrónico"
+              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer border border-indigo-400/40"
+              title="Enviar por Correo Electrónico"
             >
-              <Mail className="w-3.5 h-3.5 text-slate-600" />
+              <Mail className="w-3.5 h-3.5 text-white" />
               <span>Correo</span>
             </button>
           )}
@@ -266,9 +276,9 @@ export const FourInOneRecipeView: React.FC<FourInOneRecipeViewProps> = ({
       {/* ========================================================= */}
       <div className="w-full max-w-[920px] bg-slate-900 text-white p-2.5 rounded-2xl mb-4 flex flex-wrap items-center justify-between gap-2.5 shadow-md border border-slate-800 no-print">
         
-        {/* Selector de Pestañas de Récipes (1, 2, 3, 4) */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs font-bold text-cyan-300 flex items-center gap-1 px-1">
+        {/* Selector de Pestañas de Récipes (1, 2, 3, 4) - Cintillo Scrollable */}
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth touch-pan-x w-full sm:w-auto py-1">
+          <span className="text-xs font-bold text-cyan-300 flex items-center gap-1 px-1 shrink-0">
             <Layers className="w-3.5 h-3.5 text-blue-400" />
             <span>Récipe Activo:</span>
           </span>
@@ -283,7 +293,7 @@ export const FourInOneRecipeView: React.FC<FourInOneRecipeViewProps> = ({
                 key={idx}
                 type="button"
                 onClick={() => onSelectActiveRecipe(idx)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
                   isActive
                     ? 'bg-blue-600 text-white shadow-md scale-105 ring-2 ring-blue-300'
                     : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700'
@@ -300,7 +310,7 @@ export const FourInOneRecipeView: React.FC<FourInOneRecipeViewProps> = ({
           {visibleCount > 1 && (
             <button
               onClick={onSyncPatientToAll}
-              className="px-2 py-1 text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg flex items-center gap-1 text-[11px] font-medium border border-slate-700"
+              className="px-2 py-1 text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg flex items-center gap-1 text-[11px] font-medium border border-slate-700 shrink-0 cursor-pointer"
               title="Copiar datos del paciente del Récipe 1 a los demás"
             >
               <RefreshCw className="w-3 h-3 text-cyan-400" />
@@ -359,7 +369,7 @@ export const FourInOneRecipeView: React.FC<FourInOneRecipeViewProps> = ({
                 : 'max-w-[800px] p-6 sm:p-8'
             } bg-white shadow-2xl rounded-2xl transition-all recipe-single-card print-container border border-slate-200/90 mb-8 ${textureClass} ${
               config.enforcePureBlackText ? 'enforce-pure-black' : ''
-            }`}
+            } preview-mode`}
             style={{
               backgroundColor: config.tonePapel || '#ffffff',
               border: borderStyle,
@@ -405,7 +415,7 @@ export const FourInOneRecipeView: React.FC<FourInOneRecipeViewProps> = ({
                     RÉCIPE MÉDICO #{activeRecipeIndex + 1}
                   </span>
                   <span className="text-[10px] sm:text-xs font-semibold text-slate-500">
-                    Fecha: <strong className="text-slate-800">{activeRecipe.date || '14/10/26'}</strong>
+                    Fecha: <strong className="text-slate-800">{activeRecipe.date || new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date())}</strong>
                   </span>
                 </div>
 
@@ -673,7 +683,7 @@ export const FourInOneRecipeView: React.FC<FourInOneRecipeViewProps> = ({
                   onChangeRecipeItem(activeRecipeIndex, { date: e.target.value });
                   onSyncPatientToAll();
                 }}
-                placeholder="14/10/26"
+                placeholder="DD/MM/AAAA"
                 className="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-900 focus:bg-white focus:ring-1 focus:ring-blue-500 outline-none"
               />
             </div>
@@ -744,16 +754,95 @@ export const FourInOneRecipeView: React.FC<FourInOneRecipeViewProps> = ({
         </div>
       )}
 
-      <div 
-        ref={printableSheetRef}
-        id="recipe-4en1-print-sheet"
-        className={`w-full flex justify-center print-container ${viewMode === 'grid' ? 'block mb-8' : 'block mb-8'}`}
-      >
-        {/* Contenedor principal con proporciones exactas de Hoja Carta (Letter: 8.5" x 11" / 816px x 1056px) */}
-        <div
-          className={`relative w-full max-w-[816px] h-[1056px] min-h-[1056px] max-h-[1056px] bg-white transition-all recipe-4en1-container shadow-2xl rounded-2xl border border-slate-200 ${textureClass} ${
-            config.enforcePureBlackText ? 'enforce-pure-black' : ''
-          }`}
+      {/* Mobile Zoom Toolbar for 4-in-1 Sheet */}
+      {viewMode === 'grid' && (
+        <div className="w-full max-w-[816px] flex items-center justify-between bg-slate-900 text-white px-3 py-2 rounded-xl text-xs mb-3 border border-slate-800 shadow-md no-print">
+          <span className="font-bold text-slate-300 flex items-center gap-1.5 text-[11px] sm:text-xs">
+            <span>📐</span>
+            <span className="hidden sm:inline">Escala Hoja Carta:</span>
+            <span className="font-mono text-cyan-400 font-bold">{zoom}%</span>
+          </span>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setZoom((z) => Math.max(30, z - 5))}
+              className="p-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg transition-colors border border-slate-700 cursor-pointer"
+              title="Alejar"
+            >
+              <ZoomOut className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setZoom(100)}
+              className="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-[10px] font-bold text-slate-300 rounded-lg transition-colors border border-slate-700 cursor-pointer"
+              title="Tamaño Real 100%"
+            >
+              100%
+            </button>
+            <button
+              type="button"
+              onClick={() => setZoom((z) => Math.min(130, z + 5))}
+              className="p-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg transition-colors border border-slate-700 cursor-pointer"
+              title="Acercar"
+            >
+              <ZoomIn className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof window !== 'undefined') {
+                  const w = window.innerWidth;
+                  const fit = Math.floor(((w - 24) / 816) * 100);
+                  setZoom(Math.min(100, Math.max(35, fit)));
+                }
+              }}
+              className="px-2 py-0.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-[10px] font-black transition-colors shadow-xs ml-1 cursor-pointer"
+              title="Ajustar a pantalla del teléfono"
+            >
+              📱 Fit Móvil
+            </button>
+          </div>
+        </div>
+      )}
+
+      {(() => {
+        const docW = 816;
+        const docH = 1056;
+        const scale = zoom / 100;
+        const scaledW = Math.round(docW * scale);
+        const scaledH = Math.round(docH * scale);
+
+        return (
+          <div className="w-full overflow-x-auto touch-pan-x pb-6 flex justify-center py-2" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <div
+              style={{
+                width: `${scaledW}px`,
+                height: `${scaledH}px`,
+                position: 'relative',
+                margin: '0 auto',
+                flexShrink: 0,
+              }}
+            >
+              <div 
+                ref={printableSheetRef}
+                id="recipe-4en1-print-sheet"
+                className={`print-container ${viewMode === 'grid' ? 'block' : 'block'} preview-mode`}
+                style={{
+                  width: `${docW}px`,
+                  height: `${docH}px`,
+                  transformOrigin: 'top left',
+                  transform: `scale(${scale})`,
+                  WebkitTransform: `scale(${scale})`,
+                  position: 'absolute',
+                  left: 0,
+                  top: 0,
+                }}
+              >
+                {/* Contenedor principal con proporciones exactas de Hoja Carta (Letter: 8.5" x 11" / 816px x 1056px) */}
+                <div
+                  className={`relative w-full max-w-[816px] h-[1056px] min-h-[1056px] max-h-[1056px] bg-white transition-all recipe-4en1-container shadow-2xl rounded-2xl border border-slate-200 ${textureClass} ${
+                    config.enforcePureBlackText ? 'enforce-pure-black' : ''
+                  } preview-mode`}
           style={{
             backgroundColor: config.tonePapel || '#ffffff',
             border: borderStyle,
@@ -858,7 +947,7 @@ export const FourInOneRecipeView: React.FC<FourInOneRecipeViewProps> = ({
                       </div>
                       <div className="text-right">
                         <span className="font-bold text-slate-700">Fecha: </span>
-                        <span className="text-slate-800">{rec?.date || '14/10/26'}</span>
+                        <span className="text-slate-800">{rec?.date || new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date())}</span>
                       </div>
                     </div>
                   </div>
@@ -896,6 +985,10 @@ export const FourInOneRecipeView: React.FC<FourInOneRecipeViewProps> = ({
           </div>
         </div>
       </div>
+    </div>
+  </div>
+);
+})()}
 
     </div>
   );

@@ -217,9 +217,19 @@ export const DocumentFooter: React.FC<DocumentFooterProps> = ({
     onUpdateConfigField?.('signaturePosY', 0);
   };
 
+  const formattedDoctorContact = [
+    config.phone ? `📞 ${config.phone}` : '',
+    config.email ? `✉️ ${config.email}` : '',
+    config.socialHandle ? `📱 ${config.socialHandle}` : '',
+    config.socialHandle2 ? `🌐 ${config.socialHandle2}` : '',
+    (config.clinicAddress || config.address) ? `📍 ${config.clinicAddress || config.address}` : '',
+  ].filter(Boolean).join(' · ');
+
   const currentNotes = notesText !== undefined 
     ? notesText 
-    : (config.footerNotesText || config.socialHandle || `${config.phone} · ${config.email}`);
+    : (config.footerNotesText && !config.footerNotesText.includes('undefined') && config.footerNotesText !== `${config.phone} · ${config.email}`
+        ? config.footerNotesText 
+        : (formattedDoctorContact || `${config.phone ? `Tel: ${config.phone}` : ''} ${config.email ? `| ${config.email}` : ''}`.trim() || 'Digital Médic - Documento Médico Oficial'));
 
   const hasCustomPositions = 
     (config.stampPosX && config.stampPosX !== 0) || 

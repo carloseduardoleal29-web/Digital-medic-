@@ -2,24 +2,73 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Doctor profile rules (persists doctor profiles, logos, colors, fonts, stamps)
+    // Global Catch-All Safety Net: Deny everything by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidEcosystem(data) {
+      return data.identifier is string 
+        && data.identifier.size() > 0 
+        && data.identifier.size() <= 256
+        && (data.updatedAt == null || data.updatedAt is number);
+    }
+
+    function isValidDoctorConfig(data) {
+      return data.id is string 
+        && data.id.size() > 0 
+        && data.id.size() <= 128;
+    }
+
+    function isValidDocumentRecord(data) {
+      return data.id is string 
+        && data.id.size() > 0 
+        && data.id.size() <= 128
+        && data.patientName is string;
+    }
+
+    // Match /ecosystems/{docKey}
+    match /ecosystems/{docKey} {
+      allow get, list: if true;
+      allow create, update: if isValidId(docKey) && isValidEcosystem(incoming());
+      allow delete: if isValidId(docKey);
+    }
+
+    // Match /doctors/{doctorId}
     match /doctors/{doctorId} {
-      allow read, write: if true;
+      allow get, list: if true;
+      allow create, update: if isValidId(doctorId) && isValidDoctorConfig(incoming());
+      allow delete: if isValidId(doctorId);
     }
 
-    // Ecosystem document rules (persists doctor recipes, design studio configurations, clinical documents)
-    match /ecosystems/{ecosystemId} {
-      allow read, write: if true;
+    // Match /settings/payment_config
+    match /settings/payment_config {
+      allow get: if true;
+      allow write: if true;
     }
 
-    // Saved medical prescriptions, reports, and records
-    match /documents/{documentId} {
-      allow read, write: if true;
-    }
-
-    // App and payment configuration
-    match /settings/{settingId} {
-      allow read, write: if true;
+    // Match /documents/{docId}
+    match /documents/{docId} {
+      allow get, list: if true;
+      allow create, update: if isValidId(docId) && isValidDocumentRecord(incoming());
+      allow delete: if isValidId(docId);
     }
   }
 }

@@ -4,8 +4,8 @@ import { DocumentHeader } from './DocumentHeader';
 import { DocumentFooter } from './DocumentFooter';
 import { WhatsAppShareModal } from './WhatsAppShareModal';
 import { getDocumentBorderStyle, getPaperTextureClass } from '../utils/documentStyles';
-import { exportAndSendWhatsAppBusiness, exportElementAsPDF, buildDocumentPdfFilename } from '../utils/exportDocument';
-import { CheckCircle2, MessageSquare, Printer, Download, Save, Trash2, Plus, ArrowLeft, ArrowRight, Scissors, Eye, Mail } from 'lucide-react';
+import { exportAndSendWhatsAppBusiness, exportElementAsPDF, buildDocumentPdfFilename, exportElementAsImage } from '../utils/exportDocument';
+import { CheckCircle2, MessageSquare, Printer, Download, Save, Trash2, Plus, ArrowLeft, ArrowRight, Scissors, Eye, Mail, Camera } from 'lucide-react';
 
 interface MasterRecipeViewProps {
   config: DoctorConfig;
@@ -126,7 +126,7 @@ export const MasterRecipeView: React.FC<MasterRecipeViewProps> = ({
             className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-xl text-xs flex items-center gap-1 shadow-sm transition-all cursor-pointer border border-blue-400/40"
             title="Descargar PDF"
           >
-            <span>📥 PDF</span>
+            <span>📥 Descargar PDF</span>
           </button>
 
           <button
@@ -151,7 +151,7 @@ export const MasterRecipeView: React.FC<MasterRecipeViewProps> = ({
             className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl text-xs flex items-center gap-1 shadow-sm transition-all cursor-pointer border border-emerald-400/40"
             title="Enviar por WhatsApp"
           >
-            <span>💬 WhatsApp</span>
+            <span>📱 WhatsApp</span>
           </button>
 
           {onOpenEmailModal && (
@@ -175,7 +175,7 @@ export const MasterRecipeView: React.FC<MasterRecipeViewProps> = ({
           data-testid="recibo-medico"
           className={`relative w-full max-w-[660px] min-h-[680px] bg-white shadow-xl p-6 sm:p-7 rounded-2xl transition-all print-container recipe-single-container flex flex-col justify-between ${textureClass} ${
             config.enforcePureBlackText ? 'enforce-pure-black' : ''
-          }`}
+          } preview-mode`}
           style={{
             backgroundColor: config.tonePapel || '#ffffff',
             border: borderStyle,
@@ -226,7 +226,7 @@ export const MasterRecipeView: React.FC<MasterRecipeViewProps> = ({
 
               {/* Patient Bar */}
               <div 
-                className="py-2 px-3 bg-slate-50/90 border border-slate-200/90 rounded-xl mb-3 space-y-2 shadow-2xs text-xs"
+                className="py-1.5 px-3 bg-slate-50/30 border border-slate-200/60 rounded-xl mb-3 space-y-1.5 text-xs"
                 style={{ fontSize: config.patientBarSize || '12px' }}
               >
                 {/* Line 1: Paciente y Cédula */}

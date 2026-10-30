@@ -71,6 +71,18 @@ export function getStoredDoctorSessionId(): string | null {
       return null;
     }
 
+    // En Computadora / PC: La sesión solo persiste en sessionStorage durante la pestaña actual
+    // para cumplir con la regla estricta: al abrir la app o reiniciar el navegador en PC,
+    // la sesión inicia CERRADA y requiere correo y contraseña.
+    if (isPcDevice()) {
+      const pcSession = sessionStorage.getItem(SESSION_STORAGE_KEY);
+      if (pcSession && pcSession !== 'guest' && pcSession.trim() !== '') {
+        return pcSession;
+      }
+      return null;
+    }
+
+    // En Teléfono Móvil / APK instalada: Puede persistir en localStorage a menos que cierre sesión
     const sessionStored = sessionStorage.getItem(SESSION_STORAGE_KEY);
     if (sessionStored && sessionStored !== 'guest' && sessionStored.trim() !== '') {
       return sessionStored;
@@ -81,11 +93,10 @@ export function getStoredDoctorSessionId(): string | null {
       return localStored;
     }
 
-    // Default to the master doctor profile so the user is immediately in their workspace
-    return DEFAULT_MASTER_SESSION_ID;
+    return null;
   } catch (e) {}
 
-  return DEFAULT_MASTER_SESSION_ID;
+  return null;
 }
 
 /**
